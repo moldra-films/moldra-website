@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useAdmin, Equipment } from "@/context/AdminContext";
 import { Cpu, MapPin, Check, RotateCcw, AlertTriangle, UserCheck } from "lucide-react";
+import R2UploadTest from "./R2UploadTest";
 
 export default function InventoryTab() {
   const { equipments, locations, updateEquipmentStatus } = useAdmin();
-  const [activeSubTab, setActiveSubTab] = useState<"equipamentos" | "locacoes">("equipamentos");
+  const [activeSubTab, setActiveSubTab] = useState<"equipamentos" | "locacoes" | "r2">("equipamentos");
   
   // Checkout drawer/state
   const [selectedEq, setSelectedEq] = useState<Equipment | null>(null);
@@ -53,6 +54,14 @@ export default function InventoryTab() {
             }`}
           >
             Locações
+          </button>
+          <button
+            onClick={() => setActiveSubTab("r2")}
+            className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+              activeSubTab === "r2" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            Mídias (R2)
           </button>
         </div>
       </div>
@@ -164,7 +173,7 @@ export default function InventoryTab() {
           ))}
         </div>
       )}
-
+      {activeSubTab === "r2" && <R2UploadTest />}
       {/* Checkout Selection Drawer Overlay */}
       {selectedEq && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
