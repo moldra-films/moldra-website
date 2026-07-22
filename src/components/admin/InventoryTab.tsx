@@ -2,16 +2,69 @@
 
 import { useState } from "react";
 import { useAdmin, Equipment } from "@/context/AdminContext";
-import { Cpu, MapPin, Check, RotateCcw, AlertTriangle, UserCheck } from "lucide-react";
+import { Cpu, MapPin, Check, RotateCcw, AlertTriangle, UserCheck, Plus, X } from "lucide-react";
 import R2UploadTest from "./R2UploadTest";
 
 export default function InventoryTab() {
-  const { equipments, locations, updateEquipmentStatus } = useAdmin();
+  const { equipments, locations, updateEquipmentStatus, addEquipment, addLocation } = useAdmin();
   const [activeSubTab, setActiveSubTab] = useState<"equipamentos" | "locacoes" | "r2">("equipamentos");
   
   // Checkout drawer/state
   const [selectedEq, setSelectedEq] = useState<Equipment | null>(null);
   const [assignedCrew, setAssignedCrew] = useState("Carlos Silva");
+
+  // New Equipment states
+  const [showAddEq, setShowAddEq] = useState(false);
+  const [newEq, setNewEq] = useState({
+    name: "",
+    category: "Câmeras" as Equipment["category"],
+    serialNumber: "",
+  });
+
+  // New Location states
+  const [showAddLoc, setShowAddLoc] = useState(false);
+  const [newLoc, setNewLoc] = useState({
+    name: "",
+    address: "",
+    rate: 0,
+    contact: "",
+  });
+
+  const handleCreateEquipment = (e: React.FormEvent) => {
+    e.preventDefault();
+    addEquipment({
+      name: newEq.name,
+      category: newEq.category,
+      serialNumber: newEq.serialNumber,
+      status: "Disponível",
+      lastMaintenance: new Date().toISOString().split("T")[0],
+      responsible: "Nenhum",
+    });
+    setNewEq({
+      name: "",
+      category: "Câmeras",
+      serialNumber: "",
+    });
+    setShowAddEq(false);
+  };
+
+  const handleCreateLocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    addLocation({
+      name: newLoc.name,
+      address: newLoc.address,
+      rate: Number(newLoc.rate),
+      status: "Disponível",
+      contact: newLoc.contact,
+    });
+    setNewLoc({
+      name: "",
+      address: "",
+      rate: 0,
+      contact: "",
+    });
+    setShowAddLoc(false);
+  };
 
   const handleMaintenanceToggle = (id: number, currentStatus: Equipment["status"]) => {
     const nextStatus: Equipment["status"] = currentStatus === "Em Manutenção" ? "Disponível" : "Em Manutenção";
@@ -38,31 +91,52 @@ export default function InventoryTab() {
           <p className="text-xs text-gray-500 font-sans mt-1">Controle de inventário técnico, empréstimos para diárias e catálogo de locações parceiras.</p>
         </div>
 
-        <div className="flex bg-dark-card border border-white/5 p-1 rounded-xl">
-          <button
-            onClick={() => setActiveSubTab("equipamentos")}
-            className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
-              activeSubTab === "equipamentos" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
-            }`}
-          >
-            Equipamentos
-          </button>
-          <button
-            onClick={() => setActiveSubTab("locacoes")}
-            className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
-              activeSubTab === "locacoes" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
-            }`}
-          >
-            Locações
-          </button>
-          <button
-            onClick={() => setActiveSubTab("r2")}
-            className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
-              activeSubTab === "r2" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
-            }`}
-          >
-            Mídias (R2)
-          </button>
+        <div className="flex items-center gap-3">
+          {activeSubTab === "equipamentos" && (
+            <button
+              onClick={() => setShowAddEq(true)}
+              className="px-4 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo Equipamento
+            </button>
+          )}
+          {activeSubTab === "locacoes" && (
+            <button
+              onClick={() => setShowAddLoc(true)}
+              className="px-4 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nova Locação
+            </button>
+          )}
+
+          <div className="flex bg-dark-card border border-white/5 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveSubTab("equipamentos")}
+              className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                activeSubTab === "equipamentos" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Equipamentos
+            </button>
+            <button
+              onClick={() => setActiveSubTab("locacoes")}
+              className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                activeSubTab === "locacoes" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Locações
+            </button>
+            <button
+              onClick={() => setActiveSubTab("r2")}
+              className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                activeSubTab === "r2" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Mídias (R2)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -210,6 +284,147 @@ export default function InventoryTab() {
                 className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Confirmar Saída
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Add Equipment Drawer */}
+      {showAddEq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Novo Equipamento</h3>
+              <button
+                onClick={() => setShowAddEq(false)}
+                className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateEquipment} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Nome do Equipamento</label>
+                <input
+                  type="text"
+                  required
+                  value={newEq.name}
+                  onChange={(e) => setNewEq({ ...newEq, name: e.target.value })}
+                  placeholder="Ex: Canon EOS R5 C"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Categoria</label>
+                <select
+                  value={newEq.category}
+                  onChange={(e) => setNewEq({ ...newEq, category: e.target.value as Equipment["category"] })}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="Câmeras">Câmeras</option>
+                  <option value="Lentes">Lentes</option>
+                  <option value="Drones">Drones</option>
+                  <option value="Gimbals">Gimbals</option>
+                  <option value="Iluminação">Iluminação</option>
+                  <option value="Áudio">Áudio</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Número de Série (S/N)</label>
+                <input
+                  type="text"
+                  required
+                  value={newEq.serialNumber}
+                  onChange={(e) => setNewEq({ ...newEq, serialNumber: e.target.value })}
+                  placeholder="Ex: CA-R5C-9011"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Cadastrar Equipamento
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Location Drawer */}
+      {showAddLoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Cadastrar Nova Locação</h3>
+              <button
+                onClick={() => setShowAddLoc(false)}
+                className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateLocation} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Nome da Locação</label>
+                <input
+                  type="text"
+                  required
+                  value={newLoc.name}
+                  onChange={(e) => setNewLoc({ ...newLoc, name: e.target.value })}
+                  placeholder="Ex: Estúdio Industrial Galpão"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Endereço Completo</label>
+                <input
+                  type="text"
+                  required
+                  value={newLoc.address}
+                  onChange={(e) => setNewLoc({ ...newLoc, address: e.target.value })}
+                  placeholder="Ex: Av. Europa, 1200 - São Paulo, SP"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Taxa Diária (R$)</label>
+                  <input
+                    type="number"
+                    required
+                    value={newLoc.rate}
+                    onChange={(e) => setNewLoc({ ...newLoc, rate: Number(e.target.value) })}
+                    placeholder="Ex: 1500"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Contato Locador</label>
+                  <input
+                    type="text"
+                    required
+                    value={newLoc.contact}
+                    onChange={(e) => setNewLoc({ ...newLoc, contact: e.target.value })}
+                    placeholder="Ex: João (11) 98888-7777"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Cadastrar Locação
               </button>
             </form>
           </div>

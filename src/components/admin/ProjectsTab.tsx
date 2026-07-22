@@ -5,13 +5,57 @@ import { useAdmin, Project } from "@/context/AdminContext";
 import { Film, Calendar, MapPin, AlignLeft, CheckSquare, Users, Edit3, X, Play, Sliders, ChevronRight } from "lucide-react";
 
 export default function ProjectsTab() {
-  const { projects, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
+  const { projects, clients, addProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "calendario" | "timeline">("lista");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   
   // Drawer Editing states
   const [newShotItem, setNewShotItem] = useState("");
   const [newCheckItem, setNewCheckItem] = useState("");
+
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [newProj, setNewProj] = useState({
+    name: "",
+    clientName: "",
+    serviceType: "Vídeo Institucional",
+    dateShoot: "",
+    dateDelivery: "",
+    budget: 0,
+    location: "",
+    references: "",
+    videoUrl: "",
+  });
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    addProject({
+      name: newProj.name,
+      clientName: newProj.clientName || (clients[0]?.company || "Geral"),
+      serviceType: newProj.serviceType,
+      dateShoot: newProj.dateShoot || new Date().toISOString().split("T")[0],
+      dateDelivery: newProj.dateDelivery || new Date().toISOString().split("T")[0],
+      budget: Number(newProj.budget),
+      status: "Briefing",
+      shotList: [],
+      checklist: [],
+      crew: ["Natália Camurça (Diretora Criativa)"],
+      location: newProj.location || "Locação pendente",
+      references: newProj.references,
+      videoUrl: newProj.videoUrl || "https://player.vimeo.com/external/340322137.sd.mp4?s=d0cc8a79b19e917d21ca520f9119420077c98889&profile_id=139&oauth2_token_id=57447761",
+    });
+    setNewProj({
+      name: "",
+      clientName: "",
+      serviceType: "Vídeo Institucional",
+      dateShoot: "",
+      dateDelivery: "",
+      budget: 0,
+      location: "",
+      references: "",
+      videoUrl: "",
+    });
+    setShowAddProject(false);
+  };
 
   const handleStatusTransition = (projId: number, status: Project["status"]) => {
     updateProjectStatus(projId, status);
@@ -75,26 +119,35 @@ export default function ProjectsTab() {
           <p className="text-xs text-gray-500 font-sans mt-1">Gerencie diárias de gravações, pautas, shotlists e o andamento das produções.</p>
         </div>
 
-        {/* View Switchers */}
-        <div className="flex bg-dark-card border border-white/5 p-1 rounded-xl">
-          {([
-            { id: "lista", label: "Lista" },
-            { id: "kanban", label: "Kanban" },
-            { id: "calendario", label: "Calendário" },
-            { id: "timeline", label: "Timeline" },
-          ] as const).map((view) => (
-            <button
-              key={view.id}
-              onClick={() => setViewMode(view.id)}
-              className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
-                viewMode === view.id
-                  ? "bg-primary text-black"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              {view.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAddProject(true)}
+            className="px-4 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            Novo Projeto
+          </button>
+
+          {/* View Switchers */}
+          <div className="flex bg-dark-card border border-white/5 p-1 rounded-xl">
+            {([
+              { id: "lista", label: "Lista" },
+              { id: "kanban", label: "Kanban" },
+              { id: "calendario", label: "Calendário" },
+              { id: "timeline", label: "Timeline" },
+            ] as const).map((view) => (
+              <button
+                key={view.id}
+                onClick={() => setViewMode(view.id)}
+                className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                  viewMode === view.id
+                    ? "bg-primary text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {view.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -411,6 +464,144 @@ export default function ProjectsTab() {
             </div>
           </div>
         </>
+      )}
+      {/* Add Project Overlay Drawer */}
+      {showAddProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Cadastrar Novo Projeto</h3>
+              <button
+                onClick={() => setShowAddProject(false)}
+                className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer font-bold"
+              >
+                X
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProject} className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Nome do Projeto</label>
+                <input
+                  type="text"
+                  required
+                  value={newProj.name}
+                  onChange={(e) => setNewProj({ ...newProj, name: e.target.value })}
+                  placeholder="Ex: Campanha de Outono 2026"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Cliente (Empresa)</label>
+                <select
+                  value={newProj.clientName}
+                  onChange={(e) => setNewProj({ ...newProj, clientName: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="">Selecione um cliente...</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.company}>
+                      {c.company} ({c.name})
+                    </option>
+                  ))}
+                  {clients.length === 0 && <option value="Geral">Sem Clientes Cadastrados (Usar Geral)</option>}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Tipo de Serviço</label>
+                <select
+                  value={newProj.serviceType}
+                  onChange={(e) => setNewProj({ ...newProj, serviceType: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="Vídeo Institucional">Vídeo Institucional</option>
+                  <option value="Comercial">Comercial</option>
+                  <option value="Cobertura de Eventos">Cobertura de Eventos</option>
+                  <option value="Redes Sociais">Redes Sociais</option>
+                  <option value="Fotografia Profissional">Fotografia Profissional</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Data de Gravação</label>
+                  <input
+                    type="date"
+                    required
+                    value={newProj.dateShoot}
+                    onChange={(e) => setNewProj({ ...newProj, dateShoot: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Data de Entrega</label>
+                  <input
+                    type="date"
+                    required
+                    value={newProj.dateDelivery}
+                    onChange={(e) => setNewProj({ ...newProj, dateDelivery: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Orçamento (R$)</label>
+                  <input
+                    type="number"
+                    required
+                    value={newProj.budget}
+                    onChange={(e) => setNewProj({ ...newProj, budget: Number(e.target.value) })}
+                    placeholder="Ex: 15000"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Locação</label>
+                  <input
+                    type="text"
+                    value={newProj.location}
+                    onChange={(e) => setNewProj({ ...newProj, location: e.target.value })}
+                    placeholder="Ex: Estúdio Retro, SP"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">URL de Vídeo (Cloudflare R2/Vimeo)</label>
+                <input
+                  type="text"
+                  value={newProj.videoUrl}
+                  onChange={(e) => setNewProj({ ...newProj, videoUrl: e.target.value })}
+                  placeholder="Ex: https://pub-id.r2.dev/assets/video.mp4"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Referências / Detalhes</label>
+                <textarea
+                  value={newProj.references}
+                  onChange={(e) => setNewProj({ ...newProj, references: e.target.value })}
+                  placeholder="Estilo comercial dinâmico, cortes rápidos..."
+                  rows={3}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Criar Projeto
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

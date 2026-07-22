@@ -5,7 +5,7 @@ import { useAdmin, Lead } from "@/context/AdminContext";
 import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall } from "lucide-react";
 
 export default function CRMTab() {
-  const { leads, clients, addLead, updateLeadStage, convertLeadToClient } = useAdmin();
+  const { leads, clients, addLead, addClient, updateLeadStage, convertLeadToClient } = useAdmin();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddLead, setShowAddLead] = useState(false);
 
@@ -42,6 +42,40 @@ export default function CRMTab() {
       details: "",
     });
     setShowAddLead(false);
+  };
+
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClient, setNewClient] = useState({
+    name: "",
+    company: "",
+    cnpj: "",
+    email: "",
+    whatsapp: "",
+    address: "",
+    responsible: "Mikelly Maduro",
+  });
+
+  const handleCreateClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    addClient({
+      name: newClient.name,
+      company: newClient.company,
+      cnpj: newClient.cnpj || "00.000.000/0001-00",
+      email: newClient.email,
+      whatsapp: newClient.whatsapp,
+      address: newClient.address || "Endereço comercial pendente",
+      responsible: newClient.responsible,
+    });
+    setNewClient({
+      name: "",
+      company: "",
+      cnpj: "",
+      email: "",
+      whatsapp: "",
+      address: "",
+      responsible: "Mikelly Maduro",
+    });
+    setShowAddClient(false);
   };
 
   const handleStageChange = (leadId: number, currentStage: Lead["stage"], direction: "next" | "prev") => {
@@ -280,15 +314,24 @@ export default function CRMTab() {
             <p className="text-xs text-gray-500 font-sans mt-1">Lista completa de marcas que já possuem projetos conosco.</p>
           </div>
 
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Filtrar clientes por nome..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 bg-dark-card border border-white/5 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary/40 font-sans"
-            />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowAddClient(true)}
+              className="px-4 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo Cliente
+            </button>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Filtrar clientes por nome..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-64 bg-dark-card border border-white/5 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary/40 font-sans"
+              />
+            </div>
           </div>
         </div>
 
@@ -340,6 +383,115 @@ export default function CRMTab() {
           </div>
         </div>
       </div>
+
+      {/* Add Client Overlay Drawer */}
+      {showAddClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Cadastrar Novo Cliente</h3>
+              <button
+                onClick={() => setShowAddClient(false)}
+                className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateClient} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Empresa / Marca</label>
+                <input
+                  type="text"
+                  required
+                  value={newClient.company}
+                  onChange={(e) => setNewClient({ ...newClient, company: e.target.value })}
+                  placeholder="Ex: Innova Corp"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Nome do Contato</label>
+                <input
+                  type="text"
+                  required
+                  value={newClient.name}
+                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                  placeholder="Ex: Clara Guedes"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">CNPJ</label>
+                  <input
+                    type="text"
+                    value={newClient.cnpj}
+                    onChange={(e) => setNewClient({ ...newClient, cnpj: e.target.value })}
+                    placeholder="Ex: 12.345.678/0001-99"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">WhatsApp / Celular</label>
+                  <input
+                    type="text"
+                    required
+                    value={newClient.whatsapp}
+                    onChange={(e) => setNewClient({ ...newClient, whatsapp: e.target.value })}
+                    placeholder="Ex: (11) 99999-8888"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">E-mail Comercial</label>
+                <input
+                  type="email"
+                  required
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                  placeholder="Ex: contato@empresa.com"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Endereço</label>
+                <input
+                  type="text"
+                  value={newClient.address}
+                  onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
+                  placeholder="Ex: Av. Paulista, 1000 - São Paulo, SP"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Responsável Atendimento</label>
+                <select
+                  value={newClient.responsible}
+                  onChange={(e) => setNewClient({ ...newClient, responsible: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="Mikelly Maduro">Mikelly Maduro</option>
+                  <option value="Natália Camurça">Natália Camurça</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Cadastrar Cliente
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
