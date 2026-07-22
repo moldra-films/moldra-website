@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Film, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 interface NavbarProps {
   onScrollToSection: (id: string) => void;
@@ -47,10 +48,13 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             className="flex items-center gap-2 cursor-pointer group"
           >
-            <Film className="w-6 h-6 text-primary group-hover:rotate-12 transition-transform duration-300" />
-            <span className="text-lg font-bold tracking-[0.3em] uppercase text-white font-display">
-              MOLDRA <span className="text-primary font-light">FILMS</span>
-            </span>
+            <Image
+              src="/logo.png"
+              alt="Moldra Films Logo"
+              width={160}
+              height={45}
+              className="h-10 w-auto object-contain"
+            />
           </div>
 
           {/* Desktop Nav Links */}

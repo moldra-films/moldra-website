@@ -1,6 +1,7 @@
 "use client";
 
 import { Film, ArrowUp } from "lucide-react";
+import Image from "next/image";
 
 const InstagramIcon = () => (
   <svg
@@ -65,10 +66,13 @@ export default function Footer({ onScrollToSection }: FooterProps) {
           {/* Logo & Info */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-6 cursor-pointer" onClick={handleScrollTop}>
-              <Film className="w-6 h-6 text-primary" />
-              <span className="text-lg font-bold tracking-[0.3em] uppercase text-white font-display">
-                MOLDRA <span className="text-primary font-light">FILMS</span>
-              </span>
+              <Image
+                src="/logo.png"
+                alt="Moldra Films Logo"
+                width={150}
+                height={40}
+                className="h-8 w-auto object-contain"
+              />
             </div>
             <p className="text-sm text-gray-400 font-sans font-light leading-relaxed max-w-sm">
               Somos uma produtora audiovisual focada em criar conteúdos cinematográficos impactantes que fortalecem e consolidam marcas no mercado.

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Play, ArrowRight, Film } from "lucide-react";
+import Image from "next/image";
 
 interface HeroProps {
   onScrollToPortfolio: () => void;
@@ -38,12 +39,15 @@ export default function Hero({ onScrollToPortfolio, onScrollToContact }: HeroPro
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.2, ease: "easeOut" }}
-          className="flex items-center gap-3 mb-8"
+          className="flex justify-center mb-8"
         >
-          <Film className="w-8 h-8 text-primary animate-pulse" />
-          <span className="text-xl font-bold tracking-[0.4em] uppercase text-white font-display">
-            MOLDRA <span className="text-primary font-light">FILMS</span>
-          </span>
+          <Image
+            src="/logo.png"
+            alt="Moldra Films Logo"
+            width={240}
+            height={65}
+            className="h-16 w-auto object-contain"
+          />
         </motion.div>
 
         {/* Main Title */}

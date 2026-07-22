@@ -12,6 +12,7 @@ import {
   Settings,
   ShieldCheck
 } from "lucide-react";
+import Image from "next/image";
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -36,16 +37,17 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
       {/* Upper Area: Logo & Menu */}
       <div className="flex flex-col">
         {/* Brand Logo header */}
-        <div className="px-6 py-6 border-b border-white/5 flex items-center gap-2.5">
-          <Film className="w-5 h-5 text-primary" />
-          <div>
-            <span className="text-sm font-bold tracking-[0.2em] uppercase text-white font-display">
-              MOLDRA <span className="text-primary font-light">PRO</span>
-            </span>
-            <span className="block text-[9px] uppercase tracking-widest text-gray-500 font-sans">
-              ERP + CRM Panel
-            </span>
-          </div>
+        <div className="px-6 py-6 border-b border-white/5 flex flex-col gap-2">
+          <Image
+            src="/logo.png"
+            alt="Moldra Films Logo"
+            width={140}
+            height={35}
+            className="h-8 w-auto object-contain self-start"
+          />
+          <span className="block text-[9px] uppercase tracking-widest text-gray-500 font-sans pl-1">
+            ERP + CRM Panel
+          </span>
         </div>
 
         {/* Menu Navigation */}
