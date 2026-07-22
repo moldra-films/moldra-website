@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
-import { KeyRound, Mail, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
+import { KeyRound, Mail, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,18 +51,7 @@ export default function LoginPage() {
     }
   };
 
-  // Safe developer demo route bypass
-  const handleSimulateLogin = (role: "admin" | "client") => {
-    // Set cookie for Next.js Middleware check
-    document.cookie = "moldra-session=active; path=/; max-age=86400";
-    document.cookie = `moldra-role=${role}; path=/; max-age=86400`;
 
-    if (role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push("/client");
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#060606] flex items-center justify-center p-6 relative overflow-hidden font-sans">
@@ -137,26 +126,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo Bypass / Simulation Helper */}
-        <div className="pt-6 border-t border-white/5 space-y-3">
-          <span className="block text-[9px] uppercase tracking-widest text-center text-gray-600 font-bold">
-            Simulador de Demonstração
-          </span>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleSimulateLogin("admin")}
-              className="py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] text-gray-300 font-bold rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1"
-            >
-              Simular Admin <ArrowRight className="w-3 h-3 text-primary" />
-            </button>
-            <button
-              onClick={() => handleSimulateLogin("client")}
-              className="py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] text-gray-300 font-bold rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-1"
-            >
-              Simular Cliente <ArrowRight className="w-3 h-3 text-primary" />
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
