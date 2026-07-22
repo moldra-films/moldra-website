@@ -294,6 +294,7 @@ export default function CRMTab() {
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="Vídeo Institucional">Vídeo Institucional</option>
+                    <option value="Produção Audiovisual">Produção Audiovisual</option>
                     <option value="Campanha Comercial">Campanha Comercial</option>
                     <option value="Cobertura de Evento">Cobertura de Evento</option>
                     <option value="Redes Sociais">Redes Sociais</option>

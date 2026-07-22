@@ -253,6 +253,7 @@ export default function Contact() {
                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 cursor-pointer font-sans font-light"
                       >
                         <option value="Vídeo Institucional" className="bg-dark-card text-white">Vídeo Institucional</option>
+                        <option value="Produção Audiovisual" className="bg-dark-card text-white">Produção Audiovisual</option>
                         <option value="Campanha Comercial" className="bg-dark-card text-white">Campanha Comercial</option>
                         <option value="Cobertura de Evento" className="bg-dark-card text-white">Cobertura de Evento</option>
                         <option value="Conteúdo Redes Sociais" className="bg-dark-card text-white">Conteúdo para Redes Sociais</option>
