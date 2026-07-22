@@ -183,6 +183,94 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load state from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedLeads = localStorage.getItem("moldra_leads");
+        const storedClients = localStorage.getItem("moldra_clients");
+        const storedProjects = localStorage.getItem("moldra_projects");
+        const storedTasks = localStorage.getItem("moldra_tasks");
+        const storedTransactions = localStorage.getItem("moldra_transactions");
+        const storedEquipments = localStorage.getItem("moldra_equipments");
+        const storedLocations = localStorage.getItem("moldra_locations");
+        const storedContracts = localStorage.getItem("moldra_contracts");
+        const storedNotifications = localStorage.getItem("moldra_notifications");
+
+        if (storedLeads) setLeads(JSON.parse(storedLeads));
+        if (storedClients) setClients(JSON.parse(storedClients));
+        if (storedProjects) setProjects(JSON.parse(storedProjects));
+        if (storedTasks) setTasks(JSON.parse(storedTasks));
+        if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
+        if (storedEquipments) setEquipments(JSON.parse(storedEquipments));
+        if (storedLocations) setLocations(JSON.parse(storedLocations));
+        if (storedContracts) setContracts(JSON.parse(storedContracts));
+        if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
+      } catch (e) {
+        console.error("Erro ao carregar dados do localStorage:", e);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+  }, []);
+
+  // Save to localStorage when state changes and loaded is complete
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_leads", JSON.stringify(leads));
+    }
+  }, [leads, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_clients", JSON.stringify(clients));
+    }
+  }, [clients, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_projects", JSON.stringify(projects));
+    }
+  }, [projects, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_tasks", JSON.stringify(tasks));
+    }
+  }, [tasks, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_transactions", JSON.stringify(transactions));
+    }
+  }, [transactions, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_equipments", JSON.stringify(equipments));
+    }
+  }, [equipments, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_locations", JSON.stringify(locations));
+    }
+  }, [locations, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_contracts", JSON.stringify(contracts));
+    }
+  }, [contracts, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_notifications", JSON.stringify(notifications));
+    }
+  }, [notifications, isLoaded]);
+
   // Lead actions
   const addLead = (lead: Omit<Lead, "id">) => {
     setLeads((prev) => [...prev, { ...lead, id: prev.length + 1 }]);
