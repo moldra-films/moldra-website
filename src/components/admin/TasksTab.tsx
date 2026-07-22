@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useAdmin, Task } from "@/context/AdminContext";
-import { Plus, CheckSquare, Clock, Tag, X, User } from "lucide-react";
+import { Plus, CheckSquare, Clock, Tag, X, User, Edit, Trash2 } from "lucide-react";
 
 export default function TasksTab() {
-  const { tasks, projects, addTask, updateTaskStatus, toggleTaskItem } = useAdmin();
+  const { tasks, projects, addTask, updateTaskStatus, updateTask, deleteTask, toggleTaskItem } = useAdmin();
   const [showAddTask, setShowAddTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // New Task Form State
   const [newTask, setNewTask] = useState({
@@ -20,16 +21,54 @@ export default function TasksTab() {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    addTask({
-      title: newTask.title,
-      project: newTask.project,
-      assignedTo: newTask.assignedTo,
-      dueDate: newTask.dueDate || new Date().toISOString().split("T")[0],
-      priority: newTask.priority,
-      status: "A Fazer",
-      checklist: [],
-      tags: newTask.tags.split(",").map((t) => t.trim()),
+    if (editingTask) {
+      updateTask(editingTask.id, {
+        title: newTask.title,
+        project: newTask.project,
+        assignedTo: newTask.assignedTo,
+        dueDate: newTask.dueDate || new Date().toISOString().split("T")[0],
+        priority: newTask.priority,
+        tags: newTask.tags.split(",").map((t) => t.trim()),
+      });
+      setEditingTask(null);
+    } else {
+      addTask({
+        title: newTask.title,
+        project: newTask.project,
+        assignedTo: newTask.assignedTo,
+        dueDate: newTask.dueDate || new Date().toISOString().split("T")[0],
+        priority: newTask.priority,
+        status: "A Fazer",
+        checklist: [],
+        tags: newTask.tags.split(",").map((t) => t.trim()),
+      });
+    }
+    setNewTask({
+      title: "",
+      project: projects[0]?.name || "Outro",
+      assignedTo: "Natália Camurça",
+      dueDate: "",
+      priority: "Média",
+      tags: "Edição",
     });
+    setShowAddTask(false);
+  };
+
+  const handleEditTaskClick = (task: Task) => {
+    setEditingTask(task);
+    setNewTask({
+      title: task.title,
+      project: task.project,
+      assignedTo: task.assignedTo,
+      dueDate: task.dueDate,
+      priority: task.priority,
+      tags: task.tags.join(", "),
+    });
+    setShowAddTask(true);
+  };
+
+  const handleCloseTaskDrawer = () => {
+    setEditingTask(null);
     setNewTask({
       title: "",
       project: projects[0]?.name || "Outro",
@@ -81,8 +120,8 @@ export default function TasksTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Adicionar Nova Tarefa</h3>
-              <button onClick={() => setShowAddTask(false)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">{editingTask ? "Editar Tarefa" : "Adicionar Nova Tarefa"}</h3>
+              <button onClick={handleCloseTaskDrawer} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -169,7 +208,7 @@ export default function TasksTab() {
                 type="submit"
                 className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
-                Criar Tarefa
+                {editingTask ? "Salvar Alterações" : "Criar Tarefa"}
               </button>
             </form>
           </div>
@@ -193,23 +232,43 @@ export default function TasksTab() {
                 {colTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="p-4 rounded-xl bg-black/50 border border-white/5 hover:border-white/10 transition-all space-y-4"
+                    className="p-4 rounded-xl bg-black/50 border border-white/5 hover:border-white/10 transition-all space-y-4 group relative"
                   >
                     <div>
                       {/* Priority Tag & Badges */}
                       <div className="flex justify-between items-center">
-                        <span
-                          className={`text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded ${
-                            task.priority === "Alta"
-                              ? "bg-red-500/15 text-red-400"
-                              : task.priority === "Média"
-                              ? "bg-yellow-500/15 text-yellow-400"
-                              : "bg-gray-500/15 text-gray-400"
-                          }`}
-                        >
-                          {task.priority}
-                        </span>
-                        <span className="text-[9px] text-gray-500 font-sans">{task.project.split(" ")[0]}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded ${
+                              task.priority === "Alta"
+                                ? "bg-red-500/15 text-red-400"
+                                : task.priority === "Média"
+                                ? "bg-yellow-500/15 text-yellow-400"
+                                : "bg-gray-500/15 text-gray-400"
+                            }`}
+                          >
+                            {task.priority}
+                          </span>
+                          <span className="text-[9px] text-gray-500 font-sans">{task.project.split(" ")[0]}</span>
+                        </div>
+
+                        {/* Edit & Delete Actions */}
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEditTaskClick(task)}
+                            className="p-0.5 hover:bg-white/15 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
+                            title="Editar Tarefa"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="p-0.5 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
+                            title="Excluir Tarefa"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       <h4 className="text-xs font-bold text-white mt-2 leading-snug font-display">{task.title}</h4>

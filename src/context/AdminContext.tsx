@@ -133,10 +133,14 @@ interface AdminContextProps {
   // Lead actions
   addLead: (lead: Omit<Lead, "id">) => void;
   updateLeadStage: (id: number, stage: Lead["stage"]) => void;
+  updateLead: (id: number, lead: Partial<Lead>) => void;
+  deleteLead: (id: number) => void;
   convertLeadToClient: (id: number) => void;
   
   // Client actions
   addClient: (client: Omit<Client, "id" | "projectsCount" | "totalValue">) => void;
+  updateClient: (id: number, client: Partial<Client>) => void;
+  deleteClient: (id: number) => void;
   
   // Project actions
   addProject: (project: Omit<Project, "id" | "comments" | "version">) => void;
@@ -148,6 +152,8 @@ interface AdminContextProps {
   // Task actions
   addTask: (task: Omit<Task, "id">) => void;
   updateTaskStatus: (id: number, status: Task["status"]) => void;
+  updateTask: (id: number, task: Partial<Task>) => void;
+  deleteTask: (id: number) => void;
   toggleTaskItem: (taskId: number, itemIndex: number) => void;
   
   // Finance actions
@@ -187,6 +193,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLeads((prev) =>
       prev.map((lead) => (lead.id === id ? { ...lead, stage } : lead))
     );
+  };
+
+  const updateLead = (id: number, updatedFields: Partial<Lead>) => {
+    setLeads((prev) =>
+      prev.map((lead) => (lead.id === id ? { ...lead, ...updatedFields } : lead))
+    );
+  };
+
+  const deleteLead = (id: number) => {
+    setLeads((prev) => prev.filter((lead) => lead.id !== id));
   };
 
   const convertLeadToClient = (id: number) => {
@@ -247,9 +263,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Lead convertido em Cliente!", `O lead de ${lead.name} (${lead.company}) foi convertido. Um novo projeto foi iniciado automaticamente.`, "approval");
   };
 
-  // Client actions
   const addClient = (client: Omit<Client, "id" | "projectsCount" | "totalValue">) => {
     setClients((prev) => [...prev, { ...client, id: prev.length + 1, projectsCount: 0, totalValue: 0 }]);
+  };
+
+  const updateClient = (id: number, updatedFields: Partial<Client>) => {
+    setClients((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updatedFields } : c))
+    );
+  };
+
+  const deleteClient = (id: number) => {
+    setClients((prev) => prev.filter((c) => c.id !== id));
   };
 
   // Project actions
@@ -303,6 +328,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTasks((prev) =>
       prev.map((task) => (task.id === id ? { ...task, status } : task))
     );
+  };
+
+  const updateTask = (id: number, updatedFields: Partial<Task>) => {
+    setTasks((prev) =>
+      prev.map((task) => (task.id === id ? { ...task, ...updatedFields } : task))
+    );
+  };
+
+  const deleteTask = (id: number) => {
+    setTasks((prev) => prev.filter((task) => task.id !== id));
   };
 
   const toggleTaskItem = (taskId: number, itemIndex: number) => {
@@ -386,8 +421,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         notifications,
         addLead,
         updateLeadStage,
+        updateLead,
+        deleteLead,
         convertLeadToClient,
         addClient,
+        updateClient,
+        deleteClient,
         addProject,
         updateProjectStatus,
         addProjectComment,
@@ -395,6 +434,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateProjectChecklist,
         addTask,
         updateTaskStatus,
+        updateTask,
+        deleteTask,
         toggleTaskItem,
         addTransaction,
         markTransactionPaid,

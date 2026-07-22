@@ -1,13 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { useAdmin, Lead } from "@/context/AdminContext";
-import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall } from "lucide-react";
+import { useAdmin, Lead, Client } from "@/context/AdminContext";
+import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall, Edit, Trash2 } from "lucide-react";
 
 export default function CRMTab() {
-  const { leads, clients, addLead, addClient, updateLeadStage, convertLeadToClient } = useAdmin();
+  const { 
+    leads, 
+    clients, 
+    addLead, 
+    updateLead, 
+    deleteLead, 
+    updateLeadStage, 
+    convertLeadToClient, 
+    addClient, 
+    updateClient, 
+    deleteClient 
+  } = useAdmin();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddLead, setShowAddLead] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
 
   // New Lead Form State
   const [newLead, setNewLead] = useState({
@@ -22,16 +35,57 @@ export default function CRMTab() {
 
   const handleCreateLead = (e: React.FormEvent) => {
     e.preventDefault();
-    addLead({
-      name: newLead.name,
-      company: newLead.company,
-      email: newLead.email,
-      whatsapp: newLead.whatsapp,
-      projectType: newLead.projectType,
-      value: Number(newLead.value),
-      stage: "Novo Lead",
-      details: newLead.details,
+    if (editingLead) {
+      updateLead(editingLead.id, {
+        name: newLead.name,
+        company: newLead.company,
+        email: newLead.email,
+        whatsapp: newLead.whatsapp,
+        projectType: newLead.projectType,
+        value: Number(newLead.value),
+        details: newLead.details,
+      });
+      setEditingLead(null);
+    } else {
+      addLead({
+        name: newLead.name,
+        company: newLead.company,
+        email: newLead.email,
+        whatsapp: newLead.whatsapp,
+        projectType: newLead.projectType,
+        value: Number(newLead.value),
+        stage: "Novo Lead",
+        details: newLead.details,
+      });
+    }
+    setNewLead({
+      name: "",
+      company: "",
+      email: "",
+      whatsapp: "",
+      projectType: "Vídeo Institucional",
+      value: 0,
+      details: "",
     });
+    setShowAddLead(false);
+  };
+
+  const handleEditLeadClick = (lead: Lead) => {
+    setEditingLead(lead);
+    setNewLead({
+      name: lead.name,
+      company: lead.company,
+      email: lead.email,
+      whatsapp: lead.whatsapp,
+      projectType: lead.projectType,
+      value: lead.value,
+      details: lead.details,
+    });
+    setShowAddLead(true);
+  };
+
+  const handleCloseLeadDrawer = () => {
+    setEditingLead(null);
     setNewLead({
       name: "",
       company: "",
@@ -45,6 +99,7 @@ export default function CRMTab() {
   };
 
   const [showAddClient, setShowAddClient] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [newClient, setNewClient] = useState({
     name: "",
     company: "",
@@ -57,15 +112,56 @@ export default function CRMTab() {
 
   const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
-    addClient({
-      name: newClient.name,
-      company: newClient.company,
-      cnpj: newClient.cnpj || "00.000.000/0001-00",
-      email: newClient.email,
-      whatsapp: newClient.whatsapp,
-      address: newClient.address || "Endereço comercial pendente",
-      responsible: newClient.responsible,
+    if (editingClient) {
+      updateClient(editingClient.id, {
+        name: newClient.name,
+        company: newClient.company,
+        cnpj: newClient.cnpj,
+        email: newClient.email,
+        whatsapp: newClient.whatsapp,
+        address: newClient.address,
+        responsible: newClient.responsible,
+      });
+      setEditingClient(null);
+    } else {
+      addClient({
+        name: newClient.name,
+        company: newClient.company,
+        cnpj: newClient.cnpj || "00.000.000/0001-00",
+        email: newClient.email,
+        whatsapp: newClient.whatsapp,
+        address: newClient.address || "Endereço comercial pendente",
+        responsible: newClient.responsible,
+      });
+    }
+    setNewClient({
+      name: "",
+      company: "",
+      cnpj: "",
+      email: "",
+      whatsapp: "",
+      address: "",
+      responsible: "Mikelly Maduro",
     });
+    setShowAddClient(false);
+  };
+
+  const handleEditClientClick = (client: Client) => {
+    setEditingClient(client);
+    setNewClient({
+      name: client.name,
+      company: client.company,
+      cnpj: client.cnpj,
+      email: client.email,
+      whatsapp: client.whatsapp,
+      address: client.address,
+      responsible: client.responsible,
+    });
+    setShowAddClient(true);
+  };
+
+  const handleCloseClientDrawer = () => {
+    setEditingClient(null);
     setNewClient({
       name: "",
       company: "",
@@ -132,8 +228,8 @@ export default function CRMTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Criar Novo Lead</h3>
-              <button onClick={() => setShowAddLead(false)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">{editingLead ? "Editar Lead" : "Criar Novo Lead"}</h3>
+              <button onClick={handleCloseLeadDrawer} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
                 <XIcon className="w-4 h-4" />
               </button>
             </div>
@@ -232,7 +328,7 @@ export default function CRMTab() {
                 type="submit"
                 className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
-                Cadastrar Lead
+                {editingLead ? "Salvar Alterações" : "Cadastrar Lead"}
               </button>
             </form>
           </div>
@@ -259,7 +355,25 @@ export default function CRMTab() {
                     className="p-4 rounded-xl bg-black/50 border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between space-y-3 group"
                   >
                     <div>
-                      <span className="text-[10px] text-primary uppercase font-bold tracking-widest">{lead.projectType}</span>
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-[10px] text-primary uppercase font-bold tracking-widest">{lead.projectType}</span>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEditLeadClick(lead)}
+                            className="p-0.5 hover:bg-white/15 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
+                            title="Editar Lead"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteLead(lead.id)}
+                            className="p-0.5 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
+                            title="Excluir Lead"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                       <h4 className="text-xs font-bold text-white mt-1 font-display leading-tight">{lead.company}</h4>
                       <p className="text-[10px] text-gray-500 font-sans mt-0.5">{lead.name}</p>
                       <p className="text-[10px] text-gray-400 font-sans mt-2 line-clamp-2 leading-relaxed font-light">{lead.details}</p>
@@ -347,6 +461,7 @@ export default function CRMTab() {
                   <th className="p-4 text-center">Projetos</th>
                   <th className="p-4">Total Faturado</th>
                   <th className="p-4">Responsável</th>
+                  <th className="p-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -371,6 +486,24 @@ export default function CRMTab() {
                     <td className="p-4 text-center font-bold text-white">{client.projectsCount}</td>
                     <td className="p-4 font-bold text-primary font-display">R$ {client.totalValue.toLocaleString()}</td>
                     <td className="p-4 text-gray-300">{client.responsible}</td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClientClick(client)}
+                          className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
+                          title="Editar Cliente"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteClient(client.id)}
+                          className="p-1 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
+                          title="Excluir Cliente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {filteredClients.length === 0 && (
@@ -389,9 +522,9 @@ export default function CRMTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Cadastrar Novo Cliente</h3>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">{editingClient ? "Editar Cliente" : "Cadastrar Novo Cliente"}</h3>
               <button
-                onClick={() => setShowAddClient(false)}
+                onClick={handleCloseClientDrawer}
                 className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
               >
                 <XIcon className="w-4 h-4" />
@@ -486,7 +619,7 @@ export default function CRMTab() {
                 type="submit"
                 className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
-                Cadastrar Cliente
+                {editingClient ? "Salvar Alterações" : "Cadastrar Cliente"}
               </button>
             </form>
           </div>
