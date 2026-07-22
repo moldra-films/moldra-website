@@ -26,9 +26,11 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      // Successful Auth redirect logic based on user email role
+      // Successful Auth redirect logic based on user email or metadata role
       const userEmail = data.user?.email || "";
+      const userRole = data.user?.user_metadata?.role;
       const isStaff =
+        userRole === "admin" ||
         userEmail.includes("moldra") ||
         userEmail.startsWith("admin") ||
         userEmail.includes("mikelly") ||
