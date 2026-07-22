@@ -10,9 +10,11 @@ import {
   Eye,
   Cpu,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -20,6 +22,13 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarProps) {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    document.cookie = "moldra-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "moldra-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    router.push("/login");
+  };
   const menuItems = [
     { id: "dashboard", label: "Visão Geral", icon: LayoutDashboard },
     { id: "crm", label: "CRM & Funil", icon: Users },
@@ -84,9 +93,13 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
           </div>
         </div>
         
-        <div className="p-1.5 bg-green-500/10 text-green-400 rounded-md border border-green-500/20">
-          <ShieldCheck className="w-3.5 h-3.5" />
-        </div>
+        <button
+          onClick={handleLogout}
+          className="p-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-md border border-white/5 cursor-pointer transition-colors"
+          title="Sair do Painel"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+        </button>
       </div>
     </aside>
   );
