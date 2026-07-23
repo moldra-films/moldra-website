@@ -121,7 +121,7 @@ export default function Services() {
               </h3>
 
               {/* Description */}
-              <p className="text-gray-400 font-sans font-light leading-relaxed text-sm group-hover:text-gray-300 transition-colors duration-300">
+              <p className="text-gray-400 font-sans font-light leading-relaxed text-sm transition-colors duration-300">
                 {service.description}
               </p>
 
