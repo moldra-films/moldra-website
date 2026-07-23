@@ -214,3 +214,10 @@ html.light .text-black .text-gray-400,
 html.light .bg-white .text-gray-400 {
   color: #4B5563 !important;
 }
+
+/* Services and Process sections card backgrounds in light mode */
+html.light .bg-\[\#0B0B0B\]\/60,
+html.light .bg-\[\#0B0B0B\]\/70 {
+  background-color: #F9FAFB !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
