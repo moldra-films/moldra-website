@@ -247,3 +247,32 @@ html.light .process-card:hover p {
 html.light .process-card span.absolute.text-8xl {
   -webkit-text-stroke: 1px rgba(0, 0, 0, 0.08) !important;
 }
+
+/* Ensure footer text remains white/light in light mode since footer background is dark */
+html.light footer,
+html.light footer h1,
+html.light footer h2,
+html.light footer h3,
+html.light footer h4,
+html.light footer h5,
+html.light footer h6,
+html.light footer p,
+html.light footer span,
+html.light footer a {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+html.light footer h1,
+html.light footer h2,
+html.light footer h3,
+html.light footer h4,
+html.light footer h5,
+html.light footer h6,
+html.light footer .text-white,
+html.light footer a:hover {
+  color: #FFFFFF !important;
+}
+
+html.light footer .text-primary {
+  color: #C8A96A !important;
+}
