@@ -221,3 +221,12 @@ html.light .bg-\[\#0B0B0B\]\/70 {
   background-color: #F9FAFB !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
 }
+
+/* Keep hover and group-hover texts readable in light mode */
+html.light .group:hover .group-hover\:text-gray-300 {
+  color: #374151 !important; /* dark gray */
+}
+
+html.light .group:hover .group-hover\:text-primary {
+  color: #A08246 !important; /* dark gold */
+}
