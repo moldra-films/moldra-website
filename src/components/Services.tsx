@@ -105,7 +105,7 @@ export default function Services() {
               key={index}
               variants={cardVariants}
               whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className="relative p-8 rounded-2xl bg-[#0B0B0B]/60 border border-white/5 hover:border-primary/30 transition-all duration-300 group overflow-hidden"
+              className="relative p-8 rounded-2xl bg-[#0B0B0B]/60 border border-white/5 hover:border-primary/30 transition-all duration-300 group overflow-hidden service-card"
             >
               {/* Card Hover Radial Gradient Background */}
               <div className="absolute inset-0 bg-radial-gradient from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

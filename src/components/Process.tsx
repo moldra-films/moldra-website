@@ -93,7 +93,7 @@ export default function Process() {
                       isEven ? "lg:pr-12 lg:text-right" : "lg:pl-12 lg:text-left"
                     }`}
                   >
-                    <div className="p-8 rounded-2xl bg-[#0B0B0B]/70 border border-white/5 hover:border-white/10 transition-colors duration-300 relative overflow-hidden group">
+                    <div className="p-8 rounded-2xl bg-[#0B0B0B]/70 border border-white/5 hover:border-white/10 transition-colors duration-300 relative overflow-hidden group process-card">
                       {/* Step Number in Background */}
                       <span
                         className={`absolute text-8xl font-black font-display opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-500 ${

@@ -215,34 +215,35 @@ html.light .bg-white .text-gray-400 {
   color: #4B5563 !important;
 }
 
-html.light .bg-\[\#0B0B0B\]\/60,
-html.light .bg-\[\#0B0B0B\]\/70 {
+/* Services and Process sections card backgrounds in light mode */
+html.light .service-card,
+html.light .process-card {
   background-color: #F9FAFB !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Ensure services and process texts are fully readable in light mode */
-html.light .bg-\[\#0B0B0B\]\/60 h3,
-html.light .bg-\[\#0B0B0B\]\/70 h3 {
+html.light .service-card h3,
+html.light .process-card h3 {
   color: #111827 !important;
 }
 
-html.light .bg-\[\#0B0B0B\]\/60 p,
-html.light .bg-\[\#0B0B0B\]\/70 p {
+html.light .service-card p,
+html.light .process-card p {
   color: #4B5563 !important;
 }
 
-html.light .bg-\[\#0B0B0B\]\/60:hover h3,
-html.light .bg-\[\#0B0B0B\]\/70:hover h3 {
+html.light .service-card:hover h3,
+html.light .process-card:hover h3 {
   color: #A08246 !important; /* dark gold on hover */
 }
 
-html.light .bg-\[\#0B0B0B\]\/60:hover p,
-html.light .bg-\[\#0B0B0B\]\/70:hover p {
+html.light .service-card:hover p,
+html.light .process-card:hover p {
   color: #374151 !important; /* remains dark gray on hover */
 }
 
 /* Background step outline numbers visibility inside Process section in light mode */
-html.light .bg-\[\#0B0B0B\]\/70 span.absolute.text-8xl {
+html.light .process-card span.absolute.text-8xl {
   -webkit-text-stroke: 1px rgba(0, 0, 0, 0.08) !important;
 }
