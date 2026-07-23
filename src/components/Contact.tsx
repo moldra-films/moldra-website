@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Mail, MapPin, CheckCircle, Send } from "lucide-react";
 
@@ -22,6 +22,29 @@ const InstagramIcon = () => (
 
 
 export default function Contact() {
+  const [serviceTypes, setServiceTypes] = useState<string[]>([
+    "Vídeo Institucional",
+    "Produção Audiovisual",
+    "Campanha Comercial",
+    "Cobertura de Evento",
+    "Conteúdo Redes Sociais",
+    "Filmagem Aérea / Drone",
+    "Produção Fotográfica",
+  ]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("moldra_service_types");
+        if (stored) {
+          setServiceTypes(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     nome: "",
     empresa: "",
@@ -252,13 +275,9 @@ export default function Contact() {
                         onChange={handleChange}
                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 cursor-pointer font-sans font-light"
                       >
-                        <option value="Vídeo Institucional" className="bg-dark-card text-white">Vídeo Institucional</option>
-                        <option value="Produção Audiovisual" className="bg-dark-card text-white">Produção Audiovisual</option>
-                        <option value="Campanha Comercial" className="bg-dark-card text-white">Campanha Comercial</option>
-                        <option value="Cobertura de Evento" className="bg-dark-card text-white">Cobertura de Evento</option>
-                        <option value="Conteúdo Redes Sociais" className="bg-dark-card text-white">Conteúdo para Redes Sociais</option>
-                        <option value="Filmagem Aérea / Drone" className="bg-dark-card text-white">Filmagem Aérea / Drone</option>
-                        <option value="Produção Fotográfica" className="bg-dark-card text-white">Produção Fotográfica</option>
+                        {serviceTypes.map((type) => (
+                          <option key={type} value={type} className="bg-dark-card text-white">{type}</option>
+                        ))}
                         <option value="Outro" className="bg-dark-card text-white">Outro tipo de projeto</option>
                       </select>
                     </div>

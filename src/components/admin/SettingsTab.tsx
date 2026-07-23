@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, Shield, HardDrive, Link, ShieldCheck, Database, Sliders, UserPlus, AlertCircle } from "lucide-react";
+import { Settings, Shield, HardDrive, Link, ShieldCheck, Database, Sliders, UserPlus, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAdmin } from "@/context/AdminContext";
 
 export default function SettingsTab() {
+  const { serviceTypes, addServiceType, deleteServiceType } = useAdmin();
+  const [newService, setNewService] = useState("");
+
+  const handleAddService = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newService.trim()) return;
+    addServiceType(newService);
+    setNewService("");
+  };
   const [integrations, setIntegrations] = useState([
     { name: "Google Calendar", active: true, desc: "Sincronização de diárias e filmagens" },
     { name: "Google Drive & Dropbox", active: true, desc: "Biblioteca de roteiros e logos" },
@@ -217,6 +227,60 @@ export default function SettingsTab() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Dynamic Service Categories Manager */}
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white">Categorias de Serviços da Produtora</h3>
+          <p className="text-xs text-gray-500 font-sans mt-1">
+            Cadastre novas especialidades ou remova serviços que a Moldra Films não disponibiliza mais no portfólio.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* List of current service categories */}
+          <div className="rounded-2xl bg-dark-card border border-white/5 divide-y divide-white/5 overflow-hidden">
+            {serviceTypes.map((service, i) => (
+              <div key={i} className="p-4 flex items-center justify-between gap-4">
+                <span className="text-xs font-bold text-white font-display">{service}</span>
+                <button
+                  onClick={() => deleteServiceType(service)}
+                  className="p-1.5 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
+                  title="Remover Categoria"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {serviceTypes.length === 0 && (
+              <div className="p-8 text-center text-xs text-gray-500">Nenhuma categoria cadastrada.</div>
+            )}
+          </div>
+
+          {/* Form to add a new category */}
+          <form onSubmit={handleAddService} className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-4 h-fit">
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Nova Categoria de Serviço</label>
+              <input
+                type="text"
+                required
+                value={newService}
+                onChange={(e) => setNewService(e.target.value)}
+                placeholder="Ex: Transmissão ao Vivo (Live Streaming)"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-primary font-sans"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar Categoria
+            </button>
+          </form>
         </div>
       </div>
     </div>

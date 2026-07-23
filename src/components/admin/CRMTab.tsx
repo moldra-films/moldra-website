@@ -15,7 +15,8 @@ export default function CRMTab() {
     convertLeadToClient, 
     addClient, 
     updateClient, 
-    deleteClient 
+    deleteClient,
+    serviceTypes
   } = useAdmin();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -293,12 +294,10 @@ export default function CRMTab() {
                     onChange={(e) => setNewLead({ ...newLead, projectType: e.target.value })}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
                   >
-                    <option value="Vídeo Institucional">Vídeo Institucional</option>
-                    <option value="Produção Audiovisual">Produção Audiovisual</option>
-                    <option value="Campanha Comercial">Campanha Comercial</option>
-                    <option value="Cobertura de Evento">Cobertura de Evento</option>
-                    <option value="Redes Sociais">Redes Sociais</option>
-                    <option value="Fotografia">Fotografia</option>
+                    {serviceTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                    {serviceTypes.length === 0 && <option value="Vídeo Institucional">Vídeo Institucional</option>}
                   </select>
                 </div>
                 <div>

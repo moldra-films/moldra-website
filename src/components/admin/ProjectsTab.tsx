@@ -5,7 +5,7 @@ import { useAdmin, Project } from "@/context/AdminContext";
 import { Film, Calendar, MapPin, AlignLeft, CheckSquare, Users, Edit3, X, Play, Sliders, ChevronRight } from "lucide-react";
 
 export default function ProjectsTab() {
-  const { projects, clients, addProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
+  const { projects, clients, serviceTypes, addProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "calendario" | "timeline">("lista");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   
@@ -511,18 +511,16 @@ export default function ProjectsTab() {
 
               <div>
                 <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Tipo de Serviço</label>
-                <select
-                  value={newProj.serviceType}
-                  onChange={(e) => setNewProj({ ...newProj, serviceType: e.target.value })}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
-                >
-                  <option value="Vídeo Institucional">Vídeo Institucional</option>
-                  <option value="Produção Audiovisual">Produção Audiovisual</option>
-                  <option value="Comercial">Comercial</option>
-                  <option value="Cobertura de Eventos">Cobertura de Eventos</option>
-                  <option value="Redes Sociais">Redes Sociais</option>
-                  <option value="Fotografia Profissional">Fotografia Profissional</option>
-                </select>
+                  <select
+                    value={newProj.serviceType}
+                    onChange={(e) => setNewProj({ ...newProj, serviceType: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                  >
+                    {serviceTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                    {serviceTypes.length === 0 && <option value="Vídeo Institucional">Vídeo Institucional</option>}
+                  </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

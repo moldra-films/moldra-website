@@ -168,6 +168,11 @@ interface AdminContextProps {
   // Notification actions
   markAllNotificationsRead: () => void;
   addNotification: (title: string, description: string, type: Notification["type"]) => void;
+
+  // Service Types / Categories
+  serviceTypes: string[];
+  addServiceType: (service: string) => void;
+  deleteServiceType: (service: string) => void;
 }
 
 const AdminContext = createContext<AdminContextProps | undefined>(undefined);
@@ -182,6 +187,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [locations, setLocations] = useState<Location[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([
+    "Vídeo Institucional",
+    "Produção Audiovisual",
+    "Campanha Comercial",
+    "Cobertura de Evento",
+    "Redes Sociais",
+    "Fotografia",
+  ]);
 
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -198,6 +211,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const storedLocations = localStorage.getItem("moldra_locations");
         const storedContracts = localStorage.getItem("moldra_contracts");
         const storedNotifications = localStorage.getItem("moldra_notifications");
+        const storedServiceTypes = localStorage.getItem("moldra_service_types");
 
         if (storedLeads) setLeads(JSON.parse(storedLeads));
         if (storedClients) setClients(JSON.parse(storedClients));
@@ -208,6 +222,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (storedLocations) setLocations(JSON.parse(storedLocations));
         if (storedContracts) setContracts(JSON.parse(storedContracts));
         if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
+        if (storedServiceTypes) setServiceTypes(JSON.parse(storedServiceTypes));
       } catch (e) {
         console.error("Erro ao carregar dados do localStorage:", e);
       } finally {
@@ -270,6 +285,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem("moldra_notifications", JSON.stringify(notifications));
     }
   }, [notifications, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_service_types", JSON.stringify(serviceTypes));
+    }
+  }, [serviceTypes, isLoaded]);
 
   // Lead actions
   const addLead = (lead: Omit<Lead, "id">) => {
@@ -495,6 +516,17 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     ]);
   };
 
+  const addServiceType = (service: string) => {
+    const trimmed = service.trim();
+    if (trimmed && !serviceTypes.includes(trimmed)) {
+      setServiceTypes((prev) => [...prev, trimmed]);
+    }
+  };
+
+  const deleteServiceType = (service: string) => {
+    setServiceTypes((prev) => prev.filter((item) => item !== service));
+  };
+
   return (
     <AdminContext.Provider
       value={{
@@ -531,7 +563,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addEquipment,
         addLocation,
         markAllNotificationsRead,
-        addNotification
+        addNotification,
+        serviceTypes,
+        addServiceType,
+        deleteServiceType
       }}
     >
       {children}
