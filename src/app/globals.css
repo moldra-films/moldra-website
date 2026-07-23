@@ -40,3 +40,142 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #C8A96A;
 }
+
+/* Light mode theme style overrides */
+html.light body,
+html.light .bg-\[\#0B0B0B\],
+html.light .bg-dark-bg {
+  background-color: #F3F4F6 !important;
+  color: #111827 !important;
+}
+
+html.light header,
+html.light .bg-dark-card,
+html.light .bg-\[\#1A1A1A\] {
+  background-color: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .bg-black\/30,
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html.light .bg-black\/80,
+html.light .bg-black\/20 {
+  background-color: #F9FAFB !important; /* gray-50 */
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .divide-white\/5 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .text-white,
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #111827 !important;
+}
+
+html.light .text-gray-300,
+html.light .text-gray-400 {
+  color: #374151 !important; /* gray-700 */
+}
+
+html.light .text-gray-500 {
+  color: #6B7280 !important; /* gray-500 */
+}
+
+html.light input,
+html.light select,
+html.light textarea {
+  background-color: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #111827 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #C8A96A !important;
+}
+
+html.light .hover\:bg-white\/5:hover,
+html.light .hover\:bg-white\/10:hover,
+html.light .hover\:bg-white\/15:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+html.light .hover\:text-white:hover {
+  color: #111827 !important;
+}
+
+/* Specific elements adjustments */
+html.light .bg-radial-gradient {
+  background-image: radial-gradient(circle, #E5E7EB 0%, #F3F4F6 100%) !important;
+}
+
+html.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .text-gray-600 {
+  color: #4B5563 !important;
+}
+
+html.light .bg-green-500\/10 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+html.light .bg-blue-500\/10 {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+html.light .bg-yellow-500\/10 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+html.light .bg-red-500\/10 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+html.light .bg-purple-500\/10 {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+html.light .bg-pink-500\/10 {
+  background-color: rgba(236, 72, 153, 0.1) !important;
+}
+
+html.light .bg-orange-500\/10 {
+  background-color: rgba(249, 115, 22, 0.1) !important;
+}
+
+/* Fixed left sidebar for light mode */
+html.light aside,
+html.light .w-64.bg-\[\#0B0B0B\],
+html.light .bg-dark-card {
+  background-color: #FFFFFF !important;
+  border-right-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light aside a,
+html.light aside button {
+  color: #374151 !important;
+}
+
+html.light aside a:hover,
+html.light aside button:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  color: #111827 !important;
+}
+
+html.light aside .bg-primary\/10 {
+  background-color: rgba(200, 169, 106, 0.12) !important;
+}

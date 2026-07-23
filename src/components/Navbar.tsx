@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Film, Menu, X } from "lucide-react";
+import { Film, Menu, X, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
@@ -12,6 +12,31 @@ interface NavbarProps {
 export default function Navbar({ onScrollToSection }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("moldra_theme") as "dark" | "light" | null;
+      const initialTheme = savedTheme || "dark";
+      setTheme(initialTheme);
+      if (initialTheme === "light") {
+        document.documentElement.classList.add("light");
+      } else {
+        document.documentElement.classList.remove("light");
+      }
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("moldra_theme", nextTheme);
+    if (nextTheme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -75,6 +100,15 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
               className="px-6 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-full text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-lg shadow-primary/10 transform hover:scale-105"
             >
               Orçamento
+            </button>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-gray-300 hover:text-primary transition-all duration-300 cursor-pointer flex items-center justify-center"
+              title={theme === "dark" ? "Ativar Modo Clássico (Claro)" : "Ativar Modo Escuro"}
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </nav>
 

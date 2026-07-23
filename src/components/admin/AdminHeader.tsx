@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Search, X, Check, MessageSquare, AlertCircle, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, Search, X, Check, MessageSquare, AlertCircle, Info, Sun, Moon } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 
 interface AdminHeaderProps {
@@ -11,6 +11,31 @@ interface AdminHeaderProps {
 export default function AdminHeader({ title }: AdminHeaderProps) {
   const { notifications, markAllNotificationsRead } = useAdmin();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("moldra_theme") as "dark" | "light" | null;
+      const initialTheme = savedTheme || "dark";
+      setTheme(initialTheme);
+      if (initialTheme === "light") {
+        document.documentElement.classList.add("light");
+      } else {
+        document.documentElement.classList.remove("light");
+      }
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("moldra_theme", nextTheme);
+    if (nextTheme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  };
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -36,6 +61,14 @@ export default function AdminHeader({ title }: AdminHeaderProps) {
 
       {/* Utilities */}
       <div className="flex items-center gap-6">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-gray-300 hover:text-white transition-all cursor-pointer flex items-center justify-center"
+          title={theme === "dark" ? "Ativar Modo Clássico (Claro)" : "Ativar Modo Escuro"}
+        >
+          {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
         {/* Search Input Mock */}
         <div className="relative hidden md:block">
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
