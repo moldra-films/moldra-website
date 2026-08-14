@@ -102,6 +102,14 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
               Orçamento
             </button>
 
+            {/* Portal do Cliente link */}
+            <a
+              href="/login"
+              className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-primary border border-primary/25 hover:border-primary/50 font-semibold rounded-full text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer text-center"
+            >
+              Portal do Cliente
+            </a>
+
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -147,15 +155,23 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
               ))}
             </nav>
 
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                onScrollToSection("contato");
-              }}
-              className="w-full py-4 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-center transition-colors cursor-pointer"
-            >
-              Solicitar Orçamento
-            </button>
+            <div className="flex flex-col gap-3">
+              <a
+                href="/login"
+                className="w-full py-4 bg-white/5 hover:bg-white/10 border border-primary/20 text-primary font-semibold rounded-xl text-center transition-colors cursor-pointer block"
+              >
+                Portal do Cliente
+              </a>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onScrollToSection("contato");
+                }}
+                className="w-full py-4 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-center transition-colors cursor-pointer"
+              >
+                Solicitar Orçamento
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
