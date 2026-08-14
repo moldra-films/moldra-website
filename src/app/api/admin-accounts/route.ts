@@ -6,6 +6,25 @@ export async function GET() {
     const { data, error } = await supabase.from("profiles").select("*");
     if (error) throw error;
     
+    // Seed default admin accounts if table is empty
+    if (data.length === 0) {
+      const DEFAULT_SEEDS = [
+        { id: "default-1", email: "admin@moldrafilms.com.br", name: "Administrador", role: "admin", created_at: new Date().toISOString() },
+        { id: "default-2", email: "mikelly@moldrafilms.com.br", name: "Mikelly Maduro", role: "admin", created_at: new Date().toISOString() },
+        { id: "default-3", email: "natalia@moldrafilms.com.br", name: "Natália Camurça", role: "admin", created_at: new Date().toISOString() }
+      ];
+      await supabase.from("profiles").insert(DEFAULT_SEEDS);
+      
+      const mapped = DEFAULT_SEEDS.map((profile: any) => ({
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role,
+        createdAt: profile.created_at
+      }));
+      return NextResponse.json(mapped);
+    }
+
     const mapped = data.map((profile: any) => ({
       id: profile.id,
       email: profile.email,
