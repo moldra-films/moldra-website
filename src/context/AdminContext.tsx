@@ -159,6 +159,8 @@ interface AdminContextProps {
   
   // Project actions
   addProject: (project: Omit<Project, "id" | "comments" | "version">) => void;
+  updateProject: (id: number, project: Partial<Project>) => void;
+  deleteProject: (id: number) => void;
   updateProjectStatus: (id: number, status: Project["status"]) => void;
   addProjectComment: (id: number, comment: Omit<Comment, "id">) => void;
   updateProjectShotList: (id: number, list: string[]) => void;
@@ -477,6 +479,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setProjects((prev) => [...prev, { ...project, id: prev.length + 1, comments: [], version: "v1" }]);
   };
 
+  const updateProject = (id: number, updatedFields: Partial<Project>) => {
+    setProjects((prev) =>
+      prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
+    );
+  };
+
+  const deleteProject = (id: number) => {
+    setProjects((prev) => prev.filter((proj) => proj.id !== id));
+  };
+
   const updateProjectStatus = (id: number, status: Project["status"]) => {
     setProjects((prev) =>
       prev.map((proj) => (proj.id === id ? { ...proj, status } : proj))
@@ -716,6 +728,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateClient,
         deleteClient,
         addProject,
+        updateProject,
+        deleteProject,
         updateProjectStatus,
         addProjectComment,
         updateProjectShotList,

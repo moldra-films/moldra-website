@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useAdmin, Project } from "@/context/AdminContext";
-import { Film, Calendar, MapPin, AlignLeft, CheckSquare, Users, Edit3, X, Play, Sliders, ChevronRight } from "lucide-react";
+import { Film, Calendar, MapPin, AlignLeft, CheckSquare, Users, Edit3, X, Play, Sliders, ChevronRight, Trash2 } from "lucide-react";
 
 export default function ProjectsTab() {
-  const { projects, clients, serviceTypes, addProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
+  const { projects, clients, serviceTypes, addProject, updateProject, deleteProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "calendario" | "timeline">("lista");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   
@@ -14,6 +14,100 @@ export default function ProjectsTab() {
   const [newCheckItem, setNewCheckItem] = useState("");
 
   const [showAddProject, setShowAddProject] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [selectedProjectVideoUploading, setSelectedProjectVideoUploading] = useState(false);
+  const [selectedProjectVideoProgress, setSelectedProjectVideoProgress] = useState(0);
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    setVideoUploading(true);
+    setVideoProgress(10);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to get upload URL");
+      const { uploadUrl, fileUrl } = await res.json();
+      setVideoProgress(50);
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!uploadRes.ok) throw new Error("Failed direct upload");
+      setVideoProgress(100);
+
+      setNewProj((prev) => ({ ...prev, videoUrl: fileUrl }));
+      alert("Vídeo enviado com sucesso para a avaliação!");
+    } catch (err) {
+      console.error("Video upload error:", err);
+      alert("Erro ao realizar upload do vídeo.");
+    } finally {
+      setVideoUploading(false);
+      setVideoProgress(0);
+    }
+  };
+
+  const handleDetailsVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>, projId: number) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    setSelectedProjectVideoUploading(true);
+    setSelectedProjectVideoProgress(10);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to get upload URL");
+      const { uploadUrl, fileUrl } = await res.json();
+      setSelectedProjectVideoProgress(50);
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!uploadRes.ok) throw new Error("Failed direct upload");
+      setSelectedProjectVideoProgress(100);
+
+      updateProject(projId, { videoUrl: fileUrl });
+      setSelectedProject((prev) => prev ? { ...prev, videoUrl: fileUrl } : null);
+      alert("Vídeo enviado com sucesso para a avaliação!");
+    } catch (err) {
+      console.error("Details Video upload error:", err);
+      alert("Erro ao realizar upload do vídeo.");
+    } finally {
+      setSelectedProjectVideoUploading(false);
+      setSelectedProjectVideoProgress(0);
+    }
+  };
+
+  const handleDeleteProject = (id: number) => {
+    if (confirm("Tem certeza que deseja excluir permanentemente este projeto?")) {
+      deleteProject(id);
+      setSelectedProject(null);
+    }
+  };
   const [newProj, setNewProj] = useState({
     name: "",
     clientName: "",
@@ -451,10 +545,62 @@ export default function ProjectsTab() {
                   <p className="text-xs text-gray-300 font-sans font-light">{selectedProject.location}</p>
                 </div>
               </div>
+
+              {/* Client Review Video Section */}
+              <div className="space-y-3 pt-4 border-t border-white/5">
+                <label className="block text-[10px] uppercase font-bold text-gray-400">Vídeo de Avaliação do Cliente</label>
+                
+                {selectedProject.videoUrl ? (
+                  <div className="space-y-2">
+                    <div className="relative aspect-video rounded-xl overflow-hidden border border-white/5 bg-black">
+                      <video 
+                        src={selectedProject.videoUrl} 
+                        controls 
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-mono truncate">{selectedProject.videoUrl}</p>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border border-dashed border-white/10 text-center text-xs text-gray-500 font-light">
+                    Nenhum vídeo enviado para avaliação ainda.
+                  </div>
+                )}
+
+                {/* Upload Button */}
+                <div className="space-y-2">
+                  <label className="block p-3 rounded-xl border border-white/10 hover:border-primary/40 bg-white/5 text-xs text-center font-semibold text-gray-300 hover:text-white cursor-pointer transition-all">
+                    {selectedProjectVideoUploading ? "Enviando..." : "Subir Novo Vídeo para Avaliação"}
+                    <input 
+                      type="file" 
+                      accept="video/*" 
+                      className="hidden" 
+                      disabled={selectedProjectVideoUploading}
+                      onChange={(e) => handleDetailsVideoUpload(e, selectedProject.id)}
+                    />
+                  </label>
+                  
+                  {selectedProjectVideoUploading && (
+                    <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ width: `${selectedProjectVideoProgress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Footer buttons */}
             <div className="pt-6 border-t border-white/5 flex gap-3 mt-8">
+              <button
+                onClick={() => handleDeleteProject(selectedProject.id)}
+                className="py-3 px-5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-black border border-red-500/20 rounded-xl text-xs uppercase font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir Projeto
+              </button>
               <button
                 onClick={() => setSelectedProject(null)}
                 className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs uppercase font-bold text-white transition-colors cursor-pointer"
@@ -570,15 +716,46 @@ export default function ProjectsTab() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">URL de Vídeo (Cloudflare R2/Vimeo)</label>
-                <input
-                  type="text"
-                  value={newProj.videoUrl}
-                  onChange={(e) => setNewProj({ ...newProj, videoUrl: e.target.value })}
-                  placeholder="Ex: https://pub-id.r2.dev/assets/video.mp4"
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
-                />
+              <div className="space-y-2">
+                <label className="block text-[10px] uppercase font-bold text-gray-400">Vídeo de Avaliação (Cloudflare R2 / Vimeo)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[9px] uppercase text-gray-500 mb-1 font-sans">Inserir Link Manual</label>
+                    <input
+                      type="text"
+                      value={newProj.videoUrl}
+                      onChange={(e) => setNewProj({ ...newProj, videoUrl: e.target.value })}
+                      placeholder="Ex: https://vimeo.com/..."
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans font-light"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] uppercase text-gray-500 mb-1 font-sans font-bold text-gray-400">Ou Enviar Arquivo de Vídeo</label>
+                    <label className="block w-full p-2 rounded-xl border border-white/10 hover:border-primary/40 bg-white/5 text-[10px] text-center font-bold text-gray-400 hover:text-white cursor-pointer transition-all">
+                      {videoUploading ? "Enviando..." : "Subir Arquivo de Vídeo"}
+                      <input 
+                        type="file" 
+                        accept="video/*" 
+                        className="hidden" 
+                        disabled={videoUploading}
+                        onChange={handleVideoUpload}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {videoUploading && (
+                  <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${videoProgress}%` }}
+                    />
+                  </div>
+                )}
+                
+                {newProj.videoUrl && (
+                  <p className="text-[9px] text-primary font-mono truncate">Vídeo selecionado: {newProj.videoUrl}</p>
+                )}
               </div>
 
               <div>
