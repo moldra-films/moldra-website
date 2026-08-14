@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -17,6 +18,7 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabaseClient";
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -25,12 +27,46 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarProps) {
   const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.email) {
+        setUserEmail(data.user.email);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const handleLogout = () => {
     document.cookie = "moldra-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     document.cookie = "moldra-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    router.push("/login");
+    supabase.auth.signOut().then(() => {
+      router.push("/login");
+    });
   };
+
+  const getDisplayName = (email: string) => {
+    if (!email) return "Natália Camurça"; // Default fallback
+    const lower = email.toLowerCase();
+    if (lower.includes("mikelly")) return "Mikelly Maduro";
+    if (lower.includes("natalia")) return "Natália Camurça";
+    if (lower.includes("admin")) return "Administrador";
+    return email.split("@")[0];
+  };
+
+  const getInitials = (name: string) => {
+    const parts = name.split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const displayName = getDisplayName(userEmail);
+  const initials = getInitials(displayName);
+
   const menuItems = [
     { id: "dashboard", label: "Visão Geral", icon: LayoutDashboard },
     { id: "crm", label: "CRM & Funil", icon: Users },
@@ -99,11 +135,15 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
       <div className="p-4 border-t border-white/5 bg-[#121212]/30 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs font-display">
-            NC
+            {initials}
           </div>
           <div>
-            <span className="text-xs font-bold text-white block">Natália Camurça</span>
-            <span className="text-[10px] text-gray-500 block uppercase font-sans">Administrador</span>
+            <span className="text-xs font-bold text-white block truncate max-w-[120px]" title={displayName}>
+              {displayName}
+            </span>
+            <span className="text-[10px] text-gray-500 block uppercase font-sans">
+              {userEmail.toLowerCase().includes("admin") || userEmail.toLowerCase().includes("moldra") ? "Administrador" : "Equipe"}
+            </span>
           </div>
         </div>
         
