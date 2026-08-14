@@ -160,7 +160,8 @@ function EventGalleryContent() {
             date: new Date().toISOString().split("T")[0],
             description: `Compra de fotos via Mercado Pago - Evento ${event.name} (${savedCount} fotos)`,
             status: "Pago",
-            customer: `Cliente - Evento ${event.name}`
+            customer: `Cliente - Evento ${event.name}`,
+            paymentId: searchParams.get("payment_id") || undefined
           });
 
           // Add notifications

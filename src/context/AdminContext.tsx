@@ -174,7 +174,7 @@ interface AdminContextProps {
   toggleTaskItem: (taskId: number, itemIndex: number) => void;
   
   // Finance actions
-  addTransaction: (transaction: Omit<Transaction, "id">) => void;
+  addTransaction: (transaction: Omit<Transaction, "id"> & { paymentId?: string }) => void;
   markTransactionPaid: (id: number) => void;
   
   // Equipment actions
@@ -585,7 +585,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Finance actions
-  const addTransaction = async (transaction: Omit<Transaction, "id">) => {
+  const addTransaction = async (transaction: Omit<Transaction, "id"> & { paymentId?: string }) => {
     try {
       // POST single transaction to safely append it in R2
       const res = await fetch("/api/transactions", {
