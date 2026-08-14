@@ -7,8 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 export default function EventMediaTab() {
-  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent } = useAdmin();
+  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, transactions } = useAdmin();
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+
+  // Filter transactions for photo sales
+  const photoSales = transactions.filter((t) => t.category === "Galeria de Fotos");
 
   // New Event Form state
   const [newEvent, setNewEvent] = useState({
@@ -420,6 +423,79 @@ export default function EventMediaTab() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Photo Sales Ledger Section */}
+      <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-6">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+            Histórico de Pedidos & Faturamento (Mercado Pago)
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Vendas confirmadas automaticamente via Mercado Pago na galeria pública de fotos de eventos.
+          </p>
+        </div>
+
+        {/* Sales Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-black/35 border border-white/5">
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-sans">Vendas Realizadas</span>
+            <span className="text-xl font-bold text-white block mt-1 font-mono">{photoSales.length} un</span>
+          </div>
+          <div className="p-4 rounded-xl bg-black/35 border border-white/5">
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-sans">Ticket Médio</span>
+            <span className="text-xl font-bold text-primary block mt-1 font-mono">
+              R$ {photoSales.length > 0 ? Math.round(photoSales.reduce((sum, s) => sum + s.value, 0) / photoSales.length) : 0},00
+            </span>
+          </div>
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
+            <span className="text-[10px] text-primary uppercase font-bold tracking-wider block">Faturamento Total</span>
+            <span className="text-xl font-bold text-primary block mt-1 font-mono">
+              R$ {photoSales.reduce((sum, s) => sum + s.value, 0).toLocaleString()},00
+            </span>
+          </div>
+        </div>
+
+        {/* Sales Table */}
+        <div className="rounded-xl border border-white/5 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/5 bg-black/40 text-gray-400 font-semibold tracking-wider uppercase text-[9px]">
+                  <th className="p-3">Pedido / Descrição</th>
+                  <th className="p-3">Data</th>
+                  <th className="p-3 text-right">Valor</th>
+                  <th className="p-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {photoSales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-white/[0.01] transition-colors">
+                    <td className="p-3">
+                      <span className="font-semibold text-white block font-sans">{sale.description}</span>
+                      <span className="text-[9px] text-gray-500 font-mono block">{sale.customer}</span>
+                    </td>
+                    <td className="p-3 text-gray-300 font-mono">{sale.date}</td>
+                    <td className="p-3 font-bold text-white text-right font-mono">R$ {sale.value},00</td>
+                    <td className="p-3 text-center">
+                      <span className="px-2 py-0.5 rounded-full text-[8px] uppercase font-extrabold border bg-green-500/5 border-green-500/20 text-green-400">
+                        {sale.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+
+                {photoSales.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-xs text-gray-500 font-sans">
+                      Nenhum pedido de fotos processado ainda.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
