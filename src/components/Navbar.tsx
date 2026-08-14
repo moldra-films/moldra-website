@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Film, Menu, X, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 
 interface NavbarProps {
   onScrollToSection: (id: string) => void;
@@ -93,6 +94,13 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
                 {item.label}
               </button>
             ))}
+
+            <Link
+              href="/eventos"
+              className="text-sm font-semibold tracking-wide text-gray-300 hover:text-primary transition-colors duration-300 cursor-pointer font-sans"
+            >
+              Eventos
+            </Link>
             
             {/* Direct CTA */}
             <button
@@ -153,6 +161,14 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
                   {item.label}
                 </button>
               ))}
+
+              <Link
+                href="/eventos"
+                onClick={() => setIsOpen(false)}
+                className="text-2xl font-bold tracking-wide text-left text-gray-300 hover:text-primary transition-colors duration-300 cursor-pointer font-display border-b border-white/5 pb-4"
+              >
+                Eventos
+              </Link>
             </nav>
 
             <div className="flex flex-col gap-3">

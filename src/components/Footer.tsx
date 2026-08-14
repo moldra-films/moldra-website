@@ -123,6 +123,14 @@ export default function Footer({ onScrollToSection }: FooterProps) {
                   </button>
                 </li>
               ))}
+              <li>
+                <Link
+                  href="/eventos"
+                  className="text-sm text-gray-400 hover:text-primary transition-colors duration-300 cursor-pointer"
+                >
+                  Eventos
+                </Link>
+              </li>
             </ul>
           </div>
 
