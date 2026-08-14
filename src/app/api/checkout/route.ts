@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       };
 
       // Call Mercado Pago Preferences API directly
-      const mpResponse = await fetch("https://api.mercadopago.com/v1/preferences", {
+      const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,8 +41,17 @@ export async function POST(request: Request) {
       });
 
       if (!mpResponse.ok) {
-        const errorData = await mpResponse.json();
-        throw new Error(errorData.message || "Mercado Pago API error");
+        let errMsg = "Mercado Pago API error";
+        try {
+          const errorData = await mpResponse.json();
+          errMsg = errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+          try {
+            const textData = await mpResponse.text();
+            errMsg = textData || errMsg;
+          } catch (_) {}
+        }
+        throw new Error(errMsg);
       }
 
       const data = await mpResponse.json();
