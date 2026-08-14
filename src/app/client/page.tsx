@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Download,
   CheckCircle,
@@ -19,17 +20,52 @@ import {
 
 function ClientPortalContent() {
   const router = useRouter();
-  const { projects, addProjectComment, updateProjectStatus } = useAdmin();
+  const { projects, clients, addProjectComment, updateProjectStatus } = useAdmin();
   
-  // Default to first active project or fallback
-  const [selectedProjId, setSelectedProjId] = useState<number>(projects[0]?.id || 1);
+  const [selectedProjId, setSelectedProjId] = useState<number>(1);
   const [newComment, setNewComment] = useState("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
 
-  const activeProj = projects.find((p) => p.id === selectedProjId) || projects[0];
+  const [userEmail, setUserEmail] = useState("");
+  const [userCompany, setUserCompany] = useState("");
+  const [userName, setUserName] = useState("Cliente");
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUserEmail(session.user?.email || "");
+        setUserName(session.user?.user_metadata?.full_name || session.user?.email?.split("@")[0] || "Cliente");
+        setUserCompany(session.user?.user_metadata?.company || "");
+      }
+      setAuthLoading(false);
+    };
+    fetchUserSession();
+  }, []);
+
+  const clientProjects = projects.filter((p) => {
+    if (!userEmail) return false;
+    
+    const isEmailMatch = p.clientName.toLowerCase() === userEmail.toLowerCase();
+    const isCompanyMatch = userCompany && p.clientName.toLowerCase() === userCompany.toLowerCase();
+    
+    const matchedClientObj = clients.find((c) => c.email.toLowerCase() === userEmail.toLowerCase());
+    const isMatchedClientCompany = matchedClientObj && p.clientName.toLowerCase() === matchedClientObj.company.toLowerCase();
+
+    return isEmailMatch || isCompanyMatch || isMatchedClientCompany;
+  });
+
+  useEffect(() => {
+    if (clientProjects.length > 0 && !clientProjects.some(p => p.id === selectedProjId)) {
+      setSelectedProjId(clientProjects[0].id);
+    }
+  }, [clientProjects, selectedProjId]);
+
+  const activeProj = clientProjects.find((p) => p.id === selectedProjId) || clientProjects[0];
 
   const timeToSeconds = (timestamp: string): number => {
     const parts = timestamp.split(":");
@@ -73,7 +109,8 @@ function ClientPortalContent() {
     updateProjectStatus(activeProj.id, "Concluído");
     alert(`O corte "${activeProj.name}" foi aprovado com sucesso! A equipe de pós-produção foi notificada.`);
   };
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     document.cookie = "moldra-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     document.cookie = "moldra-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     router.push("/login");
@@ -106,7 +143,7 @@ function ClientPortalContent() {
 
           <div className="flex items-center gap-4">
             <span className="text-xs text-gray-400 font-sans hidden sm:inline">
-              Olá, <span className="font-bold text-white">Client Project Approver</span>
+              Olá, <span className="font-bold text-white">{userName}</span> {userCompany && <span className="text-gray-500 font-light font-sans">&bull; {userCompany}</span>}
             </span>
             <button
               onClick={handleLogout}

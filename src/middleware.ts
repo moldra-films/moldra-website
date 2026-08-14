@@ -4,24 +4,39 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Check for the mock session cookie or Supabase cookies
+  // Check for the mock session cookie
   const hasSession = request.cookies.has("moldra-session");
+  const role = request.cookies.get("moldra-role")?.value || "client";
 
-  // Protect admin and client routes
-  if (pathname.startsWith("/admin") || pathname.startsWith("/client")) {
+  // Protect admin routes
+  if (pathname.startsWith("/admin")) {
+    if (pathname === "/admin/login") {
+      if (hasSession && role === "admin") {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+      return NextResponse.next();
+    }
     if (!hasSession) {
-      // Redirect to unified login page if unauthenticated
-      const loginUrl = new URL("/login", request.url);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+    if (role !== "admin") {
+      return NextResponse.redirect(new URL("/client", request.url));
+    }
+  }
+
+  // Protect client routes
+  if (pathname.startsWith("/client")) {
+    if (!hasSession) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    if (role === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.url));
     }
   }
 
   // Redirect authenticated users trying to access login page
   if (pathname === "/login" && hasSession) {
-    // Determine route from simple cookie role helper if available
-    const role = request.cookies.get("moldra-role")?.value || "client";
-    const redirectUrl = new URL(role === "admin" ? "/admin" : "/client", request.url);
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(new URL(role === "admin" ? "/admin" : "/client", request.url));
   }
 
   return NextResponse.next();
