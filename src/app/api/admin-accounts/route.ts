@@ -1,107 +1,67 @@
 import { NextResponse } from "next/server";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2, bucketName } from "@/lib/r2Client";
-
-const FILE_KEY = "database/admin_accounts.json";
-
-const DEFAULT_ACCOUNTS = [
-  { id: "default-1", email: "admin@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() }
-];
+import { supabase } from "@/lib/supabaseClient";
 
 export async function GET() {
   try {
-    if (!bucketName) {
-      throw new Error("R2_BUCKET_NAME is not configured.");
-    }
-
-    const command = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: FILE_KEY,
-    });
-
-    try {
-      const response = await r2.send(command);
-      const dataStr = await response.Body?.transformToString();
-      
-      if (!dataStr) {
-        return NextResponse.json(DEFAULT_ACCOUNTS);
-      }
-
-      const data = JSON.parse(dataStr);
-      return NextResponse.json(data);
-    } catch (getErr: any) {
-      if (getErr.name === "NoSuchKey" || getErr.name === "NotFound") {
-        return NextResponse.json(DEFAULT_ACCOUNTS);
-      }
-      throw getErr;
-    }
-  } catch (error: any) {
-    console.error("Error reading admin-accounts from R2:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data, error } = await supabase.from("profiles").select("*");
+    if (error) throw error;
+    
+    const mapped = data.map((profile: any) => ({
+      id: profile.id,
+      email: profile.email,
+      name: profile.name || profile.email.split("@")[0],
+      role: profile.role || "client",
+      createdAt: profile.created_at
+    }));
+    return NextResponse.json(mapped);
+  } catch (err: any) {
+    console.warn("Failed to read from Supabase 'profiles' table. Falling back to default admin.", err.message);
+    // Graceful fallback to avoid admin panel lockout prior to SQL schema run
+    return NextResponse.json([
+      { id: "default-1", email: "admin@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() },
+      { id: "default-2", email: "mikelly@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() },
+      { id: "default-3", email: "natalia@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() }
+    ]);
   }
 }
 
 export async function POST(request: Request) {
   try {
-    if (!bucketName) {
-      throw new Error("R2_BUCKET_NAME is not configured.");
+    const body = await request.json();
+
+    if (Array.isArray(body)) {
+      // Full list replacement (from Settings tab)
+      // 1. Delete all current rows
+      await supabase.from("profiles").delete().neq("id", "placeholder_matching_none");
+      
+      // 2. Insert new profiles
+      const insertRows = body.map((acc: any) => ({
+        id: acc.id,
+        email: acc.email,
+        name: acc.name,
+        role: acc.role,
+        created_at: acc.createdAt || new Date().toISOString()
+      }));
+
+      const { error } = await supabase.from("profiles").insert(insertRows);
+      if (error) throw error;
+    } else if (body && typeof body === "object") {
+      // Single row insertion (from Sign-Up or Google login)
+      const insertRow = {
+        id: body.id,
+        email: body.email,
+        name: body.name,
+        role: body.role,
+        created_at: body.createdAt || new Date().toISOString()
+      };
+
+      const { error } = await supabase.from("profiles").upsert(insertRow, { onConflict: "email" });
+      if (error) throw error;
     }
 
-    const data = await request.json();
-    let accountsToWrite = [];
-
-    if (Array.isArray(data)) {
-      accountsToWrite = data;
-    } else if (data && typeof data === "object") {
-      // It is a single object (e.g. from sign up page)
-      // Retrieve the current accounts list from R2 first
-      const getCommand = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: FILE_KEY,
-      });
-
-      let currentAccounts = [...DEFAULT_ACCOUNTS];
-      try {
-        const response = await r2.send(getCommand);
-        const dataStr = await response.Body?.transformToString();
-        if (dataStr) {
-          const parsed = JSON.parse(dataStr);
-          if (Array.isArray(parsed)) {
-            currentAccounts = parsed;
-          } else if (parsed && typeof parsed === "object") {
-            // Auto heal corrupted single object formats
-            currentAccounts = [parsed];
-          }
-        }
-      } catch (getErr: any) {
-        // NoSuchKey / NotFound is fine, defaults to DEFAULT_ACCOUNTS
-        if (getErr.name !== "NoSuchKey" && getErr.name !== "NotFound") {
-          throw getErr;
-        }
-      }
-
-      // Check if this account email already exists in the whitelist to avoid duplicates
-      const exists = currentAccounts.some(
-        (acc: any) => acc.email.toLowerCase() === data.email.toLowerCase()
-      );
-
-      if (!exists) {
-        currentAccounts.push(data);
-      }
-      accountsToWrite = currentAccounts;
-    }
-
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: FILE_KEY,
-      Body: JSON.stringify(accountsToWrite, null, 2),
-      ContentType: "application/json",
-    });
-
-    await r2.send(command);
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Error writing admin-accounts to R2:", error);
+    console.error("Error writing admin-accounts to Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
