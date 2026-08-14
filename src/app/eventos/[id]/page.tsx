@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAdmin, EventPhoto } from "@/context/AdminContext";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function EventGalleryPage() {
@@ -37,6 +37,34 @@ export default function EventGalleryPage() {
       document.removeEventListener("contextmenu", handleContextMenu);
     };
   }, []);
+
+  // Keyboard Arrow controls for Lightbox
+  useEffect(() => {
+    if (!activePhoto || !event) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        const currentIndex = event.photos.findIndex((p) => p.id === activePhoto.id);
+        if (currentIndex !== -1) {
+          const prevIndex = (currentIndex - 1 + event.photos.length) % event.photos.length;
+          setActivePhoto(event.photos[prevIndex]);
+        }
+      } else if (e.key === "ArrowRight") {
+        const currentIndex = event.photos.findIndex((p) => p.id === activePhoto.id);
+        if (currentIndex !== -1) {
+          const nextIndex = (currentIndex + 1) % event.photos.length;
+          setActivePhoto(event.photos[nextIndex]);
+        }
+      } else if (e.key === "Escape") {
+        setActivePhoto(null);
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activePhoto, event]);
 
   if (!event) {
     return (
@@ -225,12 +253,12 @@ export default function EventGalleryPage() {
                       }`}
                     >
                       {/* Photo Thumbnail */}
-                      <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={photo.url}
                         alt={photo.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
-                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
+                        loading="lazy"
                       />
                       
                       {/* Repeating watermark grid overlay */}
@@ -366,12 +394,11 @@ export default function EventGalleryPage() {
               className="relative w-full max-w-3xl aspect-[4/3] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl z-10 border border-white/5 bg-black"
             >
               {/* Image box */}
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={activePhoto.url}
                 alt={activePhoto.name}
-                fill
-                className="object-contain pointer-events-none select-none"
-                sizes="(max-width: 1024px) 100vw, 70vw"
+                className="w-full h-full object-contain pointer-events-none select-none"
               />
 
               {/* Giant Repeating protective watermark grid */}
@@ -384,10 +411,42 @@ export default function EventGalleryPage() {
                 ))}
               </div>
 
+              {/* Left Arrow Navigation Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const currentIndex = event.photos.findIndex((p) => p.id === activePhoto.id);
+                  if (currentIndex !== -1) {
+                    const prevIndex = (currentIndex - 1 + event.photos.length) % event.photos.length;
+                    setActivePhoto(event.photos[prevIndex]);
+                  }
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer z-20 group"
+                title="Foto anterior"
+              >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+
+              {/* Right Arrow Navigation Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const currentIndex = event.photos.findIndex((p) => p.id === activePhoto.id);
+                  if (currentIndex !== -1) {
+                    const nextIndex = (currentIndex + 1) % event.photos.length;
+                    setActivePhoto(event.photos[nextIndex]);
+                  }
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer z-20 group"
+                title="Próxima foto"
+              >
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
               {/* Close Button */}
               <button
                 onClick={() => setActivePhoto(null)}
-                className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer z-20"
               >
                 <X className="w-5 h-5" />
               </button>
