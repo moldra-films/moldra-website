@@ -20,10 +20,54 @@ import {
 
 function ClientPortalContent() {
   const router = useRouter();
-  const { projects, clients, addProjectComment, updateProjectStatus } = useAdmin();
+  const { projects, clients, addProjectComment, updateProjectStatus, eventMedias } = useAdmin();
   
   const [selectedProjId, setSelectedProjId] = useState<number>(1);
   const [newComment, setNewComment] = useState("");
+  const [purchasedItems, setPurchasedItems] = useState<{ eventName: string; photoName: string; url: string; date: string }[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && eventMedias.length > 0) {
+      const items: { eventName: string; photoName: string; url: string; date: string }[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("purchased_photos_")) {
+          const eventId = Number(key.replace("purchased_photos_", ""));
+          const event = eventMedias.find((e) => e.id === eventId);
+          if (event) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || "");
+              if (data === "all") {
+                event.photos.forEach((photo) => {
+                  items.push({
+                    eventName: event.name,
+                    photoName: photo.name,
+                    url: photo.url,
+                    date: event.date
+                  });
+                });
+              } else if (Array.isArray(data)) {
+                data.forEach((photoId) => {
+                  const photo = event.photos.find((p) => p.id === photoId);
+                  if (photo) {
+                    items.push({
+                      eventName: event.name,
+                      photoName: photo.name,
+                      url: photo.url,
+                      date: event.date
+                    });
+                  }
+                });
+              }
+            } catch (e) {
+              console.error("Erro ao processar fotos adquiridas do localStorage:", e);
+            }
+          }
+        }
+      }
+      setPurchasedItems(items);
+    }
+  }, [eventMedias]);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const [videoDuration, setVideoDuration] = useState(0);
@@ -360,6 +404,71 @@ function ClientPortalContent() {
           </div>
         )}
 
+        {/* Purchased Photos Section */}
+        <div className="border-t border-white/5 pt-10 space-y-6">
+          <div>
+            <h2 className="text-base font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-primary" />
+              Fotos Adquiridas em Eventos
+            </h2>
+            <p className="text-xs text-gray-500 font-sans mt-0.5">
+              Visualize e faça o download em alta resolução das fotos que você comprou nas nossas galerias de eventos.
+            </p>
+          </div>
+
+          {purchasedItems.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              {purchasedItems.map((item, idx) => (
+                <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden border border-white/5 bg-black/40 hover:border-primary/50 transition-all duration-300 flex flex-col justify-between">
+                  {/* Photo Image */}
+                  <div className="relative w-full flex-1 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.url}
+                      alt={item.photoName}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
+                    />
+                  </div>
+
+                  {/* Card Details & Download Button */}
+                  <div className="p-3 bg-black/80 border-t border-white/5 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-300 font-mono truncate">{item.photoName}</p>
+                      <p className="text-[8px] text-primary truncate uppercase tracking-wider font-light mt-0.5">{item.eventName}</p>
+                    </div>
+
+                    <a
+                      href={item.url}
+                      download={item.photoName}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-2 bg-primary hover:bg-[#B39356] text-black rounded-lg cursor-pointer transition-colors shrink-0"
+                      title="Baixar Foto Alta Resolução"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 rounded-2xl bg-dark-card border border-white/5 text-center max-w-md mx-auto space-y-4">
+              <ImageIcon className="w-10 h-10 text-gray-600 mx-auto" />
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Nenhuma foto encontrada</h4>
+                <p className="text-[10px] text-gray-500 leading-relaxed font-sans">
+                  Você ainda não comprou nenhuma foto de eventos neste navegador. Visite a seção de eventos para escolher suas fotos favoritas.
+                </p>
+              </div>
+              <a
+                href="/eventos"
+                className="inline-block px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] text-primary border border-primary/20 hover:border-primary/50 font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
+              >
+                Ver Eventos Disponíveis
+              </a>
+            </div>
+          )}
+        </div>
 
       </main>
 
