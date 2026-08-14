@@ -1,7 +1,45 @@
 import { NextResponse } from "next/server";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2, bucketName, publicUrl } from "@/lib/r2Client";
+
+export async function DELETE(request: Request) {
+  try {
+    const { fileUrl } = await request.json();
+
+    if (!fileUrl) {
+      return NextResponse.json(
+        { error: "fileUrl parameter is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!bucketName) {
+      return NextResponse.json(
+        { error: "R2_BUCKET_NAME is not configured on the server." },
+        { status: 500 }
+      );
+    }
+
+    const urlObj = new URL(fileUrl);
+    const key = urlObj.pathname.startsWith("/") ? urlObj.pathname.substring(1) : urlObj.pathname;
+
+    const command = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    await r2.send(command);
+
+    return NextResponse.json({ success: true, message: `Successfully deleted key: ${key}` });
+  } catch (error: any) {
+    console.error("R2 DeleteObject error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete asset from R2.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {

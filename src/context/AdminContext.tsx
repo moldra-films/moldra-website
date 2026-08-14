@@ -568,7 +568,23 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addNotification("Nova Galeria de Evento", `Mídia de evento '${event.name}' cadastrada.`, "delivery");
   };
 
-  const deleteEventMedia = (id: number) => {
+  const deleteEventMedia = async (id: number) => {
+    const event = eventMedias.find((e) => e.id === id);
+    if (event && event.photos.length > 0) {
+      await Promise.all(
+        event.photos.map(async (photo) => {
+          try {
+            await fetch("/api/upload", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ fileUrl: photo.url }),
+            });
+          } catch (err) {
+            console.error("Error deleting photo from R2 during event deletion:", err);
+          }
+        })
+      );
+    }
     setEventMedias((prev) => prev.filter((e) => e.id !== id));
   };
 
@@ -590,7 +606,22 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  const deletePhotoFromEvent = (eventId: number, photoId: string) => {
+  const deletePhotoFromEvent = async (eventId: number, photoId: string) => {
+    const event = eventMedias.find((e) => e.id === eventId);
+    const photo = event?.photos.find((p) => p.id === photoId);
+    
+    if (photo?.url) {
+      try {
+        await fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileUrl: photo.url }),
+        });
+      } catch (err) {
+        console.error("Error deleting from R2:", err);
+      }
+    }
+
     setEventMedias((prev) =>
       prev.map((e) => {
         if (e.id === eventId) {
