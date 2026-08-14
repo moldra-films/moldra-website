@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAdmin, EventPhoto } from "@/context/AdminContext";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function EventGalleryPage() {
+function EventGalleryContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const eventId = Number(params.id);
   
-  const { eventMedias, addNotification } = useAdmin();
+  const { eventMedias, addNotification, addTransaction } = useAdmin();
   const event = eventMedias.find((e) => e.id === eventId);
 
   // States
@@ -110,6 +111,97 @@ export default function EventGalleryPage() {
   const checkoutItemsCount = buyAllPackage || isPackageCheaper ? event.photos.length : totalIndividualCount;
   const activePurchaseMode = buyAllPackage || isPackageCheaper ? "Pacote Completo" : "Individual";
 
+  // Load purchase state from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && event) {
+      const savedPurchased = localStorage.getItem(`purchased_photos_${event.id}`);
+      if (savedPurchased) {
+        try {
+          const parsed = JSON.parse(savedPurchased);
+          if (parsed === "all") {
+            setBuyAllPackage(true);
+            setPurchaseSuccess(true);
+          } else if (Array.isArray(parsed) && parsed.length > 0) {
+            setSelectedPhotos(parsed);
+            setPurchaseSuccess(true);
+          }
+        } catch (e) {
+          console.error("Erro ao analisar compras salvas:", e);
+        }
+      }
+    }
+  }, [event]);
+
+  // Handle Mercado Pago query parameter redirects
+  useEffect(() => {
+    if (typeof window === "undefined" || !searchParams || !event) return;
+
+    const paymentStatus = searchParams.get("payment");
+    if (!paymentStatus) return;
+
+    const pendingKey = `pending_purchase_${event.id}`;
+    const pendingData = localStorage.getItem(pendingKey);
+
+    if (paymentStatus === "success") {
+      if (pendingData) {
+        try {
+          const { selectedPhotos: savedPhotos, buyAllPackage: savedBuyAll, finalPrice: savedPrice, checkoutItemsCount: savedCount } = JSON.parse(pendingData);
+          
+          setSelectedPhotos(savedPhotos);
+          setBuyAllPackage(savedBuyAll);
+          setPurchaseSuccess(true);
+
+          // Save purchase permanently on this device
+          localStorage.setItem(`purchased_photos_${event.id}`, JSON.stringify(savedBuyAll ? "all" : savedPhotos));
+
+          // Log transaction in context
+          addTransaction({
+            type: "Receita",
+            category: "Galeria de Fotos",
+            value: savedPrice,
+            date: new Date().toISOString().split("T")[0],
+            description: `Compra de fotos via Mercado Pago - Evento ${event.name} (${savedCount} fotos)`,
+            status: "Pago",
+            customer: `Cliente - Evento ${event.name}`
+          });
+
+          // Add notifications
+          addNotification(
+            "Compra Aprovada via Mercado Pago",
+            `Faturamento de R$ ${savedPrice.toLocaleString()},00 confirmado para o evento '${event.name}'.`,
+            "payment"
+          );
+        } catch (e) {
+          console.error("Erro ao analisar dados da compra pendente:", e);
+          setPurchaseSuccess(true);
+        }
+      } else {
+        setPurchaseSuccess(true);
+      }
+    } else if (paymentStatus === "failure") {
+      addNotification(
+        "Pagamento Cancelado / Falhou",
+        `A tentativa de compra no evento '${event.name}' não foi concluída.`,
+        "payment"
+      );
+      alert("O pagamento via Mercado Pago foi cancelado ou não pôde ser processado. Por favor, tente novamente.");
+    } else if (paymentStatus === "pending") {
+      addNotification(
+        "Pagamento Pendente",
+        `O pagamento do evento '${event.name}' está em análise pelo Mercado Pago.`,
+        "payment"
+      );
+      alert("Seu pagamento está pendente de processamento pelo Mercado Pago. Assim que for aprovado, o acesso às fotos será liberado.");
+    }
+
+    // Clean up
+    localStorage.removeItem(pendingKey);
+    
+    // Clear URL parameters
+    const cleanUrl = window.location.pathname;
+    router.replace(cleanUrl);
+  }, [searchParams, event, router, addTransaction, addNotification]);
+
   const handleCheckout = async () => {
     if (checkoutItemsCount === 0) return;
     setCheckoutLoading(true);
@@ -125,6 +217,17 @@ export default function EventGalleryPage() {
               unit_price: event.pricePerPhoto
             };
           });
+
+      // Save purchase information in localStorage before redirecting
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`pending_purchase_${event.id}`, JSON.stringify({
+          selectedPhotos,
+          buyAllPackage,
+          finalPrice,
+          checkoutItemsCount,
+          activePurchaseMode
+        }));
+      }
 
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -156,6 +259,23 @@ export default function EventGalleryPage() {
   const handleSimulatePaymentApproval = () => {
     setPurchaseSuccess(true);
     setShowPixModal(false);
+
+    // Save purchase permanently
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`purchased_photos_${event.id}`, JSON.stringify(buyAllPackage ? "all" : selectedPhotos));
+    }
+
+    // Add transaction to context
+    addTransaction({
+      type: "Receita",
+      category: "Galeria de Fotos",
+      value: finalPrice,
+      date: new Date().toISOString().split("T")[0],
+      description: `Compra de fotos (PIX Simulado) - Evento ${event.name} (${checkoutItemsCount} fotos)`,
+      status: "Pago",
+      customer: `Cliente - Evento ${event.name}`
+    });
+
     addNotification("Compra Aprovada!", `Pagamento do evento '${event.name}' realizado com sucesso via PIX simulado.`, "payment");
   };
 
@@ -230,6 +350,9 @@ export default function EventGalleryPage() {
                 setPurchaseSuccess(false);
                 setSelectedPhotos([]);
                 setBuyAllPackage(false);
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem(`purchased_photos_${event.id}`);
+                }
               }}
               className="mt-6 px-6 py-2.5 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider rounded-xl border border-white/5 transition-colors cursor-pointer"
             >
@@ -600,5 +723,13 @@ export default function EventGalleryPage() {
         }
       `}} />
     </div>
+  );
+}
+
+export default function EventGalleryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-dark-bg text-white flex items-center justify-center text-xs text-gray-400">Carregando galeria...</div>}>
+      <EventGalleryContent />
+    </Suspense>
   );
 }
