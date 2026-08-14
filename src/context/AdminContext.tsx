@@ -235,7 +235,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const storedLocations = localStorage.getItem("moldra_locations");
         const storedContracts = localStorage.getItem("moldra_contracts");
         const storedNotifications = localStorage.getItem("moldra_notifications");
-        const storedEventMedias = localStorage.getItem("moldra_event_medias");
         const storedServiceTypes = localStorage.getItem("moldra_service_types");
 
         if (storedLeads) setLeads(JSON.parse(storedLeads));
@@ -247,38 +246,59 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (storedLocations) setLocations(JSON.parse(storedLocations));
         if (storedContracts) setContracts(JSON.parse(storedContracts));
         if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
-        if (storedEventMedias) {
-          let parsed: EventMedia[] = JSON.parse(storedEventMedias);
-          const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
-          const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
-          let migrated = false;
-
-          parsed = parsed.map((event) => {
-            const updatedPhotos = event.photos.map((photo) => {
-              if (photo.url.includes(oldSubdomain)) {
-                migrated = true;
-                return {
-                  ...photo,
-                  url: photo.url.replace(oldSubdomain, newSubdomain),
-                };
-              }
-              return photo;
-            });
-            return {
-              ...event,
-              photos: updatedPhotos,
-            };
-          });
-
-          if (migrated) {
-            localStorage.setItem("moldra_event_medias", JSON.stringify(parsed));
-          }
-          setEventMedias(parsed);
-        }
         if (storedServiceTypes) setServiceTypes(JSON.parse(storedServiceTypes));
+        
+        // Fetch centralized event media list from Cloudflare R2 database
+        fetch("/api/event-media")
+          .then((res) => {
+            if (res.ok) return res.json();
+            throw new Error("R2 API error");
+          })
+          .then((data) => {
+            const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
+            const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
+            let migrated = false;
+
+            const migratedData = data.map((event: any) => {
+              const updatedPhotos = event.photos.map((photo: any) => {
+                if (photo.url.includes(oldSubdomain)) {
+                  migrated = true;
+                  return {
+                    ...photo,
+                    url: photo.url.replace(oldSubdomain, newSubdomain),
+                  };
+                }
+                return photo;
+              });
+              return {
+                ...event,
+                photos: updatedPhotos,
+              };
+            });
+
+            setEventMedias(migratedData);
+            localStorage.setItem("moldra_event_medias", JSON.stringify(migratedData));
+            
+            if (migrated) {
+              fetch("/api/event-media", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(migratedData),
+              }).catch((e) => console.error("Error saving migrated R2 database:", e));
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to load events from R2, using localStorage fallback:", err);
+            const storedEventMedias = localStorage.getItem("moldra_event_medias");
+            if (storedEventMedias) {
+              setEventMedias(JSON.parse(storedEventMedias));
+            }
+          })
+          .finally(() => {
+            setIsLoaded(true);
+          });
       } catch (e) {
         console.error("Erro ao carregar dados do localStorage:", e);
-      } finally {
         setIsLoaded(true);
       }
     }
@@ -348,6 +368,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       localStorage.setItem("moldra_event_medias", JSON.stringify(eventMedias));
+      
+      // Central database sync to Cloudflare R2 JSON file
+      fetch("/api/event-media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(eventMedias),
+      }).catch((err) => console.error("Error saving event-medias database to R2:", err));
     }
   }, [eventMedias, isLoaded]);
 
