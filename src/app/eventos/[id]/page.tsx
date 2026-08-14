@@ -235,7 +235,8 @@ function EventGalleryContent() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "Checkout preferente falhou");
+        const detailMsg = errorData.details ? `: ${errorData.details}` : "";
+        throw new Error(`${errorData.error || "Checkout preferente falhou"}${detailMsg}`);
       }
       const data = await res.json();
 
