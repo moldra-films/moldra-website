@@ -24,8 +24,6 @@ function EventGalleryContent() {
   
   // Checkout States
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [showPixModal, setShowPixModal] = useState(false);
-  const [pixCode, setPixCode] = useState("");
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [isWindowFocused, setIsWindowFocused] = useState(true);
 
@@ -235,48 +233,24 @@ function EventGalleryContent() {
         body: JSON.stringify({ items, eventId: event.id }),
       });
 
-      if (!res.ok) throw new Error("Checkout preferente falhou");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Checkout preferente falhou");
+      }
       const data = await res.json();
 
       if (data.initPoint) {
         // Redirect to Mercado Pago checkout
         window.location.href = data.initPoint;
-      } else if (data.simulatedPix) {
-        // Show QR Code Pix modal simulator
-        setPixCode(data.simulatedPix);
-        setShowPixModal(true);
+      } else {
+        throw new Error("Link de checkout do Mercado Pago não recebido do servidor.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Houve um erro ao processar o checkout. Iniciando simulação de PIX offline.");
-      setPixCode("00020101021226870014br.gov.bcb.pix2565pix.mercado-pago.com.br/qr/v2/mock-moldrafilms-pix-payment");
-      setShowPixModal(true);
+      alert(`Erro ao processar o checkout: ${err.message || "Não foi possível iniciar o pagamento. Por favor, tente novamente ou contate o suporte."}`);
     } finally {
       setCheckoutLoading(false);
     }
-  };
-
-  const handleSimulatePaymentApproval = () => {
-    setPurchaseSuccess(true);
-    setShowPixModal(false);
-
-    // Save purchase permanently
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`purchased_photos_${event.id}`, JSON.stringify(buyAllPackage ? "all" : selectedPhotos));
-    }
-
-    // Add transaction to context
-    addTransaction({
-      type: "Receita",
-      category: "Galeria de Fotos",
-      value: finalPrice,
-      date: new Date().toISOString().split("T")[0],
-      description: `Compra de fotos (PIX Simulado) - Evento ${event.name} (${checkoutItemsCount} fotos)`,
-      status: "Pago",
-      customer: `Cliente - Evento ${event.name}`
-    });
-
-    addNotification("Compra Aprovada!", `Pagamento do evento '${event.name}' realizado com sucesso via PIX simulado.`, "payment");
   };
 
   return (
@@ -638,83 +612,6 @@ function EventGalleryContent() {
         )}
       </AnimatePresence>
 
-      {/* Simulated PIX QR Code Checkout Modal (Offline Fallback/Sandbox Demo) */}
-      <AnimatePresence>
-        {showPixModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowPixModal(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            />
-
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 15 }}
-              transition={{ type: "spring", duration: 0.3 }}
-              className="w-full max-w-sm bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative z-10 text-center p-6 space-y-6"
-            >
-              {/* Header */}
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Pagamento via PIX</h3>
-                <p className="text-[10px] text-gray-500 font-sans">Homologação de Checkout & Simulação</p>
-              </div>
-
-              {/* Price Details */}
-              <div className="py-3 bg-black/35 rounded-xl border border-white/5">
-                <span className="text-[10px] text-gray-400 block mb-0.5 font-light">Valor a pagar:</span>
-                <span className="text-xl font-bold font-display text-primary">R$ {finalPrice},00</span>
-              </div>
-
-              {/* QR Code Container */}
-              <div className="w-48 h-48 bg-white rounded-xl p-3 mx-auto flex items-center justify-center relative overflow-hidden group shadow-lg border border-white/10">
-                <QrCode className="w-full h-full text-black stroke-[1.5]" />
-                {/* Fake overlay PIX logo center */}
-                <div className="absolute w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-[8px] text-black">
-                  PIX
-                </div>
-              </div>
-
-              {/* PIX Copy Code Row */}
-              <div className="space-y-2">
-                <span className="text-[9px] uppercase font-bold text-gray-500 block text-left">Código PIX Copia e Cola</span>
-                <div className="flex bg-black/45 border border-white/10 rounded-xl p-2 items-center justify-between gap-4">
-                  <span className="text-[9px] text-gray-400 font-mono truncate flex-1 text-left select-all">{pixCode}</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(pixCode);
-                      alert("Código PIX copiado!");
-                    }}
-                    className="p-1.5 bg-white/5 hover:bg-white/10 text-primary border border-white/5 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Simulator Action Buttons */}
-              <div className="space-y-2.5 pt-2">
-                <button
-                  onClick={handleSimulatePaymentApproval}
-                  className="w-full py-3 bg-green-500 hover:bg-green-600 text-black font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  Simular Aprovação (Liberar Fotos)
-                </button>
-                
-                <button
-                  onClick={() => setShowPixModal(false)}
-                  className="w-full py-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-transparent hover:border-white/5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
-                >
-                  Cancelar Pagamento
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Print protection injection */}
       <style dangerouslySetInnerHTML={{ __html: `

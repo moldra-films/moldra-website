@@ -48,12 +48,10 @@ export async function POST(request: Request) {
       const data = await mpResponse.json();
       return NextResponse.json({ initPoint: data.init_point });
     } else {
-      // If access token is not configured on the server, return simulated payment payload
-      // PIX simulated payload (randomly generated key)
-      const randomPixHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      const simulatedPix = `00020101021226870014br.gov.bcb.pix2565pix.mercado-pago.com.br/qr/v2/mock-${randomPixHash}-moldra-payment-checkout`;
-
-      return NextResponse.json({ simulatedPix });
+      return NextResponse.json(
+        { error: "Mercado Pago Access Token is not configured on the server." },
+        { status: 501 }
+      );
     }
   } catch (error: any) {
     console.error("Checkout API error:", error);
