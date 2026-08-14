@@ -4,6 +4,65 @@ import { useState } from "react";
 import { useAdmin, Project } from "@/context/AdminContext";
 import { Film, Calendar, MapPin, AlignLeft, CheckSquare, Users, Edit3, X, Play, Sliders, ChevronRight, Trash2 } from "lucide-react";
 
+const getStatusColor = (status: Project["status"]) => {
+  switch (status) {
+    case "Briefing":
+      return {
+        bg: "bg-blue-500/10",
+        border: "border-blue-500/20",
+        text: "text-blue-400",
+        solid: "bg-blue-500",
+        hoverBg: "hover:bg-blue-500/20",
+        gradient: "from-blue-600 to-blue-400 text-white shadow-blue-500/15",
+      };
+    case "Planejamento":
+      return {
+        bg: "bg-purple-500/10",
+        border: "border-purple-500/20",
+        text: "text-purple-400",
+        solid: "bg-purple-500",
+        hoverBg: "hover:bg-purple-500/20",
+        gradient: "from-purple-600 to-purple-400 text-white shadow-purple-500/15",
+      };
+    case "Em Produção":
+      return {
+        bg: "bg-yellow-500/10",
+        border: "border-yellow-500/20",
+        text: "text-yellow-400",
+        solid: "bg-yellow-500",
+        hoverBg: "hover:bg-yellow-500/20",
+        gradient: "from-yellow-600 to-yellow-400 text-black shadow-yellow-500/15",
+      };
+    case "Aprovação":
+      return {
+        bg: "bg-orange-500/10",
+        border: "border-orange-500/20",
+        text: "text-orange-400",
+        solid: "bg-orange-500",
+        hoverBg: "hover:bg-orange-500/20",
+        gradient: "from-orange-600 to-orange-400 text-white shadow-orange-500/15",
+      };
+    case "Concluído":
+      return {
+        bg: "bg-green-500/10",
+        border: "border-green-500/20",
+        text: "text-green-400",
+        solid: "bg-green-500",
+        hoverBg: "hover:bg-green-500/20",
+        gradient: "from-green-600 to-green-400 text-black shadow-green-500/15",
+      };
+    default:
+      return {
+        bg: "bg-white/5",
+        border: "border-white/10",
+        text: "text-gray-300",
+        solid: "bg-white",
+        hoverBg: "hover:bg-white/10",
+        gradient: "from-white/20 to-white/10 text-white shadow-white/5",
+      };
+  }
+};
+
 export default function ProjectsTab() {
   const { projects, clients, serviceTypes, addProject, updateProject, deleteProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "calendario" | "timeline">("lista");
@@ -272,7 +331,7 @@ export default function ProjectsTab() {
                     <td className="p-4 font-mono text-gray-300">{proj.dateDelivery}</td>
                     <td className="p-4 font-bold text-primary">R$ {proj.budget.toLocaleString()}</td>
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-gray-300 uppercase">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase ${getStatusColor(proj.status).bg} ${getStatusColor(proj.status).border} ${getStatusColor(proj.status).text}`}>
                         {proj.status}
                       </span>
                     </td>
@@ -299,8 +358,11 @@ export default function ProjectsTab() {
             return (
               <div key={status} className="flex flex-col rounded-2xl bg-dark-card border border-white/5 min-h-[400px]">
                 <div className="px-4 py-3 border-b border-white/5 bg-black/20 text-gray-300 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">{status}</span>
-                  <span className="text-xs font-bold font-display px-2 py-0.5 rounded-full bg-white/5">{statusProjects.length}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status).solid}`} />
+                    {status}
+                  </span>
+                  <span className={`text-xs font-bold font-display px-2 py-0.5 rounded-full bg-white/5 ${getStatusColor(status).text}`}>{statusProjects.length}</span>
                 </div>
                 <div className="p-3 space-y-3 flex-1 overflow-y-auto">
                   {statusProjects.map((proj) => (
@@ -386,7 +448,7 @@ export default function ProjectsTab() {
                 <div className="col-span-9 bg-white/5 border border-white/5 h-10 rounded-xl relative overflow-hidden flex items-center px-4">
                   {/* Position bar dynamically */}
                   <div
-                    className="absolute h-6 bg-gradient-to-r from-primary to-[#E5C180] rounded-lg shadow-md flex items-center px-3 text-[9px] font-bold text-black uppercase"
+                    className={`absolute h-6 bg-gradient-to-r rounded-lg shadow-md flex items-center px-3 text-[9px] font-bold uppercase ${getStatusColor(proj.status).gradient}`}
                     style={{
                       left: proj.id === 1 ? "30%" : "10%",
                       width: proj.id === 1 ? "45%" : "35%",
@@ -433,19 +495,23 @@ export default function ProjectsTab() {
               <div className="space-y-3">
                 <label className="block text-[10px] uppercase font-bold text-gray-400">Progresso do Projeto</label>
                 <div className="flex flex-wrap gap-2">
-                  {projectStatuses.map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => handleStatusTransition(selectedProject.id, st)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer border ${
-                        selectedProject.status === st
-                          ? "bg-primary text-black border-primary"
-                          : "bg-white/5 text-gray-400 border-white/5 hover:border-white/10 hover:text-white"
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
+                  {projectStatuses.map((st) => {
+                    const isSelected = selectedProject.status === st;
+                    const colors = getStatusColor(st);
+                    return (
+                      <button
+                        key={st}
+                        onClick={() => handleStatusTransition(selectedProject.id, st)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer border transition-all ${
+                          isSelected
+                            ? `${colors.bg} ${colors.text} ${colors.border} shadow-lg shadow-black/10`
+                            : "bg-white/5 text-gray-400 border-white/5 hover:border-white/10 hover:text-white"
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
