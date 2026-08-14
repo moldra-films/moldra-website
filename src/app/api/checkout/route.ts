@@ -11,7 +11,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+
+    console.log("Checkout API Request Info:", {
+      hasToken: !!accessToken,
+      tokenLength: accessToken?.length || 0,
+      tokenStart: accessToken ? accessToken.substring(0, 15) + "..." : "none",
+      tokenEnd: accessToken ? "..." + accessToken.substring(accessToken.length - 5) : "none",
+      eventId,
+      itemsCount: items?.length || 0
+    });
 
     if (accessToken) {
       // Create preference payload for Mercado Pago
@@ -39,6 +48,8 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify(preferencePayload),
       });
+
+      console.log("Mercado Pago Response Status:", mpResponse.status);
 
       if (!mpResponse.ok) {
         let errMsg = "Mercado Pago API error";
