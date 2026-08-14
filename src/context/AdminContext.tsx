@@ -250,18 +250,24 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
         if (storedServiceTypes) setServiceTypes(JSON.parse(storedServiceTypes));
         
-        // Fetch centralized event media list from Cloudflare R2 database
-        fetch("/api/event-media")
-          .then((res) => {
+        // Fetch centralized data from R2
+        Promise.all([
+          fetch("/api/event-media").then((res) => {
             if (res.ok) return res.json();
-            throw new Error("R2 API error");
-          })
-          .then((data) => {
+            throw new Error("R2 event-media error");
+          }),
+          fetch("/api/transactions").then((res) => {
+            if (res.ok) return res.json();
+            throw new Error("R2 transactions error");
+          }),
+        ])
+          .then(([eventMediaData, transactionsData]) => {
+            // Process eventMediaData
             const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
             const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
             let migrated = false;
 
-            const migratedData = data.map((event: any) => {
+            const migratedData = eventMediaData.map((event: any) => {
               const updatedPhotos = event.photos.map((photo: any) => {
                 if (photo.url.includes(oldSubdomain)) {
                   migrated = true;
@@ -288,12 +294,22 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 body: JSON.stringify(migratedData),
               }).catch((e) => console.error("Error saving migrated R2 database:", e));
             }
+
+            // Process transactionsData
+            setTransactions(transactionsData);
+            localStorage.setItem("moldra_transactions", JSON.stringify(transactionsData));
           })
           .catch((err) => {
-            console.error("Failed to load events from R2, using localStorage fallback:", err);
+            console.error("Failed to load centralized R2 data, using localStorage fallback:", err);
+            
             const storedEventMedias = localStorage.getItem("moldra_event_medias");
             if (storedEventMedias) {
               setEventMedias(JSON.parse(storedEventMedias));
+            }
+
+            const storedTrans = localStorage.getItem("moldra_transactions");
+            if (storedTrans) {
+              setTransactions(JSON.parse(storedTrans));
             }
           })
           .finally(() => {
@@ -569,14 +585,47 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Finance actions
-  const addTransaction = (transaction: Omit<Transaction, "id">) => {
+  const addTransaction = async (transaction: Omit<Transaction, "id">) => {
+    try {
+      // POST single transaction to safely append it in R2
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(transaction),
+      });
+      if (res.ok) {
+        // Refetch complete list to stay updated
+        const listRes = await fetch("/api/transactions");
+        if (listRes.ok) {
+          const list = await listRes.json();
+          setTransactions(list);
+          localStorage.setItem("moldra_transactions", JSON.stringify(list));
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Error adding transaction to R2:", err);
+    }
+    
+    // Fallback locally
     setTransactions((prev) => [...prev, { ...transaction, id: prev.length + 1 }]);
   };
 
-  const markTransactionPaid = (id: number) => {
-    setTransactions((prev) =>
-      prev.map((trans) => (trans.id === id ? { ...trans, status: "Pago" as const } : trans))
-    );
+  const markTransactionPaid = async (id: number) => {
+    const updated = transactions.map((trans) => (trans.id === id ? { ...trans, status: "Pago" as const } : trans));
+    setTransactions(updated);
+    localStorage.setItem("moldra_transactions", JSON.stringify(updated));
+
+    try {
+      await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+    } catch (err) {
+      console.error("Error updating transaction in R2:", err);
+    }
+
     const t = transactions.find((trans) => trans.id === id);
     if (t) {
       addNotification("Pagamento recebido", `Transação de R$ ${t.value.toLocaleString()} foi confirmada como Paga.`, "payment");
