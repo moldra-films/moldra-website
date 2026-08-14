@@ -103,8 +103,8 @@ export default function SettingsTab() {
   };
 
   const handleDeleteAccount = async (id: string, email: string) => {
-    if (id.startsWith("default-")) {
-      alert("Este é um acesso administrativo padrão do sistema e não pode ser removido.");
+    if (email === "admin@moldrafilms.com.br") {
+      alert("Este é o acesso administrativo principal do sistema e não pode ser removido.");
       return;
     }
 
@@ -265,14 +265,14 @@ export default function SettingsTab() {
                   </td>
                   <td className="p-4 text-right">
                     <button
-                      disabled={acc.id.startsWith("default-")}
+                      disabled={acc.email === "admin@moldrafilms.com.br"}
                       onClick={() => handleDeleteAccount(acc.id, acc.email)}
                       className={`p-2 rounded-xl transition-all cursor-pointer ${
-                        acc.id.startsWith("default-")
+                        acc.email === "admin@moldrafilms.com.br"
                           ? "text-gray-600 cursor-not-allowed opacity-35"
                           : "hover:bg-red-500/10 text-gray-400 hover:text-red-400"
                       }`}
-                      title={acc.id.startsWith("default-") ? "Acesso padrão" : "Remover acesso"}
+                      title={acc.email === "admin@moldrafilms.com.br" ? "Acesso padrão" : "Remover acesso"}
                     >
                       <Trash2 className="w-4.5 h-4.5" />
                     </button>

@@ -5,9 +5,7 @@ import { r2, bucketName } from "@/lib/r2Client";
 const FILE_KEY = "database/admin_accounts.json";
 
 const DEFAULT_ACCOUNTS = [
-  { id: "default-1", email: "admin@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() },
-  { id: "default-2", email: "mikelly@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() },
-  { id: "default-3", email: "natalia@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() }
+  { id: "default-1", email: "admin@moldrafilms.com.br", role: "admin", createdAt: new Date().toISOString() }
 ];
 
 export async function GET() {
