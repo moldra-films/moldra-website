@@ -283,10 +283,10 @@ export default function EventGalleryPage() {
                           e.stopPropagation();
                           setActivePhoto(photo);
                         }}
-                        className="absolute bottom-3 right-3 p-1.5 bg-black/75 backdrop-blur-sm border border-white/10 hover:border-primary text-gray-400 hover:text-white rounded-lg transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                        className="absolute bottom-3 right-3 p-2.5 bg-black/85 backdrop-blur-sm border border-primary/40 hover:border-primary text-primary hover:text-white rounded-xl transition-all cursor-pointer shadow-lg z-10 flex items-center justify-center transform active:scale-95"
                         title="Ver ampliação"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <Eye className="w-4 h-4 stroke-[2.5]" />
                       </button>
                     </div>
                   );
