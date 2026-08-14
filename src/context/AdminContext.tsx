@@ -247,7 +247,34 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (storedLocations) setLocations(JSON.parse(storedLocations));
         if (storedContracts) setContracts(JSON.parse(storedContracts));
         if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
-        if (storedEventMedias) setEventMedias(JSON.parse(storedEventMedias));
+        if (storedEventMedias) {
+          let parsed: EventMedia[] = JSON.parse(storedEventMedias);
+          const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
+          const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
+          let migrated = false;
+
+          parsed = parsed.map((event) => {
+            const updatedPhotos = event.photos.map((photo) => {
+              if (photo.url.includes(oldSubdomain)) {
+                migrated = true;
+                return {
+                  ...photo,
+                  url: photo.url.replace(oldSubdomain, newSubdomain),
+                };
+              }
+              return photo;
+            });
+            return {
+              ...event,
+              photos: updatedPhotos,
+            };
+          });
+
+          if (migrated) {
+            localStorage.setItem("moldra_event_medias", JSON.stringify(parsed));
+          }
+          setEventMedias(parsed);
+        }
         if (storedServiceTypes) setServiceTypes(JSON.parse(storedServiceTypes));
       } catch (e) {
         console.error("Erro ao carregar dados do localStorage:", e);
