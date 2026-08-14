@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAdmin, Project } from "@/context/AdminContext";
 import { Film, Calendar, MapPin, AlignLeft, CheckSquare, Users, Edit3, X, Play, Sliders, ChevronRight, Trash2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const getStatusColor = (status: Project["status"]) => {
   switch (status) {
@@ -679,8 +680,17 @@ export default function ProjectsTab() {
       )}
       {/* Add Project Overlay Drawer */}
       {showAddProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
+          >
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Cadastrar Novo Projeto</h3>
               <button
@@ -842,8 +852,8 @@ export default function ProjectsTab() {
                 Criar Projeto
               </button>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

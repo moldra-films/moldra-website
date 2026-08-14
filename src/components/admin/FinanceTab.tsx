@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAdmin, Transaction } from "@/context/AdminContext";
 import { Plus, Check, DollarSign, FileText, Send, Share2, Printer, X } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function FinanceTab() {
   const { transactions, clients, addTransaction, markTransactionPaid } = useAdmin();
@@ -283,8 +284,17 @@ export default function FinanceTab() {
 
       {/* Invoice Builder Modal */}
       {showInvoiceBuilder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="w-full max-w-lg bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
+          >
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Gerar Fatura / Orçamento de Serviço</h3>
               <button onClick={() => setShowInvoiceBuilder(false)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
@@ -368,14 +378,23 @@ export default function FinanceTab() {
                 Gerar & Exibir Fatura
               </button>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Recibo / Print Invoice popover overlay */}
       {showReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-white text-black p-8 rounded-2xl shadow-2xl relative border border-gray-200">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="w-full max-w-2xl bg-white text-black p-8 rounded-2xl shadow-2xl relative border border-gray-200"
+          >
             {/* Header info */}
             <div className="flex justify-between items-start border-b border-gray-300 pb-6 mb-6">
               <div>
@@ -458,8 +477,8 @@ export default function FinanceTab() {
                 Compartilhar
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

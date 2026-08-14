@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAdmin, Equipment } from "@/context/AdminContext";
 import { Cpu, MapPin, Check, RotateCcw, AlertTriangle, UserCheck, Plus, X } from "lucide-react";
 import R2UploadTest from "./R2UploadTest";
+import { motion } from "framer-motion";
 
 export default function InventoryTab() {
   const { equipments, locations, updateEquipmentStatus, addEquipment, addLocation } = useAdmin();
@@ -250,8 +251,17 @@ export default function InventoryTab() {
       {activeSubTab === "r2" && <R2UploadTest />}
       {/* Checkout Selection Drawer Overlay */}
       {selectedEq && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="w-full max-w-sm bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
+          >
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Registrar Empréstimo</h3>
               <button onClick={() => setSelectedEq(null)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
@@ -286,13 +296,22 @@ export default function InventoryTab() {
                 Confirmar Saída
               </button>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
       {/* Add Equipment Drawer */}
       {showAddEq && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="w-full max-w-sm bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
+          >
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Novo Equipamento</h3>
               <button
@@ -352,14 +371,23 @@ export default function InventoryTab() {
                 Cadastrar Equipamento
               </button>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Add Location Drawer */}
       {showAddLoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
+          >
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">Cadastrar Nova Locação</h3>
               <button
@@ -427,8 +455,8 @@ export default function InventoryTab() {
                 Cadastrar Locação
               </button>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
