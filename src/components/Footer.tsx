@@ -2,6 +2,7 @@
 
 import { Film, ArrowUp } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 const InstagramIcon = () => (
   <svg
@@ -150,12 +151,12 @@ export default function Footer({ onScrollToSection }: FooterProps) {
             &copy; {new Date().getFullYear()} Moldra Films. Todos os direitos reservados.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="text-xs text-gray-500 hover:text-primary transition-colors font-sans">
+            <Link href="/politica-de-privacidade" className="text-xs text-gray-500 hover:text-primary transition-colors font-sans">
               Política de Privacidade
-            </a>
-            <a href="#" className="text-xs text-gray-500 hover:text-primary transition-colors font-sans">
+            </Link>
+            <Link href="/termos-de-uso" className="text-xs text-gray-500 hover:text-primary transition-colors font-sans">
               Termos de Uso
-            </a>
+            </Link>
           </div>
 
           {/* Scroll to top button */}
