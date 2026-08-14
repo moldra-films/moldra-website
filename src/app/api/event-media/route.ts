@@ -1,62 +1,68 @@
 import { NextResponse } from "next/server";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2, bucketName } from "@/lib/r2Client";
-
-const FILE_KEY = "database/event_medias.json";
+import { supabase } from "@/lib/supabaseClient";
 
 export async function GET() {
   try {
-    if (!bucketName) {
-      throw new Error("R2_BUCKET_NAME is not configured.");
-    }
+    const { data, error } = await supabase
+      .from("event_medias")
+      .select("*")
+      .order("id", { ascending: true });
 
-    const command = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: FILE_KEY,
-    });
+    if (error) throw error;
 
-    try {
-      const response = await r2.send(command);
-      const dataStr = await response.Body?.transformToString();
-      
-      if (!dataStr) {
-        return NextResponse.json([]);
-      }
+    const mapped = data.map((event: any) => ({
+      id: event.id,
+      name: event.name,
+      date: event.date,
+      pricePerPhoto: event.price_per_photo,
+      packagePrice: event.package_price,
+      photos: event.photos || [],
+    }));
 
-      const data = JSON.parse(dataStr);
-      return NextResponse.json(data);
-    } catch (getErr: any) {
-      // If the file doesn't exist yet, return an empty array
-      if (getErr.name === "NoSuchKey" || getErr.name === "NotFound") {
-        return NextResponse.json([]);
-      }
-      throw getErr;
-    }
+    return NextResponse.json(mapped);
   } catch (error: any) {
-    console.error("Error reading event-media from R2:", error);
+    console.error("Error reading event-media from Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    if (!bucketName) {
-      throw new Error("R2_BUCKET_NAME is not configured.");
+    const body = await request.json();
+
+    if (!Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid payload, must be an array" }, { status: 400 });
     }
 
-    const data = await request.json();
+    // 1. Delete all current rows
+    const { error: deleteError } = await supabase
+      .from("event_medias")
+      .delete()
+      .neq("id", -1);
+    
+    if (deleteError) throw deleteError;
 
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: FILE_KEY,
-      Body: JSON.stringify(data, null, 2),
-      ContentType: "application/json",
-    });
+    // 2. Insert new events
+    if (body.length > 0) {
+      const insertRows = body.map((event: any) => ({
+        id: event.id,
+        name: event.name,
+        date: event.date,
+        price_per_photo: event.pricePerPhoto,
+        package_price: event.packagePrice,
+        photos: event.photos || [],
+      }));
 
-    await r2.send(command);
+      const { error: insertError } = await supabase
+        .from("event_medias")
+        .insert(insertRows);
+
+      if (insertError) throw insertError;
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Error writing event-media to R2:", error);
+    console.error("Error writing event-media to Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

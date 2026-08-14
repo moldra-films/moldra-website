@@ -1,97 +1,100 @@
 import { NextResponse } from "next/server";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2, bucketName } from "@/lib/r2Client";
-
-const FILE_KEY = "database/transactions.json";
+import { supabase } from "@/lib/supabaseClient";
 
 export async function GET() {
   try {
-    if (!bucketName) {
-      throw new Error("R2_BUCKET_NAME is not configured.");
-    }
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .order("id", { ascending: true });
 
-    const command = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: FILE_KEY,
-    });
+    if (error) throw error;
 
-    try {
-      const response = await r2.send(command);
-      const dataStr = await response.Body?.transformToString();
-      
-      if (!dataStr) {
-        return NextResponse.json([]);
-      }
+    const mapped = data.map((trans: any) => ({
+      id: trans.id,
+      type: trans.type,
+      category: trans.category,
+      value: trans.value,
+      date: trans.date,
+      description: trans.description,
+      status: trans.status,
+      customer: trans.customer,
+    }));
 
-      const data = JSON.parse(dataStr);
-      return NextResponse.json(data);
-    } catch (getErr: any) {
-      if (getErr.name === "NoSuchKey" || getErr.name === "NotFound") {
-        return NextResponse.json([]);
-      }
-      throw getErr;
-    }
+    return NextResponse.json(mapped);
   } catch (error: any) {
-    console.error("Error reading transactions from R2:", error);
+    console.error("Error reading transactions from Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    if (!bucketName) {
-      throw new Error("R2_BUCKET_NAME is not configured.");
-    }
-
     const payload = await request.json();
 
     if (Array.isArray(payload)) {
       // Overwrite database (Admin sync)
-      const putCommand = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: FILE_KEY,
-        Body: JSON.stringify(payload, null, 2),
-        ContentType: "application/json",
-      });
-      await r2.send(putCommand);
+      // 1. Delete all current rows
+      const { error: deleteError } = await supabase
+        .from("transactions")
+        .delete()
+        .neq("id", -1);
+      
+      if (deleteError) throw deleteError;
+
+      // 2. Insert new transactions
+      if (payload.length > 0) {
+        const insertRows = payload.map((trans: any) => ({
+          id: trans.id,
+          type: trans.type,
+          category: trans.category,
+          value: trans.value,
+          date: trans.date,
+          description: trans.description,
+          status: trans.status,
+          customer: trans.customer,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("transactions")
+          .insert(insertRows);
+
+        if (insertError) throw insertError;
+      }
       return NextResponse.json({ success: true });
     } else {
       // Append single transaction (Client purchase or manual ledger quick entry)
-      let transactions: any[] = [];
-      const getCommand = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: FILE_KEY,
-      });
+      const { data: maxIdData, error: maxIdError } = await supabase
+        .from("transactions")
+        .select("id")
+        .order("id", { ascending: false })
+        .limit(1);
 
-      try {
-        const response = await r2.send(getCommand);
-        const dataStr = await response.Body?.transformToString();
-        if (dataStr) {
-          transactions = JSON.parse(dataStr);
-        }
-      } catch (getErr: any) {
-        if (getErr.name !== "NoSuchKey" && getErr.name !== "NotFound") {
-          throw getErr;
-        }
-      }
+      if (maxIdError) throw maxIdError;
 
-      const finalTransaction = {
-        ...payload,
-        id: transactions.length + 1
+      const nextId = maxIdData && maxIdData.length > 0 ? Number(maxIdData[0].id) + 1 : 1;
+
+      const insertRow = {
+        id: nextId,
+        type: payload.type,
+        category: payload.category,
+        value: payload.value,
+        date: payload.date,
+        description: payload.description,
+        status: payload.status,
+        customer: payload.customer,
       };
-      transactions.push(finalTransaction);
 
-      const putCommand = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: FILE_KEY,
-        Body: JSON.stringify(transactions, null, 2),
-        ContentType: "application/json",
-      });
-      await r2.send(putCommand);
-      return NextResponse.json(finalTransaction);
+      const { error: insertError } = await supabase
+        .from("transactions")
+        .insert(insertRow);
+
+      if (insertError) throw insertError;
+
+      return NextResponse.json(insertRow);
     }
   } catch (error: any) {
-    console.error("Error writing transactions to R2:", error);
+    console.error("Error writing transactions to Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
