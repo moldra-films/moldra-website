@@ -110,7 +110,7 @@ export default function About() {
                 <h4 className="text-lg font-bold font-display text-white mb-1 group-hover:text-primary transition-colors duration-300">Mikelly Maduro</h4>
                 <p className="text-xs text-gray-400 font-sans font-light uppercase tracking-widest mb-3">CEO & Co-Fundadora</p>
                 <p className="text-sm text-gray-300 font-sans font-light leading-relaxed">
-                  Líder de estratégia e conexões comerciais, impulsionando a expansão da marca e novos projetos.
+                  Diretora de criação e pós-produção executiva, garantindo a excelência artística dos projetos.
                 </p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function About() {
                 <h4 className="text-lg font-bold font-display text-white mb-1 group-hover:text-primary transition-colors duration-300">Natália Camurça</h4>
                 <p className="text-xs text-gray-400 font-sans font-light uppercase tracking-widest mb-3">CEO & Co-Fundadora</p>
                 <p className="text-sm text-gray-300 font-sans font-light leading-relaxed">
-                  Diretora de criação e pós-produção executiva, garantindo a excelência artística dos projetos.
+                  Líder de estratégia e conexões comerciais, impulsionando a expansão da marca e novos projetos.
                 </p>
               </div>
             </div>
