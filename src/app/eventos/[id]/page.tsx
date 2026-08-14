@@ -26,6 +26,7 @@ export default function EventGalleryPage() {
   const [showPixModal, setShowPixModal] = useState(false);
   const [pixCode, setPixCode] = useState("");
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
 
   // Anti-Right-Click protection
   useEffect(() => {
@@ -35,6 +36,20 @@ export default function EventGalleryPage() {
     document.addEventListener("contextmenu", handleContextMenu);
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
+    };
+  }, []);
+
+  // Window Focus/Blur listeners for screenshot protection
+  useEffect(() => {
+    const handleBlur = () => setIsWindowFocused(false);
+    const handleFocus = () => setIsWindowFocused(true);
+
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
@@ -398,17 +413,55 @@ export default function EventGalleryPage() {
               <img
                 src={activePhoto.url}
                 alt={activePhoto.name}
-                className="w-full h-full object-contain pointer-events-none select-none"
+                draggable="false"
+                className={`w-full h-full object-contain pointer-events-none select-none transition-all duration-300 ${
+                  !isWindowFocused ? "blur-3xl opacity-20 scale-95" : ""
+                }`}
+                style={{ WebkitUserDrag: "none" } as any}
               />
 
-              {/* Giant Repeating protective watermark grid */}
-              <div className="absolute inset-0 bg-black/25 flex flex-col justify-around py-12 pointer-events-none select-none overflow-hidden">
-                {[1, 2, 3].map((row) => (
-                  <div key={row} className="flex justify-around opacity-[0.14] text-white text-[12px] sm:text-lg font-mono font-extrabold tracking-widest -rotate-12 select-none uppercase">
-                    <span>MOLDRA FILMS PRÉ-VISUALIZAÇÃO</span>
-                    <span className="hidden sm:inline">MOLDRA FILMS PRÉ-VISUALIZAÇÃO</span>
+              {/* Focus Loss Protection Overlay (Screenshot blur blocker) */}
+              {!isWindowFocused && (
+                <div className="absolute inset-0 bg-black/75 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 z-30">
+                  <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl text-primary mb-3">
+                    <ShieldCheck className="w-8 h-8 animate-pulse" />
                   </div>
-                ))}
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Captura Ocultada</h4>
+                  <p className="text-[9px] text-gray-400 mt-1.5 max-w-[200px] leading-relaxed">
+                    A visualização foi temporariamente ocultada para proteção de direitos autorais.
+                  </p>
+                </div>
+              )}
+
+              {/* Giant Repeating protective watermark grid */}
+              <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-10">
+                {/* Fine diagonal mesh pattern overlay (highly disrupts AI inpainting tools) */}
+                <div 
+                  className="absolute inset-0 opacity-[0.22]"
+                  style={{
+                    backgroundImage: `
+                      repeating-linear-gradient(45deg, rgba(200, 169, 106, 0.2) 0px, rgba(200, 169, 106, 0.2) 1px, transparent 1px, transparent 24px),
+                      repeating-linear-gradient(-45deg, rgba(200, 169, 106, 0.2) 0px, rgba(200, 169, 106, 0.2) 1px, transparent 1px, transparent 24px)
+                    `
+                  }}
+                />
+
+                {/* Central prominent logo watermark */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-10">
+                  <span className="text-4xl sm:text-6xl font-extrabold tracking-[0.25em] text-white border-4 border-white px-6 py-2 rounded-2xl select-none -rotate-12 uppercase font-display">
+                    MOLDRA
+                  </span>
+                </div>
+
+                {/* Repeating warning lines */}
+                <div className="absolute inset-0 flex flex-col justify-around py-16">
+                  {[1, 2, 3].map((row) => (
+                    <div key={row} className="flex justify-around opacity-[0.10] text-white text-[10px] sm:text-sm font-mono font-extrabold tracking-widest -rotate-12 select-none uppercase">
+                      <span>MOLDRA FILMS PRÉ-VISUALIZAÇÃO</span>
+                      <span className="hidden sm:inline">MOLDRA FILMS PRÉ-VISUALIZAÇÃO</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Left Arrow Navigation Button */}
@@ -539,6 +592,13 @@ export default function EventGalleryPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Print protection injection */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body { display: none !important; }
+        }
+      `}} />
     </div>
   );
 }
