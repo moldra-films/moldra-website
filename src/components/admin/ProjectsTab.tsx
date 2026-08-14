@@ -79,6 +79,31 @@ export default function ProjectsTab() {
   const [selectedProjectVideoUploading, setSelectedProjectVideoUploading] = useState(false);
   const [selectedProjectVideoProgress, setSelectedProjectVideoProgress] = useState(0);
 
+  // Drag and drop states & handlers
+  const [draggedOverStatus, setDraggedOverStatus] = useState<Project["status"] | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    e.dataTransfer.setData("text/plain", String(id));
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: Project["status"]) => {
+    e.preventDefault();
+    setDraggedOverStatus(status);
+  };
+
+  const handleDragLeave = () => {
+    setDraggedOverStatus(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, status: Project["status"]) => {
+    e.preventDefault();
+    setDraggedOverStatus(null);
+    const id = Number(e.dataTransfer.getData("text/plain"));
+    if (id) {
+      updateProjectStatus(id, status);
+    }
+  };
+
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
@@ -356,8 +381,19 @@ export default function ProjectsTab() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           {projectStatuses.map((status) => {
             const statusProjects = projects.filter((p) => p.status === status);
+            const isDraggedOver = draggedOverStatus === status;
             return (
-              <div key={status} className="flex flex-col rounded-2xl bg-dark-card border border-white/5 min-h-[400px]">
+              <div 
+                key={status} 
+                onDragOver={(e) => handleDragOver(e, status)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, status)}
+                className={`flex flex-col rounded-2xl bg-dark-card border min-h-[400px] transition-all duration-200 ${
+                  isDraggedOver 
+                    ? "border-primary/50 shadow-[0_0_15px_rgba(179,147,86,0.15)] bg-white/[0.02]" 
+                    : "border-white/5"
+                }`}
+              >
                 <div className="px-4 py-3 border-b border-white/5 bg-black/20 text-gray-300 flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status).solid}`} />
@@ -369,9 +405,25 @@ export default function ProjectsTab() {
                   {statusProjects.map((proj) => (
                     <div
                       key={proj.id}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, proj.id)}
                       onClick={() => setSelectedProject(proj)}
-                      className="p-4 rounded-xl bg-black/40 border border-white/5 hover:border-white/10 hover:translate-y-[-2px] transition-all cursor-pointer space-y-3"
+                      className="p-4 rounded-xl bg-black/40 border border-white/5 hover:border-white/10 hover:translate-y-[-2px] transition-all cursor-grab active:cursor-grabbing space-y-3 relative overflow-hidden group/card"
                     >
+                      {/* Drag handle dots for premium UI */}
+                      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover/card:opacity-40 transition-opacity flex gap-0.5 pointer-events-none">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="w-0.5 h-0.5 rounded-full bg-white" />
+                          <span className="w-0.5 h-0.5 rounded-full bg-white" />
+                          <span className="w-0.5 h-0.5 rounded-full bg-white" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="w-0.5 h-0.5 rounded-full bg-white" />
+                          <span className="w-0.5 h-0.5 rounded-full bg-white" />
+                          <span className="w-0.5 h-0.5 rounded-full bg-white" />
+                        </div>
+                      </div>
+
                       <div>
                         <span className="text-[9px] uppercase font-semibold tracking-wider text-primary">{proj.serviceType}</span>
                         <h4 className="text-xs font-bold text-white font-display mt-0.5 leading-tight">{proj.name}</h4>
