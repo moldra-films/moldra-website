@@ -20,6 +20,7 @@ import SettingsTab from "@/components/admin/SettingsTab";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -76,14 +77,22 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0B0B0B] text-white overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#0B0B0B] text-white overflow-hidden font-sans relative">
       {/* Fixed Left Sidebar */}
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <AdminSidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       {/* Flex-grow Main Content Panel */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header Panel */}
-        <AdminHeader title={getTabTitle()} />
+        <AdminHeader 
+          title={getTabTitle()} 
+          onMenuClick={() => setIsSidebarOpen(true)}
+        />
 
         {/* Tab Content Display Area */}
         <main className="flex-1 overflow-y-auto bg-black/30 relative">

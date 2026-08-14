@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Search, X, Check, MessageSquare, AlertCircle, Info, Sun, Moon } from "lucide-react";
+import { Bell, Search, X, Check, MessageSquare, AlertCircle, Info, Sun, Moon, Menu } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
 
 interface AdminHeaderProps {
   title: string;
+  onMenuClick?: () => void;
 }
 
-export default function AdminHeader({ title }: AdminHeaderProps) {
+export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
   const { notifications, markAllNotificationsRead } = useAdmin();
   const [showNotifications, setShowNotifications] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -53,10 +54,19 @@ export default function AdminHeader({ title }: AdminHeaderProps) {
   };
 
   return (
-    <header className="h-20 border-b border-white/5 bg-[#0B0B0B] px-8 flex items-center justify-between z-30 sticky top-0">
-      {/* Title */}
-      <div>
-        <h1 className="text-xl font-bold font-display text-white tracking-wide">{title}</h1>
+    <header className="h-20 border-b border-white/5 bg-[#0B0B0B] px-4 md:px-8 flex items-center justify-between z-30 sticky top-0">
+      {/* Title & Hamburger button */}
+      <div className="flex items-center gap-3 min-w-0">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 rounded-xl bg-white/5 border border-white/5 text-gray-300 hover:text-white cursor-pointer shrink-0"
+            title="Abrir Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <h1 className="text-sm md:text-xl font-bold font-display text-white tracking-wide truncate">{title}</h1>
       </div>
 
       {/* Utilities */}

@@ -13,7 +13,8 @@ import {
   Settings,
   ShieldCheck,
   LogOut,
-  Camera
+  Camera,
+  X
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -23,9 +24,11 @@ import { supabase } from "@/lib/supabaseClient";
 interface AdminSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarProps) {
+export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose }: AdminSidebarProps) {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
 
@@ -81,22 +84,43 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
   ];
 
   return (
-    <aside className="w-64 bg-[#0B0B0B] border-r border-white/5 flex flex-col justify-between shrink-0 h-screen sticky top-0">
-      {/* Upper Area: Logo & Menu */}
-      <div className="flex flex-col">
-        {/* Brand Logo header */}
-        <div className="px-6 py-6 border-b border-white/5 flex flex-col gap-2">
-          <Image
-            src="/logo.png"
-            alt="Moldra Films Logo"
-            width={140}
-            height={35}
-            className="h-8 w-auto object-contain self-start"
-          />
-          <span className="block text-[9px] uppercase tracking-widest text-gray-500 font-sans pl-1">
-            ERP + CRM Panel
-          </span>
-        </div>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div 
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-fade-in"
+        />
+      )}
+      <aside className={`fixed md:sticky top-0 left-0 z-50 w-64 bg-[#0B0B0B] border-r border-white/5 flex flex-col justify-between shrink-0 h-screen transition-transform duration-300 md:translate-x-0 ${
+        isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+      }`}>
+        {/* Upper Area: Logo & Menu */}
+        <div className="flex flex-col">
+          {/* Brand Logo header */}
+          <div className="px-6 py-6 border-b border-white/5 flex items-center justify-between gap-2">
+            <div className="flex flex-col gap-1">
+              <Image
+                src="/logo.png"
+                alt="Moldra Films Logo"
+                width={140}
+                height={35}
+                className="h-8 w-auto object-contain self-start"
+              />
+              <span className="block text-[9px] uppercase tracking-widest text-gray-500 font-sans pl-1">
+                ERP + CRM Panel
+              </span>
+            </div>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="md:hidden p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white cursor-pointer"
+                title="Fechar Menu"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            )}
+          </div>
 
         {/* Menu Navigation */}
         <nav className="p-4 space-y-1.5">
@@ -105,7 +129,10 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
             return (
               <motion.button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if (onClose) onClose();
+                }}
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.98 }}
                 className="relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-gray-400 hover:text-white group select-none"
@@ -156,5 +183,6 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
         </button>
       </div>
     </aside>
+    </>
   );
 }
