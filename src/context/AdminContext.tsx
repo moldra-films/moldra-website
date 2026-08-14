@@ -512,6 +512,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return proj;
       })
     );
+    const p = projects.find((proj) => proj.id === id);
+    if (p) {
+      addNotification(
+        "Novo comentário no projeto", 
+        `'${comment.author}' comentou às ${comment.timestamp}: "${comment.text.substring(0, 40)}${comment.text.length > 40 ? "..." : ""}"`, 
+        "task"
+      );
+    }
   };
 
   const updateProjectShotList = (id: number, list: string[]) => {
