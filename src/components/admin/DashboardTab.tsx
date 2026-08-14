@@ -5,7 +5,7 @@ import { Film, Users, DollarSign, Calendar, Clock, ChevronRight, Activity } from
 import { motion } from "framer-motion";
 
 export default function DashboardTab() {
-  const { projects, clients, transactions, leads } = useAdmin();
+  const { projects, clients, transactions, leads, notifications } = useAdmin();
 
   // Dynamic calculations
   const activeProjects = projects.filter((p) => p.status !== "Concluído");
@@ -206,31 +206,51 @@ export default function DashboardTab() {
               <Activity className="w-4 h-4 text-primary" />
               <h3 className="text-sm font-bold uppercase tracking-wider text-white">Últimas Atividades</h3>
             </div>
+            {notifications.length > 0 && (
+              <span className="text-[10px] text-gray-500 font-sans">{notifications.length} registros</span>
+            )}
           </div>
 
-          <div className="space-y-4">
-            {[
-              { user: "Natália Camurça", action: "adicionou comentário no projeto", target: "Coleção Verão Apex", time: "Há 10 minutos" },
-              { user: "Mikelly Maduro", action: "converteu o lead para cliente", target: "Construtora Viver", time: "Há 2 horas" },
-              { user: "Sistema", action: "gerou fatura de entrada para o projeto", target: "Innova Corp", time: "Há 5 horas" },
-              { user: "Carlos Silva", action: "solicitou manutenção do equipamento", target: "DJI Inspire 3 Drone", time: "Ontem" },
-            ].map((act, i) => (
-              <motion.div 
-                key={i} 
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="flex gap-3 text-xs leading-relaxed py-1.5"
-              >
-                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                <div className="flex-1">
-                  <span className="font-bold text-white">{act.user}</span>{" "}
-                  <span className="text-gray-400 font-light">{act.action}</span>{" "}
-                  <span className="text-primary font-medium">{act.target}</span>
-                  <span className="block text-[10px] text-gray-500 font-sans mt-0.5">{act.time}</span>
-                </div>
-              </motion.div>
-            ))}
+          <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
+            {notifications.length > 0 ? (
+              [...notifications]
+                .reverse() // Show newest first
+                .slice(0, 10) // Limit to last 10 entries
+                .map((notif) => {
+                  let typeLabel = "Sistema";
+                  
+                  if (notif.type === "payment") {
+                    typeLabel = "Financeiro";
+                  } else if (notif.type === "task" || notif.type === "approval") {
+                    typeLabel = "Produção";
+                  } else if (notif.type === "maintenance") {
+                    typeLabel = "Técnico";
+                  } else if (notif.type === "delivery") {
+                    typeLabel = "Atendimento";
+                  }
+
+                  return (
+                    <motion.div 
+                      key={notif.id} 
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex gap-3 text-xs leading-relaxed py-2 border-b border-white/[0.02] last:border-b-0"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <div className="flex-1">
+                        <span className="font-bold text-white">{typeLabel}</span>{" "}
+                        <span className="text-gray-400 font-light">&bull; {notif.title} &bull;</span>{" "}
+                        <span className="text-gray-300 font-normal block mt-0.5">{notif.description}</span>
+                        <span className="block text-[10px] text-gray-500 font-sans mt-1">{notif.time}</span>
+                      </div>
+                    </motion.div>
+                  );
+                })
+            ) : (
+              <div className="p-12 text-center text-xs text-gray-500 font-sans font-light">
+                Nenhuma atividade recente registrada no sistema.
+              </div>
+            )}
           </div>
         </div>
       </div>
