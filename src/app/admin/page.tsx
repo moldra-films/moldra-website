@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AdminProvider } from "@/context/AdminContext";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminHeader from "@/components/admin/AdminHeader";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Tabs
 import DashboardTab from "@/components/admin/DashboardTab";
@@ -81,8 +82,19 @@ export default function AdminPage() {
           <AdminHeader title={getTabTitle()} />
 
           {/* Tab Content Display Area */}
-          <main className="flex-1 overflow-y-auto bg-black/30">
-            {renderTabContent()}
+          <main className="flex-1 overflow-y-auto bg-black/30 relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="min-h-full"
+              >
+                {renderTabContent()}
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
       </div>

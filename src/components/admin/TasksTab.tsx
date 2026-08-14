@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAdmin, Task } from "@/context/AdminContext";
 import { Plus, CheckSquare, Clock, Tag, X, User, Edit, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function TasksTab() {
   const { tasks, projects, addTask, updateTaskStatus, updateTask, deleteTask, toggleTaskItem } = useAdmin();
@@ -116,104 +117,122 @@ export default function TasksTab() {
       </div>
 
       {/* Add Task Modal */}
-      {showAddTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">{editingTask ? "Editar Tarefa" : "Adicionar Nova Tarefa"}</h3>
-              <button onClick={handleCloseTaskDrawer} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <AnimatePresence>
+        {showAddTask && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseTaskDrawer}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
 
-            <form onSubmit={handleCreateTask} className="p-6 space-y-4">
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Título da Tarefa</label>
-                <input
-                  type="text"
-                  required
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
-                  placeholder="Editar teaser de 15 segundos"
-                />
+            {/* Modal Box */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-md bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative z-10"
+            >
+              <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">{editingTask ? "Editar Tarefa" : "Adicionar Nova Tarefa"}</h3>
+                <button onClick={handleCloseTaskDrawer} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleCreateTask} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Projeto Vinculado</label>
-                  <select
-                    value={newTask.project}
-                    onChange={(e) => setNewTask({ ...newTask, project: e.target.value })}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
-                  >
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.name}>{p.name}</option>
-                    ))}
-                    <option value="Outro">Outro</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Responsável</label>
-                  <select
-                    value={newTask.assignedTo}
-                    onChange={(e) => setNewTask({ ...newTask, assignedTo: e.target.value })}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="Natália Camurça">Natália Camurça</option>
-                    <option value="Mikelly Maduro">Mikelly Maduro</option>
-                    <option value="Carlos Silva">Carlos Silva</option>
-                    <option value="Bruna Lins">Bruna Lins</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Prazo Limite</label>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Título da Tarefa</label>
                   <input
-                    type="date"
+                    type="text"
                     required
-                    value={newTask.dueDate}
-                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                    placeholder="Editar teaser de 15 segundos"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Prioridade</label>
-                  <select
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as Task["priority"] })}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="Baixa">Baixa</option>
-                    <option value="Média">Média</option>
-                    <option value="Alta">Alta</option>
-                  </select>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Projeto Vinculado</label>
+                    <select
+                      value={newTask.project}
+                      onChange={(e) => setNewTask({ ...newTask, project: e.target.value })}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Responsável</label>
+                    <select
+                      value={newTask.assignedTo}
+                      onChange={(e) => setNewTask({ ...newTask, assignedTo: e.target.value })}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      <option value="Natália Camurça">Natália Camurça</option>
+                      <option value="Mikelly Maduro">Mikelly Maduro</option>
+                      <option value="Carlos Silva">Carlos Silva</option>
+                      <option value="Bruna Lins">Bruna Lins</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Etiquetas (Separadas por vírgula)</label>
-                <input
-                  type="text"
-                  value={newTask.tags}
-                  onChange={(e) => setNewTask({ ...newTask, tags: e.target.value })}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
-                  placeholder="Edição, Finalização"
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Prazo Limite</label>
+                    <input
+                      type="date"
+                      required
+                      value={newTask.dueDate}
+                      onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Prioridade</label>
+                    <select
+                      value={newTask.priority}
+                      onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as Task["priority"] })}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      <option value="Baixa">Baixa</option>
+                      <option value="Média">Média</option>
+                      <option value="Alta">Alta</option>
+                    </select>
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                {editingTask ? "Salvar Alterações" : "Criar Tarefa"}
-              </button>
-            </form>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Etiquetas (Separadas por vírgula)</label>
+                  <input
+                    type="text"
+                    value={newTask.tags}
+                    onChange={(e) => setNewTask({ ...newTask, tags: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                    placeholder="Edição, Finalização"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  {editingTask ? "Salvar Alterações" : "Criar Tarefa"}
+                </button>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Board Columns */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -228,101 +247,109 @@ export default function TasksTab() {
               </div>
 
               {/* Cards wrapper */}
-              <div className="p-3 space-y-3 flex-1 overflow-y-auto">
-                {colTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-4 rounded-xl bg-black/50 border border-white/5 hover:border-white/10 transition-all space-y-4 group relative"
-                  >
-                    <div>
-                      {/* Priority Tag & Badges */}
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded ${
-                              task.priority === "Alta"
-                                ? "bg-red-500/15 text-red-400"
-                                : task.priority === "Média"
-                                ? "bg-yellow-500/15 text-yellow-400"
-                                : "bg-gray-500/15 text-gray-400"
-                            }`}
-                          >
-                            {task.priority}
-                          </span>
-                          <span className="text-[9px] text-gray-500 font-sans">{task.project.split(" ")[0]}</span>
-                        </div>
-
-                        {/* Edit & Delete Actions */}
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleEditTaskClick(task)}
-                            className="p-0.5 hover:bg-white/15 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
-                            title="Editar Tarefa"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => deleteTask(task.id)}
-                            className="p-0.5 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
-                            title="Excluir Tarefa"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <h4 className="text-xs font-bold text-white mt-2 leading-snug font-display">{task.title}</h4>
-                    </div>
-
-                    {/* Checkbox item interactive tracker */}
-                    {task.checklist.length > 0 && (
-                      <div className="space-y-1.5 pt-2 border-t border-white/5">
-                        <span className="text-[9px] uppercase font-bold text-gray-500 flex items-center gap-1">
-                          <CheckSquare className="w-3 h-3 text-primary" /> Subtarefas
-                        </span>
-                        <div className="space-y-1">
-                          {task.checklist.map((item, idx) => (
-                            <label
-                              key={idx}
-                              className="flex items-center gap-2 text-[10px] text-gray-400 hover:text-white cursor-pointer select-none"
+              <div className="p-3 space-y-3 flex-1 overflow-y-auto min-h-[350px]">
+                <AnimatePresence mode="popLayout">
+                  {colTasks.map((task) => (
+                    <motion.div
+                      key={task.id}
+                      layout
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                      whileHover={{ y: -2, borderColor: "rgba(200, 169, 106, 0.25)", boxShadow: "0 4px 20px -10px rgba(200, 169, 106, 0.15)" }}
+                      className="p-4 rounded-xl bg-black/50 border border-white/5 hover:border-white/10 transition-all space-y-4 group relative cursor-grab active:cursor-grabbing"
+                    >
+                      <div>
+                        {/* Priority Tag & Badges */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded ${
+                                task.priority === "Alta"
+                                  ? "bg-red-500/15 text-red-400"
+                                  : task.priority === "Média"
+                                  ? "bg-yellow-500/15 text-yellow-400"
+                                  : "bg-gray-500/15 text-gray-400"
+                              }`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={item.done}
-                                onChange={() => toggleTaskItem(task.id, idx)}
-                                className="w-3 h-3 rounded bg-black border-white/10 accent-primary"
-                              />
-                              <span className={item.done ? "line-through text-gray-600" : ""}>{item.text}</span>
-                            </label>
-                          ))}
+                              {task.priority}
+                            </span>
+                            <span className="text-[9px] text-gray-500 font-sans">{task.project.split(" ")[0]}</span>
+                          </div>
+
+                          {/* Edit & Delete Actions */}
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleEditTaskClick(task)}
+                              className="p-0.5 hover:bg-white/15 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
+                              title="Editar Tarefa"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => deleteTask(task.id)}
+                              className="p-0.5 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
+                              title="Excluir Tarefa"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <h4 className="text-xs font-bold text-white mt-2 leading-snug font-display">{task.title}</h4>
+                      </div>
+
+                      {/* Checkbox item interactive tracker */}
+                      {task.checklist.length > 0 && (
+                        <div className="space-y-1.5 pt-2 border-t border-white/5">
+                          <span className="text-[9px] uppercase font-bold text-gray-500 flex items-center gap-1">
+                            <CheckSquare className="w-3 h-3 text-primary" /> Subtarefas
+                          </span>
+                          <div className="space-y-1">
+                            {task.checklist.map((item, idx) => (
+                              <label
+                                key={idx}
+                                className="flex items-center gap-2 text-[10px] text-gray-400 hover:text-white cursor-pointer select-none"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={item.done}
+                                  onChange={() => toggleTaskItem(task.id, idx)}
+                                  className="w-3 h-3 rounded bg-black border-white/10 accent-primary"
+                                />
+                                <span className={item.done ? "line-through text-gray-600 font-light" : "font-light"}>{item.text}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Metadata Assignee, Date, Action Controls */}
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                        <div className="flex items-center gap-1.5 text-gray-400">
+                          <User className="w-3.5 h-3.5 text-primary" />
+                          <span className="text-[9px] font-sans truncate max-w-[80px]">{task.assignedTo.split(" ")[0]}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleMoveTask(task.id, task.status, "prev")}
+                            className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer text-[10px]"
+                          >
+                            &larr;
+                          </button>
+                          <button
+                            onClick={() => handleMoveTask(task.id, task.status, "next")}
+                            className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer text-[10px]"
+                          >
+                            &rarr;
+                          </button>
                         </div>
                       </div>
-                    )}
-
-                    {/* Metadata Assignee, Date, Action Controls */}
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <div className="flex items-center gap-1.5 text-gray-400">
-                        <User className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-[9px] font-sans truncate max-w-[80px]">{task.assignedTo.split(" ")[0]}</span>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleMoveTask(task.id, task.status, "prev")}
-                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer text-[10px]"
-                        >
-                          &larr;
-                        </button>
-                        <button
-                          onClick={() => handleMoveTask(task.id, task.status, "next")}
-                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer text-[10px]"
-                        >
-                          &rarr;
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
                 {colTasks.length === 0 && (
                   <div className="text-center py-8 text-[10px] text-gray-600 font-sans">Sem tarefas</div>
                 )}

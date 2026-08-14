@@ -2,6 +2,7 @@
 
 import { useAdmin } from "@/context/AdminContext";
 import { Film, Users, DollarSign, Calendar, Clock, ChevronRight, Activity } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function DashboardTab() {
   const { projects, clients, transactions, leads } = useAdmin();
@@ -42,20 +43,36 @@ export default function DashboardTab() {
   return (
     <div className="space-y-8 p-8">
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <motion.div 
+        variants={{
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.03 }
+          }
+        }}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6"
+      >
         {metrics.map((metric, i) => (
-          <div
+          <motion.div
             key={i}
-            className="p-6 rounded-2xl bg-dark-card border border-white/5 flex flex-col justify-between hover:border-white/10 transition-colors"
+            variants={{
+              hidden: { opacity: 0, y: 15 },
+              show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 15 } }
+            }}
+            whileHover={{ y: -4, borderColor: "rgba(200, 169, 106, 0.25)", boxShadow: "0 10px 30px -15px rgba(200, 169, 106, 0.1)" }}
+            className="p-6 rounded-2xl bg-dark-card border border-white/5 flex flex-col justify-between transition-all duration-200 cursor-default"
           >
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs text-gray-500 font-sans font-light tracking-wide">{metric.label}</span>
               <metric.icon className={`w-4 h-4 ${metric.color}`} />
             </div>
             <span className="text-xl font-bold font-display text-white">{metric.value}</span>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Analytics Charts & System Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -91,9 +108,12 @@ export default function DashboardTab() {
                   {formatCurrency(d.val)}
                 </div>
                 {/* Bar */}
-                <div
+                <motion.div
+                  initial={{ scaleY: 0 }}
+                  animate={{ scaleY: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut", delay: index * 0.05 }}
                   style={{ height: d.pct }}
-                  className="w-full bg-gradient-to-t from-primary/80 to-primary rounded-t-md transition-all duration-500 group-hover:brightness-110 group-hover:scale-y-[1.02] origin-bottom shadow-lg shadow-primary/10"
+                  className="w-full bg-gradient-to-t from-primary/80 to-primary rounded-t-md origin-bottom group-hover:brightness-110 shadow-lg shadow-primary/10 transition-all duration-200"
                 />
                 <span className="text-[10px] text-gray-500 font-sans mt-2">{d.month}</span>
               </div>
@@ -119,7 +139,12 @@ export default function DashboardTab() {
                     <span className="text-white font-bold">{c.val}%</span>
                   </div>
                   <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                    <div className={`h-full ${c.color}`} style={{ width: `${c.val}%` }} />
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${c.val}%` }}
+                      transition={{ duration: 1, ease: "easeOut", delay: i * 0.1 }}
+                      className={`h-full ${c.color}`} 
+                    />
                   </div>
                 </div>
               ))}
@@ -145,10 +170,14 @@ export default function DashboardTab() {
 
           <div className="space-y-4">
             {activeProjects.length > 0 ? (
-              activeProjects.map((p) => (
-                <div
+              activeProjects.map((p, i) => (
+                <motion.div
                   key={p.id}
-                  className="p-4 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between hover:border-white/10 transition-colors"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  whileHover={{ x: 4, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.02)" }}
+                  className="p-4 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between transition-all duration-200 cursor-pointer"
                 >
                   <div>
                     <h4 className="text-xs font-bold text-white mb-1 font-display">{p.name}</h4>
@@ -160,7 +189,7 @@ export default function DashboardTab() {
                     <span className="text-xs font-bold text-white block">{p.dateShoot}</span>
                     <span className="text-[10px] text-gray-500 font-sans uppercase font-medium">{p.status}</span>
                   </div>
-                </div>
+                </motion.div>
               ))
             ) : (
               <div className="p-8 text-center text-xs text-gray-500 font-sans">
@@ -186,7 +215,13 @@ export default function DashboardTab() {
               { user: "Sistema", action: "gerou fatura de entrada para o projeto", target: "Innova Corp", time: "Há 5 horas" },
               { user: "Carlos Silva", action: "solicitou manutenção do equipamento", target: "DJI Inspire 3 Drone", time: "Ontem" },
             ].map((act, i) => (
-              <div key={i} className="flex gap-3 text-xs leading-relaxed py-1.5">
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="flex gap-3 text-xs leading-relaxed py-1.5"
+              >
                 <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
                 <div className="flex-1">
                   <span className="font-bold text-white">{act.user}</span>{" "}
@@ -194,7 +229,7 @@ export default function DashboardTab() {
                   <span className="text-primary font-medium">{act.target}</span>
                   <span className="block text-[10px] text-gray-500 font-sans mt-0.5">{act.time}</span>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

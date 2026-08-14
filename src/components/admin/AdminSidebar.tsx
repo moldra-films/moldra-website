@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -64,18 +65,29 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
-              <button
+              <motion.button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? "bg-primary text-black font-semibold shadow-md shadow-primary/10"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-gray-400 hover:text-white group select-none"
               >
-                <item.icon className="w-4 h-4 shrink-0" />
-                {item.label}
-              </button>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTabIndicator"
+                    className="absolute inset-0 bg-primary rounded-xl -z-10 shadow-md shadow-primary/20"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                  />
+                )}
+                <item.icon className={`w-4 h-4 shrink-0 transition-colors ${
+                  isActive ? "text-black" : "text-gray-400 group-hover:text-white"
+                }`} />
+                <span className={`transition-colors ${
+                  isActive ? "text-black font-semibold" : "text-gray-400 group-hover:text-white"
+                }`}>
+                  {item.label}
+                </span>
+              </motion.button>
             );
           })}
         </nav>
