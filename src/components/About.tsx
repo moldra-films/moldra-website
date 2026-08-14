@@ -97,8 +97,14 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Mikelly Maduro */}
             <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-dark-card border border-white/5 hover:border-primary/20 transition-all duration-300 group">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center font-bold text-xl text-primary font-display shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
-                MM
+              <div className="w-20 h-20 rounded-2xl border border-primary/20 shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                <Image
+                  src="/mikelly-photo.jpg"
+                  alt="Mikelly Maduro"
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
               </div>
               <div className="text-center sm:text-left">
                 <h4 className="text-lg font-bold font-display text-white mb-1 group-hover:text-primary transition-colors duration-300">Mikelly Maduro</h4>
@@ -111,8 +117,14 @@ export default function About() {
 
             {/* Natália Camurça */}
             <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-dark-card border border-white/5 hover:border-primary/20 transition-all duration-300 group">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center font-bold text-xl text-primary font-display shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
-                NC
+              <div className="w-20 h-20 rounded-2xl border border-primary/20 shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                <Image
+                  src="/natalia-photo.jpg"
+                  alt="Natália Camurça"
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
               </div>
               <div className="text-center sm:text-left">
                 <h4 className="text-lg font-bold font-display text-white mb-1 group-hover:text-primary transition-colors duration-300">Natália Camurça</h4>
