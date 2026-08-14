@@ -117,7 +117,7 @@ export default function Contact() {
               <div className="space-y-6">
                 {/* Whatsapp */}
                 <a
-                  href="https://wa.me/5511999999999"
+                  href="https://wa.me/5592985400639"
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-4 p-4 rounded-xl bg-dark-card border border-white/5 hover:border-primary/20 transition-all duration-300 group cursor-pointer"
@@ -127,7 +127,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-400 font-light block uppercase tracking-wider">WhatsApp</span>
-                    <span className="text-sm font-semibold text-white font-sans group-hover:text-primary transition-colors duration-300">+55 (11) 99999-9999</span>
+                    <span className="text-sm font-semibold text-white font-sans group-hover:text-primary transition-colors duration-300">+55 (92) 98540-0639</span>
                   </div>
                 </a>
 
@@ -168,7 +168,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <span className="text-xs text-gray-400 font-light block uppercase tracking-wider">Localização</span>
-                    <span className="text-sm font-semibold text-white font-sans">São Paulo, SP - Brasil</span>
+                    <span className="text-sm font-semibold text-white font-sans">Manaus, AM - Brasil</span>
                   </div>
                 </div>
               </div>
@@ -257,7 +257,7 @@ export default function Contact() {
                           value={formData.telefone}
                           onChange={handleChange}
                           required
-                          placeholder="(11) 99999-9999"
+                          placeholder="(92) 98540-0639"
                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
                         />
                       </div>

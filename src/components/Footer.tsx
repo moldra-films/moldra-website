@@ -132,9 +132,9 @@ export default function Footer({ onScrollToSection }: FooterProps) {
               Endereço & Suporte
             </h4>
             <p className="text-sm text-gray-400 font-sans font-light leading-relaxed mb-4">
-              Av. Paulista, 1000 - Bela Vista
+              Rua Sapoti, 11 - Cidade Nova
               <br />
-              São Paulo, SP - CEP 01310-100
+              Manaus, AM
             </p>
             <p className="text-xs text-gray-500 font-sans font-light">
               Segunda a Sexta, das 09h às 18h.

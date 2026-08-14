@@ -598,7 +598,7 @@ export default function CRMTab() {
                   type="text"
                   value={newClient.address}
                   onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
-                  placeholder="Ex: Av. Paulista, 1000 - São Paulo, SP"
+                  placeholder="Ex: Rua Sapoti, 11 - Manaus, AM"
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
                 />
               </div>
