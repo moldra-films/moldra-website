@@ -48,11 +48,53 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
+    let accountsToWrite = [];
+
+    if (Array.isArray(data)) {
+      accountsToWrite = data;
+    } else if (data && typeof data === "object") {
+      // It is a single object (e.g. from sign up page)
+      // Retrieve the current accounts list from R2 first
+      const getCommand = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: FILE_KEY,
+      });
+
+      let currentAccounts = [...DEFAULT_ACCOUNTS];
+      try {
+        const response = await r2.send(getCommand);
+        const dataStr = await response.Body?.transformToString();
+        if (dataStr) {
+          const parsed = JSON.parse(dataStr);
+          if (Array.isArray(parsed)) {
+            currentAccounts = parsed;
+          } else if (parsed && typeof parsed === "object") {
+            // Auto heal corrupted single object formats
+            currentAccounts = [parsed];
+          }
+        }
+      } catch (getErr: any) {
+        // NoSuchKey / NotFound is fine, defaults to DEFAULT_ACCOUNTS
+        if (getErr.name !== "NoSuchKey" && getErr.name !== "NotFound") {
+          throw getErr;
+        }
+      }
+
+      // Check if this account email already exists in the whitelist to avoid duplicates
+      const exists = currentAccounts.some(
+        (acc: any) => acc.email.toLowerCase() === data.email.toLowerCase()
+      );
+
+      if (!exists) {
+        currentAccounts.push(data);
+      }
+      accountsToWrite = currentAccounts;
+    }
 
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: FILE_KEY,
-      Body: JSON.stringify(data, null, 2),
+      Body: JSON.stringify(accountsToWrite, null, 2),
       ContentType: "application/json",
     });
 

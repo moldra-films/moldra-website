@@ -30,7 +30,10 @@ export default function LoginPage() {
         
         // Fetch accounts from R2 to check whitelist
         const accountsRes = await fetch("/api/admin-accounts");
-        const activeAccounts = await accountsRes.json();
+        const parsed = await accountsRes.json();
+        const activeAccounts = Array.isArray(parsed) 
+          ? parsed 
+          : (parsed && typeof parsed === "object" && !parsed.error ? [parsed] : []);
         
         const isDefaultAdmin = 
           userEmail === "admin@moldrafilms.com.br" ||
@@ -92,7 +95,10 @@ export default function LoginPage() {
 
       // Fetch whitelist
       const accountsRes = await fetch("/api/admin-accounts");
-      const activeAccounts = await accountsRes.json();
+      const parsed = await accountsRes.json();
+      const activeAccounts = Array.isArray(parsed) 
+        ? parsed 
+        : (parsed && typeof parsed === "object" && !parsed.error ? [parsed] : []);
       
       const isDefaultAdmin = 
         userEmail === "admin@moldrafilms.com.br" ||

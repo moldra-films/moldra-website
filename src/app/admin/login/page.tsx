@@ -31,7 +31,10 @@ export default function AdminLoginPage() {
 
       // Fetch allowed accounts from our R2 database to verify active status
       const accountsRes = await fetch("/api/admin-accounts");
-      const activeAccounts = await accountsRes.json();
+      const parsed = await accountsRes.json();
+      const activeAccounts = Array.isArray(parsed) 
+        ? parsed 
+        : (parsed && typeof parsed === "object" && !parsed.error ? [parsed] : []);
       
       const isDefaultAdmin = 
         userEmail === "admin@moldrafilms.com.br" ||
