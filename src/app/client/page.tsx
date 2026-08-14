@@ -14,13 +14,12 @@ import {
   Video,
   Image as ImageIcon,
   CheckCircle2,
-  Clock,
-  Upload
+  Clock
 } from "lucide-react";
 
 function ClientPortalContent() {
   const router = useRouter();
-  const { projects, updateProject, addNotification, addProjectComment, updateProjectStatus } = useAdmin();
+  const { projects, addProjectComment, updateProjectStatus } = useAdmin();
   
   // Default to first active project or fallback
   const [selectedProjId, setSelectedProjId] = useState<number>(projects[0]?.id || 1);
@@ -29,8 +28,6 @@ function ClientPortalContent() {
 
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
-  const [versionUploading, setVersionUploading] = useState(false);
-  const [versionProgress, setVersionProgress] = useState(0);
 
   const activeProj = projects.find((p) => p.id === selectedProjId) || projects[0];
 
@@ -48,64 +45,6 @@ function ClientPortalContent() {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins < 10 ? "0" + mins : mins}:${secs < 10 ? "0" + secs : secs}`;
-  };
-
-  const handleNewVersionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !activeProj) return;
-    const file = e.target.files[0];
-    
-    setVersionUploading(true);
-    setVersionProgress(10);
-
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileType: file.type,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to get upload URL");
-      const { uploadUrl, fileUrl } = await res.json();
-      setVersionProgress(50);
-
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!uploadRes.ok) throw new Error("Failed direct upload");
-      setVersionProgress(100);
-
-      const currentVersion = activeProj.version || "v1";
-      let nextVersion = "v2";
-      const match = currentVersion.match(/^v(\d+)$/);
-      if (match) {
-        nextVersion = `v${parseInt(match[1], 10) + 1}`;
-      }
-
-      updateProject(activeProj.id, { 
-        videoUrl: fileUrl, 
-        version: nextVersion 
-      });
-
-      addNotification(
-        "Nova versão enviada pelo Cliente", 
-        `O cliente enviou a versão ${nextVersion} para o projeto '${activeProj.name}'.`, 
-        "delivery"
-      );
-
-      alert(`Nova versão (${nextVersion}) enviada com sucesso!`);
-    } catch (err) {
-      console.error("Client new version upload error:", err);
-      alert("Erro ao realizar upload da nova versão.");
-    } finally {
-      setVersionUploading(false);
-      setVersionProgress(0);
-    }
   };
 
   const handleAddComment = (e: React.FormEvent) => {
@@ -296,20 +235,7 @@ function ClientPortalContent() {
                   </h3>
                 </div>
 
-                <div className="flex flex-wrap gap-3 w-full sm:w-auto items-center">
-                  {/* Upload New Version Button */}
-                  <label className="flex-1 sm:flex-initial px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer border border-white/5 flex items-center justify-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5" />
-                    {versionUploading ? `Enviando ${versionProgress}%` : "Enviar Nova Versão"}
-                    <input
-                      type="file"
-                      accept="video/*"
-                      className="hidden"
-                      disabled={versionUploading}
-                      onChange={handleNewVersionUpload}
-                    />
-                  </label>
-
+                <div className="flex gap-3 w-full sm:w-auto">
                   <a
                     href={activeProj.videoUrl}
                     download
