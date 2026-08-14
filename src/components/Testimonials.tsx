@@ -18,32 +18,32 @@ export default function Testimonials() {
   const testimonials: Testimonial[] = [
     {
       id: 1,
-      name: "Sarah Mendes",
-      role: "Diretora de Marketing",
-      company: "Innova Corp",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
+      name: "DJ Layla de Abreu",
+      role: "DJ & Produtora Musical",
+      company: "Abertura de Shows",
+      avatar: "/dj-layla-abreu.jpg",
       content:
-        "A Moldra Films superou todas as nossas expectativas. Conseguiram captar a essência da nossa marca e transformar um conceito complexo em um vídeo institucional emocionante e direto. O retorno que tivemos da nossa campanha foi fantástico.",
+        "A Moldra Films superou todas as nossas expectativas. Conseguiram captar a essência do nosso som e transformar um show complexo em um aftermovie institucional emocionante e direto. O retorno de público foi fantástico.",
       rating: 5,
     },
     {
       id: 2,
-      name: "Rodrigo Albuquerque",
-      role: "Fundador & CEO",
-      company: "Apex Wear",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
+      name: "Paulo Redultra",
+      role: "Fundador & Produtor",
+      company: "Papo de Perrengue",
+      avatar: "/paulo-redultra-papo-de-perrengue.jpg",
       content:
-        "Trabalhar com a Moldra foi uma experiência excelente. O comercial da nossa nova coleção ficou sensacional, com uma estética premium e direção de arte impecável. Equipe profissional, pontual e extremamente talentosa.",
+        "Trabalhar com a Moldra foi uma experiência excelente. O comercial da nossa nova websérie ficou sensacional, com uma estética premium e direção de arte impecável. Equipe profissional, pontual e extremamente talentosa.",
       rating: 5,
     },
     {
       id: 3,
-      name: "Juliana Freitas",
-      role: "Diretora de Eventos",
-      company: "Summit Tech",
-      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80",
+      name: "João Victor",
+      role: "Diretor Criativo",
+      company: "Anoni",
+      avatar: "/anoni-joao-victor.jpg",
       content:
-        "A cobertura do nosso evento anual foi impecável. Eles conseguiram capturar toda a vibração e os melhores momentos sem interferir no andamento das palestras. O aftermovie final nos rendeu muitos elogios e novas inscrições.",
+        "A cobertura da nossa ativação de marca foi impecável. Eles conseguiram capturar toda a vibração e os melhores momentos sem interferir no andamento do evento. O material final nos rendeu muitos elogios e novas conexões.",
       rating: 5,
     },
   ];
