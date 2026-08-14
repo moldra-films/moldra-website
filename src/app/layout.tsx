@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
+import { AdminProvider } from "@/context/AdminContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -41,7 +42,9 @@ export default function RootLayout({
       className={`${inter.variable} ${poppins.variable} scroll-smooth h-full`}
     >
       <body className="min-h-full font-sans bg-dark-bg text-white antialiased">
-        {children}
+        <AdminProvider>
+          {children}
+        </AdminProvider>
       </body>
     </html>
   );

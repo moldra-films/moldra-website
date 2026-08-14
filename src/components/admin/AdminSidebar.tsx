@@ -11,7 +11,8 @@ import {
   Cpu,
   Settings,
   ShieldCheck,
-  LogOut
+  LogOut,
+  Camera
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -38,6 +39,7 @@ export default function AdminSidebar({ activeTab, setActiveTab }: AdminSidebarPr
     { id: "finance", label: "Financeiro", icon: DollarSign },
     { id: "inventory", label: "Equipamentos & Locações", icon: Package },
     { id: "approval", label: "Portal de Aprovação", icon: Eye },
+    { id: "event-media", label: "Mídias de Eventos", icon: Camera },
     { id: "copilot", label: "IA Copilot", icon: Cpu },
     { id: "settings", label: "Configurações", icon: Settings },
   ];

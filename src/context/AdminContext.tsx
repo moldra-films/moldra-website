@@ -119,6 +119,21 @@ export interface Notification {
   type: "payment" | "delivery" | "approval" | "task" | "maintenance";
 }
 
+export interface EventPhoto {
+  id: string;
+  url: string;
+  name: string;
+}
+
+export interface EventMedia {
+  id: number;
+  name: string;
+  date: string;
+  pricePerPhoto: number;
+  packagePrice: number;
+  photos: EventPhoto[];
+}
+
 interface AdminContextProps {
   leads: Lead[];
   clients: Client[];
@@ -173,6 +188,14 @@ interface AdminContextProps {
   serviceTypes: string[];
   addServiceType: (service: string) => void;
   deleteServiceType: (service: string) => void;
+
+  // Event Media Store actions
+  eventMedias: EventMedia[];
+  addEventMedia: (event: Omit<EventMedia, "id" | "photos">) => void;
+  deleteEventMedia: (id: number) => void;
+  addPhotosToEvent: (eventId: number, photos: Omit<EventPhoto, "id">[]) => void;
+  deletePhotoFromEvent: (eventId: number, photoId: string) => void;
+  updateEventMedia: (id: number, event: Partial<EventMedia>) => void;
 }
 
 const AdminContext = createContext<AdminContextProps | undefined>(undefined);
@@ -187,6 +210,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [locations, setLocations] = useState<Location[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [eventMedias, setEventMedias] = useState<EventMedia[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>([
     "Vídeo Institucional",
     "Produção Audiovisual",
@@ -211,6 +235,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const storedLocations = localStorage.getItem("moldra_locations");
         const storedContracts = localStorage.getItem("moldra_contracts");
         const storedNotifications = localStorage.getItem("moldra_notifications");
+        const storedEventMedias = localStorage.getItem("moldra_event_medias");
         const storedServiceTypes = localStorage.getItem("moldra_service_types");
 
         if (storedLeads) setLeads(JSON.parse(storedLeads));
@@ -222,6 +247,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (storedLocations) setLocations(JSON.parse(storedLocations));
         if (storedContracts) setContracts(JSON.parse(storedContracts));
         if (storedNotifications) setNotifications(JSON.parse(storedNotifications));
+        if (storedEventMedias) setEventMedias(JSON.parse(storedEventMedias));
         if (storedServiceTypes) setServiceTypes(JSON.parse(storedServiceTypes));
       } catch (e) {
         console.error("Erro ao carregar dados do localStorage:", e);
@@ -291,6 +317,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem("moldra_service_types", JSON.stringify(serviceTypes));
     }
   }, [serviceTypes, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      localStorage.setItem("moldra_event_medias", JSON.stringify(eventMedias));
+    }
+  }, [eventMedias, isLoaded]);
 
   // Lead actions
   const addLead = (lead: Omit<Lead, "id">) => {
@@ -527,6 +559,57 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setServiceTypes((prev) => prev.filter((item) => item !== service));
   };
 
+  // Event Media Store actions
+  const addEventMedia = (event: Omit<EventMedia, "id" | "photos">) => {
+    setEventMedias((prev) => [
+      ...prev,
+      { ...event, id: prev.length + 1, photos: [] }
+    ]);
+    addNotification("Nova Galeria de Evento", `Mídia de evento '${event.name}' cadastrada.`, "delivery");
+  };
+
+  const deleteEventMedia = (id: number) => {
+    setEventMedias((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const addPhotosToEvent = (eventId: number, newPhotos: Omit<EventPhoto, "id">[]) => {
+    setEventMedias((prev) =>
+      prev.map((e) => {
+        if (e.id === eventId) {
+          const formattedPhotos: EventPhoto[] = newPhotos.map((p, idx) => ({
+            ...p,
+            id: `${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`
+          }));
+          return {
+            ...e,
+            photos: [...e.photos, ...formattedPhotos]
+          };
+        }
+        return e;
+      })
+    );
+  };
+
+  const deletePhotoFromEvent = (eventId: number, photoId: string) => {
+    setEventMedias((prev) =>
+      prev.map((e) => {
+        if (e.id === eventId) {
+          return {
+            ...e,
+            photos: e.photos.filter((p) => p.id !== photoId)
+          };
+        }
+        return e;
+      })
+    );
+  };
+
+  const updateEventMedia = (id: number, updatedFields: Partial<EventMedia>) => {
+    setEventMedias((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...updatedFields } : e))
+    );
+  };
+
   return (
     <AdminContext.Provider
       value={{
@@ -564,6 +647,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addLocation,
         markAllNotificationsRead,
         addNotification,
+        eventMedias,
+        addEventMedia,
+        deleteEventMedia,
+        addPhotosToEvent,
+        deletePhotoFromEvent,
+        updateEventMedia,
         serviceTypes,
         addServiceType,
         deleteServiceType
