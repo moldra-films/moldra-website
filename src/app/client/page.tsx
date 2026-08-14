@@ -115,13 +115,7 @@ function ClientPortalContent() {
     document.cookie = "moldra-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     router.push("/login");
   };
-  // Mock list of downloadable assets/photos stored on Cloudflare R2
-  const r2Assets = [
-    { name: "Corte Principal Master (ProRes 422).mov", size: "3.2 GB", type: "video" },
-    { name: "Teaser Instagram Vertical (H.264).mp4", size: "145 MB", type: "video" },
-    { name: "Fotografias Tratadas Lote 1 (RAW + JPEG).zip", size: "820 MB", type: "image" },
-    { name: "Trilha Sonora Original e Efeitos de Efeitos.wav", size: "48 MB", type: "audio" },
-  ];
+
 
   return (
     <div className="min-h-screen bg-[#070707] text-white flex flex-col justify-between font-sans">
@@ -366,52 +360,7 @@ function ClientPortalContent() {
           </div>
         )}
 
-        {/* Master files grid - Cloudflare R2 downloads */}
-        <div className="space-y-4 pt-6">
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-              Arquivos Finais & Materiais Brutos (Cloudflare R2)
-            </h2>
-            <p className="text-xs text-gray-500 font-sans mt-0.5">
-              Faça o download de arquivos pesados, fotos tratadas e trilhas sonoras. Acesso direto e seguro sem links externos.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {r2Assets.map((asset, i) => (
-              <div
-                key={i}
-                className="p-5 rounded-2xl bg-dark-card border border-white/5 hover:border-white/10 transition-colors flex flex-col justify-between space-y-4"
-              >
-                <div className="flex gap-3 items-start">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                    {asset.type === "video" ? (
-                      <Video className="w-4 h-4 text-primary" />
-                    ) : (
-                      <ImageIcon className="w-4 h-4 text-primary" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-white font-display truncate leading-snug" title={asset.name}>
-                      {asset.name}
-                    </h4>
-                    <span className="text-[10px] text-gray-500 block mt-0.5 font-mono">
-                      Tamanho: {asset.size}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => alert(`Iniciando download seguro de: ${asset.name} da Cloudflare R2...`)}
-                  className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-xl text-[9px] uppercase tracking-wider font-extrabold text-primary transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <FileDown className="w-3.5 h-3.5" />
-                  Baixar Arquivo
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       </main>
 
       {/* Footer */}
