@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Settings, Shield, HardDrive, Link, ShieldCheck, Database, Sliders, UserPlus, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAdmin } from "@/context/AdminContext";
@@ -31,6 +31,22 @@ export default function SettingsTab() {
   const [msg, setMsg] = useState("");
   const [isSuccess, setIsSuccess] = useState(true);
 
+  // R2 database accounts list
+  interface Account {
+    id: string;
+    email: string;
+    role: string;
+    createdAt: string;
+  }
+  const [accounts, setAccounts] = useState<Account[]>([]);
+
+  useEffect(() => {
+    fetch("/api/admin-accounts")
+      .then((res) => res.json())
+      .then((data) => setAccounts(data))
+      .catch((err) => console.error("Error loading accounts:", err));
+  }, []);
+
   const toggleIntegration = (index: number) => {
     setIntegrations((prev) =>
       prev.map((item, idx) => (idx === index ? { ...item, active: !item.active } : item))
@@ -55,6 +71,24 @@ export default function SettingsTab() {
 
       if (error) throw error;
 
+      // Add new account to the R2 permissions list
+      const newAccount: Account = {
+        id: data.user?.id || Date.now().toString(),
+        email,
+        role: selectedRole,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedAccounts = [...accounts, newAccount];
+      setAccounts(updatedAccounts);
+
+      // Save to R2 database
+      await fetch("/api/admin-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedAccounts),
+      });
+
       setIsSuccess(true);
       setMsg(`Sucesso! Acesso criado para ${email}. Se a confirmação de e-mail estiver ativa no seu Supabase, o usuário receberá uma mensagem para validar a conta. Caso contrário, ele já poderá logar imediatamente.`);
       setEmail("");
@@ -65,6 +99,30 @@ export default function SettingsTab() {
       setMsg(`Erro ao criar acesso: ${err.message || "Verifique sua conexão com o Supabase."}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (id: string, email: string) => {
+    if (id.startsWith("default-")) {
+      alert("Este é um acesso administrativo padrão do sistema e não pode ser removido.");
+      return;
+    }
+
+    if (!confirm(`Tem certeza que deseja remover o acesso para ${email}?`)) {
+      return;
+    }
+
+    const updatedAccounts = accounts.filter((acc) => acc.id !== id);
+    setAccounts(updatedAccounts);
+
+    try {
+      await fetch("/api/admin-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedAccounts),
+      });
+    } catch (err) {
+      console.error("Error removing account from R2:", err);
     }
   };
 
@@ -164,6 +222,73 @@ export default function SettingsTab() {
             </div>
           )}
         </form>
+      </div>
+
+      {/* Active Accounts List */}
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white">Contas de Acesso Cadastradas</h3>
+          <p className="text-xs text-gray-500 font-sans mt-1">
+            Visualize todos os usuários e clientes com credenciais de login. Contas removidas aqui perderão acesso ao sistema (mesmo que existam no Supabase Auth).
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-dark-card border border-white/5 overflow-hidden">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-white/5 bg-white/[0.02] text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                <th className="p-4">Usuário (E-mail)</th>
+                <th className="p-4">Cargo / Nível</th>
+                <th className="p-4">Data Cadastro</th>
+                <th className="p-4 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-gray-300 font-sans">
+              {accounts.map((acc) => (
+                <tr key={acc.id} className="hover:bg-white/[0.01] transition-colors">
+                  <td className="p-4 font-medium text-white">{acc.email}</td>
+                  <td className="p-4 uppercase tracking-wider text-[10px]">
+                    <span className={`px-2 py-1 rounded-md font-bold ${
+                      acc.role === "admin" 
+                        ? "bg-primary/10 text-primary border border-primary/20" 
+                        : "bg-gray-500/10 text-gray-400 border border-gray-500/10"
+                    }`}>
+                      {acc.role === "admin" ? "Admin / Equipe" : "Cliente"}
+                    </span>
+                  </td>
+                  <td className="p-4 text-gray-400 font-light font-mono">
+                    {new Date(acc.createdAt).toLocaleDateString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      disabled={acc.id.startsWith("default-")}
+                      onClick={() => handleDeleteAccount(acc.id, acc.email)}
+                      className={`p-2 rounded-xl transition-all cursor-pointer ${
+                        acc.id.startsWith("default-")
+                          ? "text-gray-600 cursor-not-allowed opacity-35"
+                          : "hover:bg-red-500/10 text-gray-400 hover:text-red-400"
+                      }`}
+                      title={acc.id.startsWith("default-") ? "Acesso padrão" : "Remover acesso"}
+                    >
+                      <Trash2 className="w-4.5 h-4.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {accounts.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-gray-500 font-light">
+                    Nenhuma conta de acesso cadastrada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Access Permission Roles */}

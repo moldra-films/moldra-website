@@ -29,12 +29,27 @@ export default function LoginPage() {
       // Successful Auth redirect logic based on user email or metadata role
       const userEmail = data.user?.email || "";
       const userRole = data.user?.user_metadata?.role;
-      const isStaff =
-        userRole === "admin" ||
-        userEmail.includes("moldra") ||
-        userEmail.startsWith("admin") ||
-        userEmail.includes("mikelly") ||
-        userEmail.includes("natalia");
+
+      // Fetch allowed accounts from our R2 database to verify active status
+      const accountsRes = await fetch("/api/admin-accounts");
+      const activeAccounts = await accountsRes.json();
+      
+      const isDefaultAdmin = 
+        userEmail === "admin@moldrafilms.com.br" ||
+        userEmail === "mikelly@moldrafilms.com.br" ||
+        userEmail === "natalia@moldrafilms.com.br" ||
+        userEmail === "mikaelmaduro@gmail.com";
+
+      const isActive = activeAccounts.some((acc: any) => acc.email.toLowerCase() === userEmail.toLowerCase()) || isDefaultAdmin;
+
+      if (!isActive) {
+        await supabase.auth.signOut();
+        throw new Error("Esta conta foi desativada ou removida pelo administrador.");
+      }
+
+      const dbAccount = activeAccounts.find((acc: any) => acc.email.toLowerCase() === userEmail.toLowerCase());
+      const role = dbAccount ? dbAccount.role : (isDefaultAdmin ? "admin" : (userRole || "client"));
+      const isStaff = role === "admin" || userEmail.includes("moldra") || userEmail.startsWith("admin");
 
       // Set cookie for Next.js Middleware check
       document.cookie = "moldra-session=active; path=/; max-age=86400";
