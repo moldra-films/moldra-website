@@ -224,211 +224,91 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load state from localStorage on client-side mount (fast initial fallback)
+  // Load state from Supabase database on client-side mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      try {
-        const storedLeads = localStorage.getItem("moldra_leads");
-        const storedClients = localStorage.getItem("moldra_clients");
-        const storedProjects = localStorage.getItem("moldra_projects");
-        const storedTasks = localStorage.getItem("moldra_tasks");
-        const storedTransactions = localStorage.getItem("moldra_transactions");
-        const storedEquipments = localStorage.getItem("moldra_equipments");
-        const storedLocations = localStorage.getItem("moldra_locations");
-        const storedContracts = localStorage.getItem("moldra_contracts");
-        const storedNotifications = localStorage.getItem("moldra_notifications");
-        const storedServiceTypes = localStorage.getItem("moldra_service_types");
-        const storedEventMedias = localStorage.getItem("moldra_event_medias");
+      // Fetch centralized data from Supabase
+      Promise.all([
+        fetch("/api/event-media").then((res) => res.ok ? res.json() : Promise.reject("event-media error")),
+        fetch("/api/transactions").then((res) => res.ok ? res.json() : Promise.reject("transactions error")),
+        fetch("/api/leads").then((res) => res.ok ? res.json() : Promise.reject("leads error")),
+        fetch("/api/clients").then((res) => res.ok ? res.json() : Promise.reject("clients error")),
+        fetch("/api/projects").then((res) => res.ok ? res.json() : Promise.reject("projects error")),
+        fetch("/api/tasks").then((res) => res.ok ? res.json() : Promise.reject("tasks error")),
+        fetch("/api/equipments").then((res) => res.ok ? res.json() : Promise.reject("equipments error")),
+        fetch("/api/locations").then((res) => res.ok ? res.json() : Promise.reject("locations error")),
+        fetch("/api/contracts").then((res) => res.ok ? res.json() : Promise.reject("contracts error")),
+        fetch("/api/notifications").then((res) => res.ok ? res.json() : Promise.reject("notifications error")),
+        fetch("/api/service-types").then((res) => res.ok ? res.json() : Promise.reject("service-types error")),
+      ])
+        .then(([
+          eventMediaData,
+          transactionsData,
+          leadsData,
+          clientsData,
+          projectsData,
+          tasksData,
+          equipmentsData,
+          locationsData,
+          contractsData,
+          notificationsData,
+          serviceTypesData
+        ]) => {
+          // Process eventMediaData migrations
+          const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
+          const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
+          let migrated = false;
 
-        const localLeads = storedLeads ? JSON.parse(storedLeads) : [];
-        const localClients = storedClients ? JSON.parse(storedClients) : [];
-        const localProjects = storedProjects ? JSON.parse(storedProjects) : [];
-        const localTasks = storedTasks ? JSON.parse(storedTasks) : [];
-        const localTransactions = storedTransactions ? JSON.parse(storedTransactions) : [];
-        const localEquipments = storedEquipments ? JSON.parse(storedEquipments) : [];
-        const localLocations = storedLocations ? JSON.parse(storedLocations) : [];
-        const localContracts = storedContracts ? JSON.parse(storedContracts) : [];
-        const localNotifications = storedNotifications ? JSON.parse(storedNotifications) : [];
-        const localServiceTypes = storedServiceTypes ? JSON.parse(storedServiceTypes) : [];
-        const localEventMedias = storedEventMedias ? JSON.parse(storedEventMedias) : [];
-
-        if (storedLeads) setLeads(localLeads);
-        if (storedClients) setClients(localClients);
-        if (storedProjects) setProjects(localProjects);
-        if (storedTasks) setTasks(localTasks);
-        if (storedTransactions) setTransactions(localTransactions);
-        if (storedEquipments) setEquipments(localEquipments);
-        if (storedLocations) setLocations(localLocations);
-        if (storedContracts) setContracts(localContracts);
-        if (storedNotifications) setNotifications(localNotifications);
-        if (storedServiceTypes) setServiceTypes(localServiceTypes);
-        if (storedEventMedias) setEventMedias(localEventMedias);
-        
-        // Fetch centralized data from Supabase
-        Promise.all([
-          fetch("/api/event-media").then((res) => res.ok ? res.json() : Promise.reject("event-media error")),
-          fetch("/api/transactions").then((res) => res.ok ? res.json() : Promise.reject("transactions error")),
-          fetch("/api/leads").then((res) => res.ok ? res.json() : Promise.reject("leads error")),
-          fetch("/api/clients").then((res) => res.ok ? res.json() : Promise.reject("clients error")),
-          fetch("/api/projects").then((res) => res.ok ? res.json() : Promise.reject("projects error")),
-          fetch("/api/tasks").then((res) => res.ok ? res.json() : Promise.reject("tasks error")),
-          fetch("/api/equipments").then((res) => res.ok ? res.json() : Promise.reject("equipments error")),
-          fetch("/api/locations").then((res) => res.ok ? res.json() : Promise.reject("locations error")),
-          fetch("/api/contracts").then((res) => res.ok ? res.json() : Promise.reject("contracts error")),
-          fetch("/api/notifications").then((res) => res.ok ? res.json() : Promise.reject("notifications error")),
-          fetch("/api/service-types").then((res) => res.ok ? res.json() : Promise.reject("service-types error")),
-        ])
-          .then(([
-            eventMediaData,
-            transactionsData,
-            leadsData,
-            clientsData,
-            projectsData,
-            tasksData,
-            equipmentsData,
-            locationsData,
-            contractsData,
-            notificationsData,
-            serviceTypesData
-          ]) => {
-            // Process eventMediaData migrations
-            const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
-            const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
-            let migrated = false;
-
-            const migratedData = eventMediaData.map((event: any) => {
-              const updatedPhotos = event.photos.map((photo: any) => {
-                if (photo.url.includes(oldSubdomain)) {
-                  migrated = true;
-                  return {
-                    ...photo,
-                    url: photo.url.replace(oldSubdomain, newSubdomain),
-                  };
-                }
-                return photo;
-              });
-              return {
-                ...event,
-                photos: updatedPhotos,
-              };
-            });
-
-            if (eventMediaData.length > 0) {
-              setEventMedias(migratedData);
-              localStorage.setItem("moldra_event_medias", JSON.stringify(migratedData));
-              if (migrated) {
-                fetch("/api/event-media", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(migratedData),
-                }).catch((e) => console.error("Error saving migrated R2 database:", e));
+          const migratedData = eventMediaData.map((event: any) => {
+            const updatedPhotos = event.photos.map((photo: any) => {
+              if (photo.url.includes(oldSubdomain)) {
+                migrated = true;
+                return {
+                  ...photo,
+                  url: photo.url.replace(oldSubdomain, newSubdomain),
+                };
               }
-            } else if (localEventMedias.length > 0) {
-              fetch("/api/event-media", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(localEventMedias),
-              }).catch((e) => console.error("Error populating database with local event medias:", e));
-            }
-
-            // Sync database values or populate database from local storage if db is empty
-            if (transactionsData.length > 0) {
-              setTransactions(transactionsData);
-              localStorage.setItem("moldra_transactions", JSON.stringify(transactionsData));
-            } else if (localTransactions.length > 0) {
-              fetch("/api/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localTransactions) })
-                .catch((e) => console.error("Error populating transactions:", e));
-            }
-
-            if (leadsData.length > 0) {
-              setLeads(leadsData);
-              localStorage.setItem("moldra_leads", JSON.stringify(leadsData));
-            } else if (localLeads.length > 0) {
-              fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localLeads) })
-                .catch((e) => console.error("Error populating leads:", e));
-            }
-
-            if (clientsData.length > 0) {
-              setClients(clientsData);
-              localStorage.setItem("moldra_clients", JSON.stringify(clientsData));
-            } else if (localClients.length > 0) {
-              fetch("/api/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localClients) })
-                .catch((e) => console.error("Error populating clients:", e));
-            }
-
-            if (projectsData.length > 0) {
-              setProjects(projectsData);
-              localStorage.setItem("moldra_projects", JSON.stringify(projectsData));
-            } else if (localProjects.length > 0) {
-              fetch("/api/projects", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localProjects) })
-                .catch((e) => console.error("Error populating projects:", e));
-            }
-
-            if (tasksData.length > 0) {
-              setTasks(tasksData);
-              localStorage.setItem("moldra_tasks", JSON.stringify(tasksData));
-            } else if (localTasks.length > 0) {
-              fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localTasks) })
-                .catch((e) => console.error("Error populating tasks:", e));
-            }
-
-            if (equipmentsData.length > 0) {
-              setEquipments(equipmentsData);
-              localStorage.setItem("moldra_equipments", JSON.stringify(equipmentsData));
-            } else if (localEquipments.length > 0) {
-              fetch("/api/equipments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localEquipments) })
-                .catch((e) => console.error("Error populating equipments:", e));
-            }
-
-            if (locationsData.length > 0) {
-              setLocations(locationsData);
-              localStorage.setItem("moldra_locations", JSON.stringify(locationsData));
-            } else if (localLocations.length > 0) {
-              fetch("/api/locations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localLocations) })
-                .catch((e) => console.error("Error populating locations:", e));
-            }
-
-            if (contractsData.length > 0) {
-              setContracts(contractsData);
-              localStorage.setItem("moldra_contracts", JSON.stringify(contractsData));
-            } else if (localContracts.length > 0) {
-              fetch("/api/contracts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localContracts) })
-                .catch((e) => console.error("Error populating contracts:", e));
-            }
-
-            if (notificationsData.length > 0) {
-              setNotifications(notificationsData);
-              localStorage.setItem("moldra_notifications", JSON.stringify(notificationsData));
-            } else if (localNotifications.length > 0) {
-              fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localNotifications) })
-                .catch((e) => console.error("Error populating notifications:", e));
-            }
-
-            if (serviceTypesData.length > 0) {
-              setServiceTypes(serviceTypesData);
-              localStorage.setItem("moldra_service_types", JSON.stringify(serviceTypesData));
-            } else if (localServiceTypes.length > 0) {
-              fetch("/api/service-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(localServiceTypes) })
-                .catch((e) => console.error("Error populating service types:", e));
-            }
-          })
-          .catch((err) => {
-            console.error("Failed to load centralized database data, using localStorage fallback:", err);
-          })
-          .finally(() => {
-            setIsLoaded(true);
+              return photo;
+            });
+            return {
+              ...event,
+              photos: updatedPhotos,
+            };
           });
-      } catch (e) {
-        console.error("Erro ao carregar dados do localStorage:", e);
-        setIsLoaded(true);
-      }
+
+          setEventMedias(migratedData);
+          if (migrated) {
+            fetch("/api/event-media", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(migratedData),
+            }).catch((e) => console.error("Error saving migrated R2 database:", e));
+          }
+
+          // Sync database values to React states
+          setTransactions(transactionsData);
+          setLeads(leadsData);
+          setClients(clientsData);
+          setProjects(projectsData);
+          setTasks(tasksData);
+          setEquipments(equipmentsData);
+          setLocations(locationsData);
+          setContracts(contractsData);
+          setNotifications(notificationsData);
+          setServiceTypes(serviceTypesData);
+        })
+        .catch((err) => {
+          console.error("Failed to load database data:", err);
+        })
+        .finally(() => {
+          setIsLoaded(true);
+        });
     }
   }, []);
 
-  // Save to localStorage and Database when state changes and loaded is complete
+  // Save to Database when state changes and loaded is complete
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_leads", JSON.stringify(leads));
       fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -439,7 +319,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_clients", JSON.stringify(clients));
       fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -450,7 +329,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_projects", JSON.stringify(projects));
       fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -461,7 +339,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_tasks", JSON.stringify(tasks));
       fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -472,7 +349,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_transactions", JSON.stringify(transactions));
       fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -483,7 +359,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_equipments", JSON.stringify(equipments));
       fetch("/api/equipments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -494,7 +369,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_locations", JSON.stringify(locations));
       fetch("/api/locations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -505,7 +379,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_contracts", JSON.stringify(contracts));
       fetch("/api/contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -516,7 +389,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_notifications", JSON.stringify(notifications));
       fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -527,7 +399,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_service_types", JSON.stringify(serviceTypes));
       fetch("/api/service-types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -538,9 +409,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
-      localStorage.setItem("moldra_event_medias", JSON.stringify(eventMedias));
-      
-      // Central database sync to Cloudflare R2 JSON file (via event-media router)
       fetch("/api/event-media", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -752,7 +620,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (listRes.ok) {
           const list = await listRes.json();
           setTransactions(list);
-          localStorage.setItem("moldra_transactions", JSON.stringify(list));
           return;
         }
       }
@@ -767,7 +634,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const markTransactionPaid = async (id: number) => {
     const updated = transactions.map((trans) => (trans.id === id ? { ...trans, status: "Pago" as const } : trans));
     setTransactions(updated);
-    localStorage.setItem("moldra_transactions", JSON.stringify(updated));
 
     try {
       await fetch("/api/transactions", {
