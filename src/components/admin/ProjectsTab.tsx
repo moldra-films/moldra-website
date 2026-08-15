@@ -901,7 +901,7 @@ export default function ProjectsTab() {
                 type="submit"
                 className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
-                Criar Projeto
+                Salvar Projeto
               </button>
             </form>
           </motion.div>
