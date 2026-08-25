@@ -14,12 +14,14 @@ import {
   ShieldCheck,
   LogOut,
   Camera,
-  X
+  X,
+  ChevronDown
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
+import { useAdmin } from "@/context/AdminContext";
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -28,9 +30,27 @@ interface AdminSidebarProps {
   onClose?: () => void;
 }
 
+const financeSubItems = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "transactions", label: "Movimentações" },
+  { id: "reconciliation", label: "Conciliação" },
+  { id: "receivables-payables", label: "Pagar & Receber" },
+  { id: "statements", label: "Relatórios & DRE" },
+  { id: "assets-goals", label: "Metas & Patrimônio" },
+  { id: "audit", label: "Auditoria" },
+];
+
 export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose }: AdminSidebarProps) {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
+  const { activeFinanceSubTab, setActiveFinanceSubTab } = useAdmin();
+  const [isFinanceOpen, setIsFinanceOpen] = useState(activeTab === "finance");
+
+  useEffect(() => {
+    if (activeTab === "finance") {
+      setIsFinanceOpen(true);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -123,36 +143,87 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
           </div>
 
         {/* Menu Navigation */}
-        <nav className="p-4 space-y-1.5">
+        <nav className="p-4 space-y-1.5 overflow-y-auto max-h-[calc(100vh-180px)] scrollbar-hide">
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
+            const isFinance = item.id === "finance";
             return (
-              <motion.button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  if (onClose) onClose();
-                }}
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-                className="relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-gray-400 hover:text-white group select-none"
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTabIndicator"
-                    className="absolute inset-0 bg-primary rounded-xl -z-10 shadow-md shadow-primary/20"
-                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                  />
+              <div key={item.id} className="space-y-1">
+                <motion.button
+                  onClick={() => {
+                    if (isFinance) {
+                      setIsFinanceOpen(!isFinanceOpen);
+                      setActiveTab("finance");
+                    } else {
+                      setActiveTab(item.id);
+                      if (onClose) onClose();
+                    }
+                  }}
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="relative w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer text-gray-400 hover:text-white group select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    {isActive && !isFinance && (
+                      <motion.div
+                        layoutId="activeTabIndicator"
+                        className="absolute inset-0 bg-primary rounded-xl -z-10 shadow-md shadow-primary/20"
+                        transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                      />
+                    )}
+                    {isActive && isFinance && (
+                      <div className="absolute inset-0 bg-white/5 rounded-xl -z-10 border border-white/5" />
+                    )}
+                    <item.icon className={`w-4 h-4 shrink-0 transition-colors ${
+                      isActive ? (isFinance ? "text-primary" : "text-black") : "text-gray-400 group-hover:text-white"
+                    }`} />
+                    <span className={`transition-colors ${
+                      isActive ? (isFinance ? "text-white font-bold" : "text-black font-semibold") : "text-gray-400 group-hover:text-white"
+                    }`}>
+                      {item.label}
+                    </span>
+                  </div>
+
+                  {isFinance && (
+                    <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isFinanceOpen ? "rotate-180 text-primary" : ""}`} />
+                  )}
+                </motion.button>
+
+                {isFinance && (
+                  <AnimatePresence initial={false}>
+                    {isFinanceOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="pl-8 pr-2 py-0.5 space-y-1 overflow-hidden"
+                      >
+                        {financeSubItems.map((sub) => {
+                          const isSubActive = activeFinanceSubTab === sub.id && activeTab === "finance";
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => {
+                                setActiveTab("finance");
+                                setActiveFinanceSubTab(sub.id);
+                                if (onClose) onClose();
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-[11px] uppercase tracking-wider font-semibold transition-colors cursor-pointer flex items-center gap-2 ${
+                                isSubActive 
+                                  ? "bg-primary/10 text-primary border-l-2 border-primary" 
+                                  : "text-gray-500 hover:text-white"
+                              }`}
+                            >
+                              {sub.label}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 )}
-                <item.icon className={`w-4 h-4 shrink-0 transition-colors ${
-                  isActive ? "text-black" : "text-gray-400 group-hover:text-white"
-                }`} />
-                <span className={`transition-colors ${
-                  isActive ? "text-black font-semibold" : "text-gray-400 group-hover:text-white"
-                }`}>
-                  {item.label}
-                </span>
-              </motion.button>
+              </div>
             );
           })}
         </nav>

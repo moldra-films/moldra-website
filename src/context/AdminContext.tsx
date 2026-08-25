@@ -198,6 +198,8 @@ interface AdminContextProps {
   addPhotosToEvent: (eventId: number, photos: Omit<EventPhoto, "id">[]) => void;
   deletePhotoFromEvent: (eventId: number, photoId: string) => void;
   updateEventMedia: (id: number, event: Partial<EventMedia>) => void;
+  activeFinanceSubTab: string;
+  setActiveFinanceSubTab: (tab: string) => void;
 }
 
 const AdminContext = createContext<AdminContextProps | undefined>(undefined);
@@ -223,6 +225,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ]);
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [activeFinanceSubTab, setActiveFinanceSubTab] = useState("dashboard");
 
   // Load state from Supabase database on client-side mount
   useEffect(() => {
@@ -830,7 +833,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateEventMedia,
         serviceTypes,
         addServiceType,
-        deleteServiceType
+        deleteServiceType,
+        activeFinanceSubTab,
+        setActiveFinanceSubTab
       }}
     >
       {children}

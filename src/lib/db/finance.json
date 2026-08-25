@@ -1,0 +1,177 @@
+{
+  "bankAccounts": [
+    {
+      "id": "nubank-1",
+      "bank": "Nubank",
+      "name": "Nubank PJ",
+      "type": "Corrente",
+      "agency": "0001",
+      "account": "1892842-9",
+      "initialBalance": 0,
+      "currentBalance": 0,
+      "status": "Ativa",
+      "lastSync": "2026-08-25T16:38:05.606Z"
+    }
+  ],
+  "categories": [
+    "Equipamentos",
+    "Produção",
+    "Marketing",
+    "Transporte",
+    "Alimentação",
+    "Software",
+    "Serviços",
+    "Impostos",
+    "Funcionários",
+    "Manutenção",
+    "Outros"
+  ],
+  "transactions": [],
+  "billings": [],
+  "payables": [],
+  "goals": [],
+  "assets": [],
+  "importedTransactions": [],
+  "auditLogs": [
+    {
+      "id": "log-1787676254053-2fxz",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:44:14",
+      "action": "Mikelly Maduro excluiu a transação de saída \"Aluguel de camera\" de R$ 250",
+      "oldValue": "{\"id\":\"tx-1787676147803\",\"description\":\"Aluguel de camera\",\"type\":\"Saída\",\"category\":\"Equipamentos\",\"subcategory\":\"\",\"customerOrProvider\":\"MJM\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":250,\"date\":\"2026-08-20\",\"dueDate\":\"2026-08-22\",\"status\":\"Pago\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "newValue": null,
+      "targetId": "tx-1787676147803"
+    },
+    {
+      "id": "log-1787676251632-so6o",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:44:11",
+      "action": "Mikelly Maduro excluiu a transação de saída \"Pagamento de Aluguel\" de R$ 1,000",
+      "oldValue": "{\"id\":\"tx-1787676094653\",\"description\":\"Pagamento de Aluguel\",\"type\":\"Saída\",\"category\":\"Outros\",\"subcategory\":\"\",\"customerOrProvider\":\"João\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":1000,\"date\":\"2026-08-25\",\"dueDate\":\"2026-08-25\",\"status\":\"Pago\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "newValue": null,
+      "targetId": "tx-1787676094653"
+    },
+    {
+      "id": "log-1787676248723-hnso",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:44:08",
+      "action": "Mikelly Maduro excluiu a transação de entrada \"Transferencia Abigail\" de R$ 2,500",
+      "oldValue": "{\"id\":\"tx-1787676040759\",\"description\":\"Transferencia Abigail\",\"type\":\"Entrada\",\"category\":\"Produção\",\"subcategory\":\"\",\"customerOrProvider\":\"Abigail Kitzinger\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":2500,\"date\":\"2026-08-25\",\"dueDate\":\"2026-08-25\",\"status\":\"Recebido\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "newValue": null,
+      "targetId": "tx-1787676040759"
+    },
+    {
+      "id": "log-1787676223028-02rp",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:43:43",
+      "action": "Mikelly Maduro alterou a transação \"Aluguel de camera\": status de \"Pendente\" para \"Pago\"",
+      "oldValue": "{\"id\":\"tx-1787676147803\",\"description\":\"Aluguel de camera\",\"type\":\"Saída\",\"category\":\"Equipamentos\",\"subcategory\":\"\",\"customerOrProvider\":\"MJM\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":250,\"date\":\"2026-08-20\",\"dueDate\":\"2026-08-22\",\"status\":\"Pendente\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "newValue": "{\"id\":\"tx-1787676147803\",\"description\":\"Aluguel de camera\",\"type\":\"Saída\",\"category\":\"Equipamentos\",\"subcategory\":\"\",\"customerOrProvider\":\"MJM\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":250,\"date\":\"2026-08-20\",\"dueDate\":\"2026-08-22\",\"status\":\"Pago\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "targetId": "tx-1787676147803"
+    },
+    {
+      "id": "log-1787676215497-nb4q",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:43:35",
+      "action": "Mikelly Maduro excluiu a transação de saída \"Aluguel de camera (Cópia)\" de R$ 250",
+      "oldValue": "{\"id\":\"tx-1787676206767\",\"description\":\"Aluguel de camera (Cópia)\",\"type\":\"Saída\",\"category\":\"Equipamentos\",\"subcategory\":\"\",\"customerOrProvider\":\"MJM\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":250,\"date\":\"2026-08-25\",\"dueDate\":\"2026-08-22\",\"status\":\"Pendente\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "newValue": null,
+      "targetId": "tx-1787676206767"
+    },
+    {
+      "id": "log-1787676206779-4gsx",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:43:26",
+      "action": "Mikelly Maduro criou a transação de saída \"Aluguel de camera (Cópia)\" no valor de R$ 250",
+      "oldValue": null,
+      "newValue": "{\"id\":\"tx-1787676206767\",\"description\":\"Aluguel de camera (Cópia)\",\"type\":\"Saída\",\"category\":\"Equipamentos\",\"subcategory\":\"\",\"customerOrProvider\":\"MJM\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":250,\"date\":\"2026-08-25\",\"dueDate\":\"2026-08-22\",\"status\":\"Pendente\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "targetId": "tx-1787676206767"
+    },
+    {
+      "id": "log-del-bank-1787676182550",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:43:02",
+      "action": "Mikelly Maduro excluiu a conta bancária \"Itaú Comercial\" (Itaú).",
+      "oldValue": "{\"id\":\"itau-1\",\"bank\":\"Itaú\",\"name\":\"Itaú Comercial\",\"type\":\"Corrente\",\"agency\":\"4082\",\"account\":\"33942-0\",\"initialBalance\":0,\"currentBalance\":0,\"status\":\"Ativa\",\"lastSync\":null}",
+      "newValue": null,
+      "targetId": "itau-1"
+    },
+    {
+      "id": "log-1787676147830-ndpo",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:42:27",
+      "action": "Mikelly Maduro criou a transação de saída \"Aluguel de camera\" no valor de R$ 250",
+      "oldValue": null,
+      "newValue": "{\"id\":\"tx-1787676147803\",\"description\":\"Aluguel de camera\",\"type\":\"Saída\",\"category\":\"Equipamentos\",\"subcategory\":\"\",\"customerOrProvider\":\"MJM\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":250,\"date\":\"2026-08-20\",\"dueDate\":\"2026-08-22\",\"status\":\"Pendente\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "targetId": "tx-1787676147803"
+    },
+    {
+      "id": "log-1787676094745-ku3c",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:41:34",
+      "action": "Mikelly Maduro criou a transação de saída \"Pagamento de Aluguel\" no valor de R$ 1,000",
+      "oldValue": null,
+      "newValue": "{\"id\":\"tx-1787676094653\",\"description\":\"Pagamento de Aluguel\",\"type\":\"Saída\",\"category\":\"Outros\",\"subcategory\":\"\",\"customerOrProvider\":\"João\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":1000,\"date\":\"2026-08-25\",\"dueDate\":\"2026-08-25\",\"status\":\"Pago\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "targetId": "tx-1787676094653"
+    },
+    {
+      "id": "log-1787676040814-5mdu",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:40:40",
+      "action": "Mikelly Maduro criou a transação de entrada \"Transferencia Abigail\" no valor de R$ 2,500",
+      "oldValue": null,
+      "newValue": "{\"id\":\"tx-1787676040759\",\"description\":\"Transferencia Abigail\",\"type\":\"Entrada\",\"category\":\"Produção\",\"subcategory\":\"\",\"customerOrProvider\":\"Abigail Kitzinger\",\"bankAccountId\":\"nubank-1\",\"paymentMethod\":\"Pix\",\"value\":2500,\"date\":\"2026-08-25\",\"dueDate\":\"2026-08-25\",\"status\":\"Recebido\",\"origin\":\"Manual\",\"receiptUrl\":null,\"notes\":\"\"}",
+      "targetId": "tx-1787676040759"
+    },
+    {
+      "id": "log-of-1787675885606",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:38:05",
+      "action": "Mikelly Maduro conectou a conta Nubank via Open Finance.",
+      "oldValue": "Desconectada",
+      "newValue": "Conectada Open Finance",
+      "targetId": "open-finance"
+    },
+    {
+      "id": "log-del-bank-1787675878602",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:37:58",
+      "action": "Mikelly Maduro excluiu a conta bancária \"tteste\" (Bradesco).",
+      "oldValue": "{\"id\":\"bank-1787675775696\",\"bank\":\"Bradesco\",\"name\":\"tteste\",\"type\":\"Corrente\",\"agency\":\"0001\",\"account\":\"123456\",\"initialBalance\":1,\"currentBalance\":1,\"status\":\"Ativa\",\"lastSync\":null}",
+      "newValue": null,
+      "targetId": "bank-1787675775696"
+    },
+    {
+      "id": "log-of-1787675840473",
+      "user": "Mikelly Maduro",
+      "date": "2026-08-25",
+      "time": "13:37:20",
+      "action": "Mikelly Maduro conectou a conta Nubank via Open Finance.",
+      "oldValue": "Desconectada",
+      "newValue": "Conectada Open Finance",
+      "targetId": "open-finance"
+    },
+    {
+      "id": "log-reset",
+      "user": "Natália Camurça",
+      "date": "2026-08-25",
+      "time": "13:32:00",
+      "action": "Sistema financeiro reiniciado. Todos os lançamentos, metas, ativos e saldos foram zerados para novos cadastros.",
+      "oldValue": "Dados Seed",
+      "newValue": "Vazio",
+      "targetId": "system"
+    }
+  ]
+}
