@@ -91,6 +91,30 @@ const PRESETS = [
   {
     name: "Contraste Drama",
     values: { exposure: -0.25, contrast: 0.4, temp: -0.05, saturation: -0.25, sharpness: 0.4, noiseReduction: 0.05 }
+  },
+  {
+    name: "Sunset Gold",
+    values: { exposure: 0.1, contrast: 0.15, temp: 0.6, saturation: 0.2, sharpness: 0.2, noiseReduction: 0.1 }
+  },
+  {
+    name: "Analog Film",
+    values: { exposure: 0.05, contrast: -0.05, temp: -0.1, saturation: -0.1, sharpness: 0.1, noiseReduction: 0.15 }
+  },
+  {
+    name: "Alto Contraste",
+    values: { exposure: 0.0, contrast: 0.5, temp: 0.0, saturation: 0.1, sharpness: 0.35, noiseReduction: 0.05 }
+  },
+  {
+    name: "Pastel Dream",
+    values: { exposure: 0.3, contrast: -0.2, temp: 0.0, saturation: -0.4, sharpness: 0.0, noiseReduction: 0.2 }
+  },
+  {
+    name: "Neon Night",
+    values: { exposure: -0.2, contrast: 0.3, temp: -0.3, saturation: 0.3, sharpness: 0.2, noiseReduction: 0.1 }
+  },
+  {
+    name: "Fine-Art Wedding",
+    values: { exposure: 0.25, contrast: 0.1, temp: 0.2, saturation: -0.15, sharpness: 0.15, noiseReduction: 0.1 }
   }
 ];
 
