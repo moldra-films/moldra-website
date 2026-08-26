@@ -249,9 +249,11 @@ def bg_export_task(project_name: str, watermark_text: str, scale_max_dim: int):
             })
 
         # Thread pool execution (lightweight memory footprint for serverless/containers)
-        max_workers = min(2, multiprocessing.cpu_count())
-        print(f"Starting cloud export for {total_files} files using {max_workers} threads...")
+        # We run strictly sequentially (max_workers=1) to prevent Out of Memory (OOM) crashes on 512MB RAM
+        max_workers = 1
+        print(f"Starting cloud export for {total_files} files using {max_workers} thread (sequential)...")
 
+        import gc
         completed = 0
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(ImageProcessor.export_worker, t) for t in tasks]
@@ -260,6 +262,8 @@ def bg_export_task(project_name: str, watermark_text: str, scale_max_dim: int):
                 completed += 1
                 active_jobs["export"]["current"] = completed
                 active_jobs["export"]["progress"] = int((completed / total_files) * 100)
+                # Reclaim memory buffers immediately
+                gc.collect()
 
         active_jobs["export"]["status"] = "Completed"
         active_jobs["export"]["progress"] = 100
