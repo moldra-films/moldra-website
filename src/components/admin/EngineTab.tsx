@@ -252,7 +252,7 @@ export default function EngineTab() {
     // Helper to fetch status with abort signal
     const fetchStatus = async (url: string) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       try {
         const res = await fetch(`${url}/api/status?t=${Date.now()}`, {
           signal: controller.signal
