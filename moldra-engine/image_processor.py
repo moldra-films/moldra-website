@@ -118,7 +118,7 @@ class ImageProcessor:
         exposure = adjustments.get("exposure", 0.0)
         if exposure != 0.0:
             scale = 2.0 ** exposure
-            out = cv2.multiply(out, np.array([scale]))
+            out = np.clip(out.astype(np.float32) * scale, 0, 255).astype(np.uint8)
             
         # 2. Contrast
         contrast = adjustments.get("contrast", 0.0)
@@ -136,9 +136,9 @@ class ImageProcessor:
             r_gain, g_gain, b_gain = max(0.1, r_gain), max(0.1, g_gain), max(0.1, b_gain)
             
             b, g, r = cv2.split(out)
-            b = cv2.multiply(b, np.array([b_gain]))
-            g = cv2.multiply(g, np.array([g_gain]))
-            r = cv2.multiply(r, np.array([r_gain]))
+            b = np.clip(b.astype(np.float32) * b_gain, 0, 255).astype(np.uint8)
+            g = np.clip(g.astype(np.float32) * g_gain, 0, 255).astype(np.uint8)
+            r = np.clip(r.astype(np.float32) * r_gain, 0, 255).astype(np.uint8)
             out = cv2.merge([b, g, r])
 
         # 4. Saturation
