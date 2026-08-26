@@ -320,6 +320,35 @@ def save_adjustment(req: AdjustmentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao salvar ajustes: {str(e)}")
 
+@app.delete("/api/project/{project_name}")
+def delete_project(project_name: str):
+    """Deletes all R2 objects (Originals, Proxies, Settings) associated with a project name."""
+    if not r2_client or not r2_bucket_name:
+        raise HTTPException(status_code=500, detail="R2 client is not configured.")
+        
+    prefix = f"projects/{project_name}/"
+    try:
+        # List all keys with the project prefix
+        paginator = r2_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=r2_bucket_name, Prefix=prefix)
+        
+        deleted_count = 0
+        for page in pages:
+            if "Contents" in page:
+                # Extract keys to delete
+                delete_keys = [{"Key": obj["Key"]} for obj in page["Contents"]]
+                
+                # Delete objects in batch
+                r2_client.delete_objects(
+                    Bucket=r2_bucket_name,
+                    Delete={"Objects": delete_keys}
+                )
+                deleted_count += len(delete_keys)
+                
+        return {"status": "success", "message": f"Projeto '{project_name}' deletado com sucesso. {deleted_count} arquivos removidos do R2."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao deletar projeto: {str(e)}")
+
 @app.post("/api/export")
 def trigger_export(req: ExportRequest, bg_tasks: BackgroundTasks):
     """Triggers background multiprocessing render export."""

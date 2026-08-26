@@ -452,6 +452,33 @@ export default function EngineTab() {
     }).catch(e => console.error("Error saving metadata:", e));
   };
 
+  const handleDeleteProject = async () => {
+    if (!selectedProject) return;
+    const confirmDelete = confirm(
+      `ATENÇÃO: Tem certeza absoluta que deseja excluir o projeto "${selectedProject}"? \n\nIsso apagará permanentemente todos os arquivos originais, miniaturas e configurações salvas na nuvem R2. Esta ação NÃO pode ser desfeita!`
+    );
+    if (!confirmDelete) return;
+
+    setLoadingProject(true);
+    try {
+      const res = await fetch(`${ENGINE_URL}/api/project/${selectedProject}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        alert("Projeto excluído com sucesso!");
+        setSelectedProject("");
+        checkEngineStatus();
+      } else {
+        const err = await res.json();
+        alert(`Erro ao excluir projeto: ${err.detail || "Erro desconhecido"}`);
+      }
+    } catch (e) {
+      alert("Erro de conexão ao tentar excluir o projeto.");
+    } finally {
+      setLoadingProject(false);
+    }
+  };
+
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
@@ -761,6 +788,15 @@ export default function EngineTab() {
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
+                {selectedProject && (
+                  <button
+                    onClick={handleDeleteProject}
+                    className="px-3 py-2 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-xl transition-all cursor-pointer text-[10px] uppercase font-bold tracking-wider"
+                    title="Excluir este projeto permanentemente"
+                  >
+                    Excluir Projeto
+                  </button>
+                )}
               </div>
 
               {selectedProject && (
