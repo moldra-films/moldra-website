@@ -2,6 +2,7 @@ import os
 import shutil
 import rawpy
 import cv2
+import uuid
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import urllib.request
@@ -183,10 +184,10 @@ class ImageProcessor:
         watermark_text = task.get("watermark_text", "Moldra Films")
         scale_max_dim = task.get("scale_max_dim", 0)
 
-        # Unique temp paths based on process ID to avoid locks
-        pid = os.getpid()
-        temp_input = f"/tmp/export_in_{pid}_{os.path.basename(r2_key_output)}"
-        temp_output = f"/tmp/export_out_{pid}_{os.path.basename(r2_key_output)}"
+        # Unique temp paths based on random UUID to avoid locks and thread conflicts
+        unique_id = uuid.uuid4().hex
+        temp_input = f"/tmp/export_in_{unique_id}_{os.path.basename(r2_key_output)}"
+        temp_output = f"/tmp/export_out_{unique_id}_{os.path.basename(r2_key_output)}"
 
         try:
             # 1. Download file from R2
