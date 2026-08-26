@@ -344,15 +344,19 @@ export default function EngineTab() {
     }
 
     setIsUploading(true);
-    const urls: string[] = [];
-    const queue = [...uploadQueue];
+    const urls: string[] = new Array(selectedFiles.length);
+    const concurrencyLimit = 5;
 
-    try {
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        queue[i].status = "Carregando";
-        setUploadQueue([...queue]);
+    const uploadSingleFile = async (index: number) => {
+      const file = selectedFiles[index];
+      try {
+        setUploadQueue((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], status: "Carregando" };
+          return next;
+        });
 
+        // 1. Request presigned URL from API route
         const res = await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -363,36 +367,66 @@ export default function EngineTab() {
           }),
         });
 
-        if (!res.ok) {
-          queue[i].status = "Falhou";
-          setUploadQueue([...queue]);
-          continue;
-        }
+        if (!res.ok) throw new Error("API upload url generation failed");
 
         const { uploadUrl, fileUrl } = await res.json();
-        queue[i].progress = 40;
-        setUploadQueue([...queue]);
+        setUploadQueue((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], progress: 40 };
+          return next;
+        });
 
+        // 2. Upload directly to R2
         const uploadRes = await fetch(uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type },
           body: file,
         });
 
-        if (!uploadRes.ok) {
-          queue[i].status = "Falhou";
-          setUploadQueue([...queue]);
-          continue;
-        }
+        if (!uploadRes.ok) throw new Error("Direct R2 upload failed");
 
-        queue[i].progress = 100;
-        queue[i].status = "Concluído";
-        queue[i].url = fileUrl;
-        setUploadQueue([...queue]);
-        urls.push(fileUrl);
+        setUploadQueue((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], progress: 100, status: "Concluído" };
+          return next;
+        });
+        urls[index] = fileUrl;
+      } catch (err) {
+        console.error(`Upload failed for file: ${file.name}`, err);
+        setUploadQueue((prev) => {
+          const next = [...prev];
+          next[index] = { ...next[index], status: "Falhou" };
+          return next;
+        });
+      }
+    };
+
+    try {
+      // Execute uploads concurrently with a limit of concurrencyLimit
+      const indices = Array.from({ length: selectedFiles.length }, (_, i) => i);
+      const executing: Promise<any>[] = [];
+      
+      for (const index of indices) {
+        const p = uploadSingleFile(index).then(() => {
+          executing.splice(executing.indexOf(p), 1);
+        });
+        executing.push(p);
+        if (executing.length >= concurrencyLimit) {
+          await Promise.race(executing);
+        }
+      }
+      await Promise.all(executing);
+
+      // Filter out empty/failed URLs
+      const finalUrls = urls.filter(url => url !== undefined);
+
+      if (finalUrls.length === 0) {
+        alert("Erro: Todas as fotos falharam no upload.");
+        setIsUploading(false);
+        return;
       }
 
-      setUploadedUrls(urls);
+      setUploadedUrls(finalUrls);
       setIsUploading(false);
 
       alert("Upload concluído! Iniciando processamento IA de nitidez e detecção facial...");
@@ -402,7 +436,7 @@ export default function EngineTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project_name: projectNameInput,
-          file_urls: urls
+          file_urls: finalUrls
         })
       });
 

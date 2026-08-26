@@ -134,6 +134,13 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
                     proxy_ref = uploaded_proxy_url
                 else:
                     proxy_ref = url # fallback
+                
+                # Delete heavy RAW file immediately to conserve disk space
+                if os.path.exists(local_raw_path):
+                    try:
+                        os.remove(local_raw_path)
+                    except Exception as e:
+                        print(f"Error removing raw file {local_raw_path}: {e}")
             else:
                 proxy_ref = url # JPEG is its own preview
 
