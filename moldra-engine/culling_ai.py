@@ -7,14 +7,8 @@ from PIL import Image
 import mediapipe as mp
 from datetime import datetime
 
-# Initialize MediaPipe Face Mesh
+# Initialize MediaPipe Face Mesh module (instantiated dynamically to prevent memory leaks)
 mp_face_mesh = mp.solutions.face_mesh
-face_mesh_detector = mp_face_mesh.FaceMesh(
-    max_num_faces=5,
-    refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
 
 class CullingAI:
     @staticmethod
@@ -70,10 +64,26 @@ class CullingAI:
         """
         h, w, _ = img_bgr.shape
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-        results = face_mesh_detector.process(img_rgb)
+        
+        detector = mp_face_mesh.FaceMesh(
+            max_num_faces=5,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        results = None
+        try:
+            results = detector.process(img_rgb)
+        except Exception as e:
+            print(f"Error processing face mesh: {e}")
+        finally:
+            try:
+                detector.close()
+            except Exception:
+                pass
         
         faces_data = []
-        if not results.multi_face_landmarks:
+        if not results or not results.multi_face_landmarks:
             return faces_data
             
         for face_landmarks in results.multi_face_landmarks:
