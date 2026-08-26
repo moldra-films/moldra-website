@@ -136,6 +136,7 @@ export default function EngineTab() {
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   
   // Export states
+  const [useWatermark, setUseWatermark] = useState(true);
   const [watermarkText, setWatermarkText] = useState("Moldra Films");
   const [scaleMaxDim, setScaleMaxDim] = useState(0);
   
@@ -513,7 +514,7 @@ export default function EngineTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project_name: selectedProject,
-          watermark_text: watermarkText,
+          watermark_text: useWatermark ? watermarkText : "",
           scale_max_dim: Number(scaleMaxDim)
         })
       });
@@ -740,17 +741,29 @@ export default function EngineTab() {
                 <h3 className="text-[10px] uppercase font-bold text-white tracking-wider">Exportação na Nuvem</h3>
               </div>
 
-              <form onSubmit={handleExport} className="space-y-3 font-sans text-xs">
-                <div>
-                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Marca d'água</label>
+              <form onSubmit={handleExport} className="space-y-4 font-sans text-xs">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/20 border border-white/5">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Usar Marca d'água</span>
                   <input
-                    type="text"
-                    value={watermarkText}
-                    onChange={(e) => setWatermarkText(e.target.value)}
-                    placeholder="Ex: Moldra Films"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-primary text-xs"
+                    type="checkbox"
+                    checked={useWatermark}
+                    onChange={(e) => setUseWatermark(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer"
                   />
                 </div>
+
+                {useWatermark && (
+                  <div className="space-y-1">
+                    <label className="block text-[9px] uppercase font-bold text-gray-400">Texto da Marca d'água</label>
+                    <input
+                      type="text"
+                      value={watermarkText}
+                      onChange={(e) => setWatermarkText(e.target.value)}
+                      placeholder="Ex: Moldra Films"
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-primary text-xs"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Redimensionamento</label>
                   <select
