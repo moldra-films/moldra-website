@@ -15,12 +15,14 @@ import {
   Star, 
   Sparkles, 
   Eye, 
-  Smile,
+  Smile, 
   Copy, 
   Clipboard, 
   CheckSquare,
-  FileImage,
-  ExternalLink
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -51,7 +53,6 @@ interface UploadingFile {
   url?: string;
 }
 
-// Configurable endpoint pointing to Render/Railway or Localhost
 const ENGINE_URL = process.env.NEXT_PUBLIC_MOLDRA_ENGINE_URL || "http://127.0.0.1:8000";
 
 export default function EngineTab() {
@@ -75,8 +76,9 @@ export default function EngineTab() {
   const [watermarkText, setWatermarkText] = useState("Moldra Films");
   const [scaleMaxDim, setScaleMaxDim] = useState(0);
   
-  // Editing states
+  // Full screen editor mode state
   const [selectedPhoto, setSelectedPhoto] = useState<CullingResult | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [adjustments, setAdjustments] = useState({
     exposure: 0.0,
     contrast: 0.0,
@@ -103,6 +105,54 @@ export default function EngineTab() {
       setSelectedPhoto(null);
     }
   }, [selectedProject]);
+
+  // Keyboard navigation for full-screen editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isEditorOpen || !selectedPhoto || projectSettings.culling_results.length === 0) return;
+      
+      const currentIndex = projectSettings.culling_results.findIndex(
+        (p) => p.filename === selectedPhoto.filename
+      );
+      
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigatePhoto("next", currentIndex);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigatePhoto("prev", currentIndex);
+      } else if (e.key === "Escape") {
+        setIsEditorOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isEditorOpen, selectedPhoto, projectSettings]);
+
+  const navigatePhoto = (direction: "next" | "prev", currentIndex: number) => {
+    const len = projectSettings.culling_results.length;
+    if (len === 0) return;
+    
+    let nextIndex = currentIndex;
+    if (direction === "next") {
+      nextIndex = (currentIndex + 1) % len;
+    } else {
+      nextIndex = (currentIndex - 1 + len) % len;
+    }
+
+    const nextPhoto = projectSettings.culling_results[nextIndex];
+    setSelectedPhoto(nextPhoto);
+    const photoAdj = projectSettings.adjustments?.[nextPhoto.filename] || {
+      exposure: 0.0,
+      contrast: 0.0,
+      temp: 0.0,
+      saturation: 0.0,
+      sharpness: 0.0,
+      noiseReduction: 0.0
+    };
+    setAdjustments(photoAdj);
+  };
 
   const checkEngineStatus = async () => {
     try {
@@ -177,7 +227,6 @@ export default function EngineTab() {
         queue[i].status = "Carregando";
         setUploadQueue([...queue]);
 
-        // Step 1: Request presigned URL from Next.js backend with project folder
         const res = await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -198,7 +247,6 @@ export default function EngineTab() {
         queue[i].progress = 40;
         setUploadQueue([...queue]);
 
-        // Step 2: Upload directly from browser to Cloudflare R2
         const uploadRes = await fetch(uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type },
@@ -221,7 +269,6 @@ export default function EngineTab() {
       setUploadedUrls(urls);
       setIsUploading(false);
 
-      // Step 3: Trigger AI Culling on the uploaded URLs on FastAPI Cloud
       alert("Upload concluído! Iniciando processamento IA de nitidez e detecção facial...");
       
       const cullRes = await fetch(`${ENGINE_URL}/api/cull`, {
@@ -398,7 +445,7 @@ export default function EngineTab() {
             </span>
             <h2 className="text-base font-bold uppercase tracking-wider text-white">Moldra Engine (Cloud Flow)</h2>
           </div>
-          <p className="text-xs text-gray-500 font-sans mt-1">Envie fotos RAW/JPEG, faça culling inteligente via IA e exporte em lote direto da nuvem.</p>
+          <p className="text-xs text-gray-500 font-sans mt-1">Envie fotos RAW/JPEG, faça culling inteligente via IA e edite com visualização gigante em tempo real.</p>
         </div>
 
         {/* Server online/offline badge */}
@@ -591,7 +638,7 @@ export default function EngineTab() {
 
           </div>
 
-          {/* MAIN GRAPHICS AREA */}
+          {/* MAIN GRAPHICS AREA (Grid Browser) */}
           <div className="lg:col-span-3 space-y-6">
             
             {/* Toolbar Area */}
@@ -611,8 +658,10 @@ export default function EngineTab() {
               </div>
 
               {selectedProject && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   <span className="text-[10px] font-mono text-gray-500">Total: {projectSettings.culling_results.length} fotos</span>
+                  <span className="text-gray-600">|</span>
+                  <span className="text-[9px] uppercase tracking-wider text-primary font-bold animate-pulse">💡 Dica: Clique em qualquer foto para abrir a edição em tela cheia!</span>
                 </div>
               )}
             </div>
@@ -627,107 +676,30 @@ export default function EngineTab() {
 
             {/* Workspace Grid */}
             {!loadingProject && selectedProject && (
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="max-h-[85vh] overflow-y-auto pr-2 scrollbar-hide space-y-6">
                 
-                {/* PHOTO GRID */}
-                <div className="xl:col-span-2 space-y-6 max-h-[80vh] overflow-y-auto pr-2 scrollbar-hide">
-                  
-                  {/* Bursts */}
-                  {Object.keys(groups).map((gIdStr) => {
-                    const gId = Number(gIdStr);
-                    const members = groups[gId];
-                    return (
-                      <div key={gId} className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-3">
-                        <div className="flex justify-between items-center pb-2 border-b border-white/5">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5" /> Grupo de Burst #{gId} ({members.length} duplicadas)
-                          </span>
-                          <span className="text-[9px] text-gray-600 font-mono">{members[0].time}</span>
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-3">
-                          {members.map((photo) => {
-                            const isCurrentlySelected = selectedPhoto?.filename === photo.filename;
-                            return (
-                              <div
-                                key={photo.filename}
-                                onClick={() => {
-                                  setSelectedPhoto(photo);
-                                  const photoAdj = projectSettings.adjustments?.[photo.filename] || {
-                                    exposure: 0.0,
-                                    contrast: 0.0,
-                                    temp: 0.0,
-                                    saturation: 0.0,
-                                    sharpness: 0.0,
-                                    noiseReduction: 0.0
-                                  };
-                                  setAdjustments(photoAdj);
-                                }}
-                                className={`rounded-xl overflow-hidden border bg-black/80 relative cursor-pointer aspect-video flex flex-col justify-between transition-all ${
-                                  isCurrentlySelected 
-                                    ? "border-primary ring-2 ring-primary/20 scale-[0.98]" 
-                                    : "border-white/5 hover:border-white/15"
-                                }`}
-                              >
-                                {/* Direct CDN URL mapping */}
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={photo.proxyUrl}
-                                  alt={photo.filename}
-                                  className="absolute inset-0 w-full h-full object-cover z-0"
-                                />
-
-                                <div className="absolute inset-0 bg-black/20 z-10" />
-
-                                <div className="p-2 z-20 flex justify-between items-start">
-                                  {photo.is_hero ? (
-                                    <span className="px-1.5 py-0.5 bg-primary text-black text-[7px] uppercase font-black rounded tracking-wide shadow flex items-center gap-0.5">
-                                      <Sparkles className="w-2.5 h-2.5" /> HERO
-                                    </span>
-                                  ) : (
-                                    <div />
-                                  )}
-
-                                  <span className={`w-2.5 h-2.5 rounded-full ${
-                                    photo.color_label === "Green" ? "bg-green-500" :
-                                    photo.color_label === "Red" ? "bg-red-500" :
-                                    photo.color_label === "Blue" ? "bg-blue-500" : "bg-transparent"
-                                  }`} />
-                                </div>
-
-                                <div className="p-2 bg-gradient-to-t from-black/80 to-transparent z-20 text-[9px] font-sans flex justify-between items-end">
-                                  <span className="text-gray-400 truncate max-w-[80px] font-mono">{photo.filename}</span>
-                                  <div className="flex items-center gap-1.5">
-                                    {photo.color_label === "Red" && (
-                                      <span title={`Fora de foco (Score: ${photo.sharpness})`}>
-                                        <AlertTriangle className="w-3 h-3 text-red-400" />
-                                      </span>
-                                    )}
-                                    <span className="text-white font-mono">{photo.sharpness}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                {/* Bursts */}
+                {Object.keys(groups).map((gIdStr) => {
+                  const gId = Number(gIdStr);
+                  const members = groups[gId];
+                  return (
+                    <div key={gId} className="p-5 rounded-2xl bg-black/40 border border-white/5 space-y-4">
+                      <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5" /> Grupo de Burst #{gId} ({members.length} duplicadas)
+                        </span>
+                        <span className="text-[9px] text-gray-600 font-mono">{members[0].time}</span>
                       </div>
-                    );
-                  })}
-
-                  {/* Individual Photos */}
-                  {nonGrouped.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-500 pb-1 border-b border-white/5">
-                        Fotos Individuais ({nonGrouped.length})
-                      </h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        {nonGrouped.map((photo) => {
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {members.map((photo) => {
                           const isCurrentlySelected = selectedPhoto?.filename === photo.filename;
                           return (
                             <div
                               key={photo.filename}
                               onClick={() => {
                                 setSelectedPhoto(photo);
+                                setIsEditorOpen(true);
                                 const photoAdj = projectSettings.adjustments?.[photo.filename] || {
                                   exposure: 0.0,
                                   contrast: 0.0,
@@ -738,12 +710,13 @@ export default function EngineTab() {
                                 };
                                 setAdjustments(photoAdj);
                               }}
-                              className={`rounded-xl overflow-hidden border bg-black/80 relative cursor-pointer aspect-video flex flex-col justify-between transition-all ${
+                              className={`rounded-xl overflow-hidden border bg-black/80 relative cursor-pointer aspect-video flex flex-col justify-between transition-all group ${
                                 isCurrentlySelected 
                                   ? "border-primary ring-2 ring-primary/20 scale-[0.98]" 
-                                  : "border-white/5 hover:border-white/15"
+                                  : "border-white/5 hover:border-primary/45 hover:scale-[1.01]"
                               }`}
                             >
+                              {/* Direct CDN URL mapping */}
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={photo.proxyUrl}
@@ -751,10 +724,17 @@ export default function EngineTab() {
                                 className="absolute inset-0 w-full h-full object-cover z-0"
                               />
 
-                              <div className="absolute inset-0 bg-black/20 z-10" />
+                              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all z-10" />
 
-                              <div className="p-2 z-20 flex justify-between items-start">
-                                <div />
+                              <div className="p-2.5 z-20 flex justify-between items-start">
+                                {photo.is_hero ? (
+                                  <span className="px-1.5 py-0.5 bg-primary text-black text-[7px] uppercase font-black rounded tracking-wide shadow flex items-center gap-0.5">
+                                    <Sparkles className="w-2.5 h-2.5" /> HERO
+                                  </span>
+                                ) : (
+                                  <div />
+                                )}
+
                                 <span className={`w-2.5 h-2.5 rounded-full ${
                                   photo.color_label === "Green" ? "bg-green-500" :
                                   photo.color_label === "Red" ? "bg-red-500" :
@@ -762,268 +742,93 @@ export default function EngineTab() {
                                 }`} />
                               </div>
 
-                              <div className="p-2 bg-gradient-to-t from-black/80 to-transparent z-20 text-[9px] font-sans flex justify-between items-end">
-                                <span className="text-gray-400 truncate max-w-[80px] font-mono">{photo.filename}</span>
-                                <span className="text-white font-mono">{photo.sharpness}</span>
+                              <div className="p-2.5 bg-gradient-to-t from-black/85 to-transparent z-20 text-[9px] font-sans flex justify-between items-end">
+                                <span className="text-gray-400 truncate max-w-[90px] font-mono">{photo.filename}</span>
+                                <div className="flex items-center gap-1.5">
+                                  {photo.color_label === "Red" && (
+                                    <span title={`Fora de foco (Score: ${photo.sharpness})`}>
+                                      <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                                    </span>
+                                  )}
+                                  <span className="text-white font-mono">{photo.sharpness}</span>
+                                </div>
+                              </div>
+                              
+                              {/* Hover maximize indicator overlay */}
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-30 flex items-center justify-center">
+                                <Maximize2 className="w-6 h-6 text-white" />
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  )}
+                  );
+                })}
 
-                </div>
-
-                {/* AD-JUSTMENT / PRE-VIEW PANE */}
-                <div className="xl:col-span-1 space-y-6">
-                  {selectedPhoto ? (
-                    <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-5 flex flex-col sticky top-4">
-                      
-                      {/* Photo preview block */}
-                      <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-white/10 relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={selectedPhoto.proxyUrl}
-                          alt={selectedPhoto.filename}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-
-                      {/* Photo Metadata */}
-                      <div className="space-y-3 font-sans text-xs">
-                        <div className="flex justify-between items-start border-b border-white/5 pb-3">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-white block text-sm truncate max-w-[120px] font-mono">{selectedPhoto.filename}</span>
-                              <a href={selectedPhoto.url} target="_blank" rel="noreferrer" title="Ver original completo" className="text-primary hover:underline">
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            </div>
-                            <span className="text-[10px] text-gray-500 font-mono mt-0.5 block">{selectedPhoto.time}</span>
-                          </div>
-                          
-                          {/* Face Mesh stats */}
-                          <div className="flex flex-col items-end gap-1.5">
-                            {selectedPhoto.faces_count > 0 ? (
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded text-[9px] font-bold uppercase tracking-wider">
-                                  {selectedPhoto.faces_count} {selectedPhoto.faces_count === 1 ? "Rosto" : "Rostos"}
-                                </span>
-                                
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5 ${
-                                  selectedPhoto.eyes_open 
-                                    ? "bg-green-500/10 border-green-500/20 text-green-400" 
-                                    : "bg-red-500/10 border-red-500/20 text-red-400 animate-pulse"
-                                }`}>
-                                  <Eye className="w-3.5 h-3.5" />
-                                  {selectedPhoto.eyes_open ? "Olhos Abert." : "Piscando"}
-                                </span>
-
-                                {selectedPhoto.smiling && (
-                                  <span className="px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5">
-                                    <Smile className="w-3.5 h-3.5" /> Sorrindo
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="px-1.5 py-0.5 bg-gray-500/10 border border-gray-500/20 text-gray-400 rounded text-[9px] font-bold uppercase tracking-wider">
-                                Sem Rostos
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Star Rating and Color Label */}
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Classificar</span>
-                          
-                          {/* Stars */}
-                          <div className="flex items-center gap-0.5">
-                            {[1, 2, 3, 4, 5].map((star) => {
-                              const active = star <= selectedPhoto.stars;
-                              return (
-                                <button
-                                  key={star}
-                                  onClick={() => handleUpdatePhotoMetadata(selectedPhoto, star, selectedPhoto.color_label)}
-                                  className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
-                                >
-                                  <Star className={`w-3.5 h-3.5 ${active ? "text-primary fill-primary" : "text-gray-600"}`} />
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {/* Color label */}
-                          <div className="flex items-center gap-1.5">
-                            {["Red", "Yellow", "Green", "Blue", "None"].map((col) => {
-                              const active = selectedPhoto.color_label === col;
-                              return (
-                                <button
-                                  key={col}
-                                  onClick={() => handleUpdatePhotoMetadata(selectedPhoto, selectedPhoto.stars, col)}
-                                  className={`w-3.5 h-3.5 rounded-full border transition-all cursor-pointer ${
-                                    col === "Red" ? "bg-red-500" :
-                                    col === "Yellow" ? "bg-yellow-500" :
-                                    col === "Green" ? "bg-green-500" :
-                                    col === "Blue" ? "bg-blue-500" : "border-gray-600 bg-transparent"
-                                  } ${active ? "ring-2 ring-white scale-110" : "opacity-40 hover:opacity-100"}`}
-                                  title={col}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* ADJUSTMENT SLIDERS */}
-                      <div className="space-y-4 pt-4 border-t border-white/5">
-                        <div className="flex items-center justify-between pb-1">
-                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1">
-                            <Sliders className="w-3.5 h-3.5 text-primary" /> Ajustes Rápidos
-                          </span>
-                          
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={handleCopyAdjustments}
-                              className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-colors cursor-pointer"
-                              title="Copiar Ajustes"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={handlePasteAdjustments}
-                              disabled={!copiedAdjustments}
-                              className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
-                              title="Colar Ajustes"
-                            >
-                              <Clipboard className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Exposure */}
-                        <div className="space-y-1 font-sans text-xs">
-                          <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Exposição</span>
-                            <span>{adjustments.exposure > 0 ? `+${adjustments.exposure.toFixed(2)}` : adjustments.exposure.toFixed(2)} EV</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="-3.0"
-                            max="3.0"
-                            step="0.1"
-                            value={adjustments.exposure}
-                            onChange={(e) => handleAdjustChange("exposure", Number(e.target.value))}
-                            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                        </div>
-
-                        {/* Contrast */}
-                        <div className="space-y-1 font-sans text-xs">
-                          <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Contraste</span>
-                            <span>{adjustments.contrast > 0 ? `+${Math.round(adjustments.contrast * 100)}` : Math.round(adjustments.contrast * 100)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="-1.0"
-                            max="1.0"
-                            step="0.05"
-                            value={adjustments.contrast}
-                            onChange={(e) => handleAdjustChange("contrast", Number(e.target.value))}
-                            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                        </div>
-
-                        {/* Temp */}
-                        <div className="space-y-1 font-sans text-xs">
-                          <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Temperatura</span>
-                            <span>{adjustments.temp > 0 ? `+${Math.round(adjustments.temp * 100)}` : Math.round(adjustments.temp * 100)}</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="-1.0"
-                            max="1.0"
-                            step="0.05"
-                            value={adjustments.temp}
-                            onChange={(e) => handleAdjustChange("temp", Number(e.target.value))}
-                            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                        </div>
-
-                        {/* Saturation */}
-                        <div className="space-y-1 font-sans text-xs">
-                          <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Saturação</span>
-                            <span>{adjustments.saturation > 0 ? `+${Math.round(adjustments.saturation * 100)}` : Math.round(adjustments.saturation * 100)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="-1.0"
-                            max="1.0"
-                            step="0.05"
-                            value={adjustments.saturation}
-                            onChange={(e) => handleAdjustChange("saturation", Number(e.target.value))}
-                            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                        </div>
-
-                        {/* Sharpness */}
-                        <div className="space-y-1 font-sans text-xs">
-                          <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Nitidez</span>
-                            <span>{Math.round(adjustments.sharpness * 100)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.0"
-                            max="1.0"
-                            step="0.05"
-                            value={adjustments.sharpness}
-                            onChange={(e) => handleAdjustChange("sharpness", Number(e.target.value))}
-                            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                        </div>
-
-                        {/* Noise Reduction */}
-                        <div className="space-y-1 font-sans text-xs">
-                          <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Redução de Ruído</span>
-                            <span>{Math.round(adjustments.noiseReduction * 100)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.0"
-                            max="1.0"
-                            step="0.05"
-                            value={adjustments.noiseReduction}
-                            onChange={(e) => handleAdjustChange("noiseReduction", Number(e.target.value))}
-                            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                        </div>
-
-                        {/* Preset Actions */}
-                        <div className="pt-2 flex gap-2">
-                          <button
-                            onClick={handleApplyToAll}
-                            className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded-xl text-[9px] uppercase font-bold tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1"
+                {/* Individual Photos */}
+                {nonGrouped.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-500 pb-1 border-b border-white/5">
+                      Fotos Individuais ({nonGrouped.length})
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {nonGrouped.map((photo) => {
+                        const isCurrentlySelected = selectedPhoto?.filename === photo.filename;
+                        return (
+                          <div
+                            key={photo.filename}
+                            onClick={() => {
+                              setSelectedPhoto(photo);
+                              setIsEditorOpen(true);
+                              const photoAdj = projectSettings.adjustments?.[photo.filename] || {
+                                exposure: 0.0,
+                                contrast: 0.0,
+                                temp: 0.0,
+                                saturation: 0.0,
+                                sharpness: 0.0,
+                                  noiseReduction: 0.0
+                              };
+                              setAdjustments(photoAdj);
+                            }}
+                            className={`rounded-xl overflow-hidden border bg-black/80 relative cursor-pointer aspect-video flex flex-col justify-between transition-all group ${
+                              isCurrentlySelected 
+                                ? "border-primary ring-2 ring-primary/20 scale-[0.98]" 
+                                : "border-white/5 hover:border-primary/45 hover:scale-[1.01]"
+                            }`}
                           >
-                            <CheckSquare className="w-3.5 h-3.5" />
-                            Aplicar a Todas
-                          </button>
-                        </div>
-                      </div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={photo.proxyUrl}
+                              alt={photo.filename}
+                              className="absolute inset-0 w-full h-full object-cover z-0"
+                            />
 
+                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all z-10" />
+
+                            <div className="p-2.5 z-20 flex justify-between items-start">
+                              <div />
+                              <span className={`w-2.5 h-2.5 rounded-full ${
+                                photo.color_label === "Green" ? "bg-green-500" :
+                                photo.color_label === "Red" ? "bg-red-500" :
+                                photo.color_label === "Blue" ? "bg-blue-500" : "bg-transparent"
+                              }`} />
+                            </div>
+
+                            <div className="p-2.5 bg-gradient-to-t from-black/85 to-transparent z-20 text-[9px] font-sans flex justify-between items-end">
+                              <span className="text-gray-400 truncate max-w-[90px] font-mono">{photo.filename}</span>
+                              <span className="text-white font-mono">{photo.sharpness}</span>
+                            </div>
+                            
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-30 flex items-center justify-center">
+                              <Maximize2 className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <div className="p-5 rounded-2xl bg-dark-card border border-white/5 text-center text-xs text-gray-500 font-sans">
-                      Selecione uma foto para carregar os controles de edição.
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
               </div>
             )}
@@ -1045,6 +850,326 @@ export default function EngineTab() {
 
         </div>
       )}
+
+      {/* FULL-SCREEN CINEMA MODE EDITING LIGHTBOX */}
+      <AnimatePresence>
+        {isEditorOpen && selectedPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 z-50 flex flex-col md:flex-row"
+          >
+            {/* LEFT AREA: Large Image Preview */}
+            <div className="flex-1 flex flex-col justify-between p-6 relative h-full">
+              
+              {/* Top Toolbar */}
+              <div className="flex justify-between items-center z-10 pb-4 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm font-bold text-white">{selectedPhoto.filename}</span>
+                  <a 
+                    href={selectedPhoto.url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    title="Ver original completo em alta resolução" 
+                    className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-primary transition-colors flex items-center gap-1 text-[10px]"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Original High-Res
+                  </a>
+                </div>
+                
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsEditorOpen(false)}
+                  className="p-2 hover:bg-white/10 rounded-full text-white cursor-pointer transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Large Image Canvas */}
+              <div className="flex-1 flex items-center justify-center p-6 relative">
+                {/* Left Navigation Arrow */}
+                <button 
+                  onClick={() => navigatePhoto("prev", projectSettings.culling_results.findIndex(p => p.filename === selectedPhoto.filename))}
+                  className="absolute left-4 p-3 bg-black/60 hover:bg-primary hover:text-black border border-white/10 rounded-full text-white cursor-pointer transition-all z-20"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                {/* Main Large Image */}
+                <motion.img
+                  key={selectedPhoto.filename}
+                  initial={{ scale: 0.98, opacity: 0.9 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  src={selectedPhoto.proxyUrl}
+                  alt={selectedPhoto.filename}
+                  className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl border border-white/10"
+                />
+
+                {/* Right Navigation Arrow */}
+                <button 
+                  onClick={() => navigatePhoto("next", projectSettings.culling_results.findIndex(p => p.filename === selectedPhoto.filename))}
+                  className="absolute right-4 p-3 bg-black/60 hover:bg-primary hover:text-black border border-white/10 rounded-full text-white cursor-pointer transition-all z-20"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Keyboard helper at bottom */}
+              <div className="flex justify-center items-center gap-5 text-[10px] text-gray-500 font-sans pt-4 border-t border-white/5 pb-2">
+                <span className="flex items-center gap-1">Pressione <ChevronLeft className="w-3.5 h-3.5 inline" /> ou <ChevronRight className="w-3.5 h-3.5 inline" /> no teclado para navegar</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
+                <span>ESC para fechar</span>
+              </div>
+            </div>
+
+            {/* RIGHT SIDEBAR: Sliders & Culling Tools */}
+            <div className="w-full md:w-[380px] bg-dark-card border-l border-white/5 p-6 flex flex-col justify-between overflow-y-auto max-h-screen">
+              <div className="space-y-6">
+                
+                {/* Header info */}
+                <div className="flex justify-between items-start border-b border-white/5 pb-4">
+                  <div>
+                    <h3 className="font-bold text-white text-base">Classificação & IA</h3>
+                    <p className="text-[10px] text-gray-500 font-mono mt-0.5">{selectedPhoto.time}</p>
+                  </div>
+                  {selectedPhoto.is_hero && (
+                    <span className="px-2 py-1 bg-primary text-black text-[8px] uppercase font-black rounded tracking-wide shadow flex items-center gap-0.5">
+                      <Sparkles className="w-3 h-3" /> HERO
+                    </span>
+                  )}
+                </div>
+
+                {/* Face mesh metrics badges */}
+                <div className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-3 font-sans text-xs">
+                  <span className="text-[9px] uppercase tracking-wider text-gray-400 font-bold block mb-1">Métricas de Rostos (IA)</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
+                      <span className="block text-[8px] uppercase text-gray-500">Total Detectado</span>
+                      <span className="text-white font-bold text-sm mt-0.5 block">{selectedPhoto.faces_count} {selectedPhoto.faces_count === 1 ? "Rosto" : "Rostos"}</span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-lg border bg-black/30 ${
+                      selectedPhoto.faces_count > 0 
+                        ? selectedPhoto.eyes_open 
+                          ? "border-green-500/10 text-green-400" 
+                          : "border-red-500/10 text-red-400"
+                        : "border-white/5 text-gray-500"
+                    }`}>
+                      <span className="block text-[8px] uppercase text-gray-500">Status dos Olhos</span>
+                      <span className="font-bold text-xs mt-1 flex items-center gap-1">
+                        <Eye className="w-4 h-4" />
+                        {selectedPhoto.faces_count > 0 
+                          ? selectedPhoto.eyes_open 
+                            ? "Abertos" 
+                            : "Fechados / Piscando"
+                          : "Sem dados"
+                        }
+                      </span>
+                    </div>
+
+                    <div className={`p-2.5 rounded-lg border bg-black/30 col-span-2 ${
+                      selectedPhoto.smiling ? "border-yellow-500/10 text-yellow-400" : "border-white/5 text-gray-500"
+                    }`}>
+                      <span className="block text-[8px] uppercase text-gray-500">Expressão</span>
+                      <span className="font-bold text-xs mt-1 flex items-center gap-1">
+                        <Smile className="w-4 h-4" />
+                        {selectedPhoto.smiling ? "Sorriso Detectado" : "Neutro / Sem Sorriso"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rating selection panel */}
+                <div className="space-y-3 pt-2">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Classificar Imagem</span>
+                  <div className="flex justify-between items-center p-3 rounded-xl bg-black/20 border border-white/5">
+                    {/* Stars */}
+                    <div className="flex items-center gap-1.5">
+                      {[1, 2, 3, 4, 5].map((star) => {
+                        const active = star <= selectedPhoto.stars;
+                        return (
+                          <button
+                            key={star}
+                            onClick={() => handleUpdatePhotoMetadata(selectedPhoto, star, selectedPhoto.color_label)}
+                            className="p-1 hover:scale-125 transition-transform cursor-pointer"
+                          >
+                            <Star className={`w-5 h-5 ${active ? "text-primary fill-primary" : "text-gray-600"}`} />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Color Label */}
+                    <div className="flex items-center gap-2">
+                      {["Red", "Yellow", "Green", "Blue", "None"].map((col) => {
+                        const active = selectedPhoto.color_label === col;
+                        return (
+                          <button
+                            key={col}
+                            onClick={() => handleUpdatePhotoMetadata(selectedPhoto, selectedPhoto.stars, col)}
+                            className={`w-4 h-4 rounded-full border transition-all cursor-pointer ${
+                              col === "Red" ? "bg-red-500" :
+                              col === "Yellow" ? "bg-yellow-500" :
+                              col === "Green" ? "bg-green-500" :
+                              col === "Blue" ? "bg-blue-500" : "border-gray-600 bg-transparent"
+                            } ${active ? "ring-2 ring-white scale-125" : "opacity-40 hover:opacity-100"}`}
+                            title={col}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Adjustment Sliders */}
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider flex items-center gap-1">
+                      <Sliders className="w-3.5 h-3.5 text-primary" /> Ajustes Rápidos de Revelação
+                    </span>
+                    
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handleCopyAdjustments}
+                        className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-colors cursor-pointer"
+                        title="Copiar Ajustes"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={handlePasteAdjustments}
+                        disabled={!copiedAdjustments}
+                        className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white transition-colors disabled:opacity-30 cursor-pointer"
+                        title="Colar Ajustes"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Exposure */}
+                  <div className="space-y-1 font-sans text-xs">
+                    <div className="flex justify-between font-mono text-[10px] text-gray-400">
+                      <span>Exposição</span>
+                      <span>{adjustments.exposure > 0 ? `+${adjustments.exposure.toFixed(2)}` : adjustments.exposure.toFixed(2)} EV</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-3.0"
+                      max="3.0"
+                      step="0.1"
+                      value={adjustments.exposure}
+                      onChange={(e) => handleAdjustChange("exposure", Number(e.target.value))}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+
+                  {/* Contrast */}
+                  <div className="space-y-1 font-sans text-xs">
+                    <div className="flex justify-between font-mono text-[10px] text-gray-400">
+                      <span>Contraste</span>
+                      <span>{adjustments.contrast > 0 ? `+${Math.round(adjustments.contrast * 100)}` : Math.round(adjustments.contrast * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-1.0"
+                      max="1.0"
+                      step="0.05"
+                      value={adjustments.contrast}
+                      onChange={(e) => handleAdjustChange("contrast", Number(e.target.value))}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+
+                  {/* Temperature */}
+                  <div className="space-y-1 font-sans text-xs">
+                    <div className="flex justify-between font-mono text-[10px] text-gray-400">
+                      <span>Temperatura</span>
+                      <span>{adjustments.temp > 0 ? `+${Math.round(adjustments.temp * 100)}` : Math.round(adjustments.temp * 100)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-1.0"
+                      max="1.0"
+                      step="0.05"
+                      value={adjustments.temp}
+                      onChange={(e) => handleAdjustChange("temp", Number(e.target.value))}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+
+                  {/* Saturation */}
+                  <div className="space-y-1 font-sans text-xs">
+                    <div className="flex justify-between font-mono text-[10px] text-gray-400">
+                      <span>Saturação</span>
+                      <span>{adjustments.saturation > 0 ? `+${Math.round(adjustments.saturation * 100)}` : Math.round(adjustments.saturation * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-1.0"
+                      max="1.0"
+                      step="0.05"
+                      value={adjustments.saturation}
+                      onChange={(e) => handleAdjustChange("saturation", Number(e.target.value))}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+
+                  {/* Sharpness */}
+                  <div className="space-y-1 font-sans text-xs">
+                    <div className="flex justify-between font-mono text-[10px] text-gray-400">
+                      <span>Nitidez</span>
+                      <span>{Math.round(adjustments.sharpness * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.0"
+                      max="1.0"
+                      step="0.05"
+                      value={adjustments.sharpness}
+                      onChange={(e) => handleAdjustChange("sharpness", Number(e.target.value))}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+
+                  {/* Noise Reduction */}
+                  <div className="space-y-1 font-sans text-xs">
+                    <div className="flex justify-between font-mono text-[10px] text-gray-400">
+                      <span>Redução de Ruído</span>
+                      <span>{Math.round(adjustments.noiseReduction * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.0"
+                      max="1.0"
+                      step="0.05"
+                      value={adjustments.noiseReduction}
+                      onChange={(e) => handleAdjustChange("noiseReduction", Number(e.target.value))}
+                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Apply settings list */}
+              <div className="pt-6 border-t border-white/5">
+                <button
+                  onClick={handleApplyToAll}
+                  className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/5 text-white rounded-xl text-[10px] uppercase font-bold tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  Aplicar Ajustes a Todas as Fotos
+                </button>
+              </div>
+              
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
