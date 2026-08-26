@@ -3,6 +3,8 @@ import shutil
 import rawpy
 import cv2
 import uuid
+# Disable OpenCV multi-threading to prevent pthreads RAM overhead and OOM crashes in limited memory containers
+cv2.setNumThreads(0)
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import urllib.request
