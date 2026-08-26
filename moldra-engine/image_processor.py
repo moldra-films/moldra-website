@@ -38,8 +38,19 @@ class ImageProcessor:
     @staticmethod
     def download_temp_file(url: str, dest_path: str) -> bool:
         """Downloads a remote file (from R2/HTTP) to a local temporary path."""
+        # 1. Try direct download via authenticated Boto3 if it's our R2 bucket to bypass Cloudflare bot firewalls
+        if r2_client and r2_bucket_name and r2_public_url:
+            clean_public_url = r2_public_url.rstrip("/")
+            if clean_public_url in url:
+                try:
+                    key = url.split(clean_public_url + "/")[-1].split("?")[0]
+                    r2_client.download_file(r2_bucket_name, key, dest_path)
+                    return True
+                except Exception as e:
+                    print(f"Boto3 direct download failed for {url}: {e}. Falling back to HTTP...")
+
+        # 2. Fallback to standard HTTP download
         try:
-            # Add user agent header to prevent HTTP blocks
             req = urllib.request.Request(
                 url, 
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
@@ -48,7 +59,7 @@ class ImageProcessor:
                 shutil.copyfileobj(response, out_file)
             return True
         except Exception as e:
-            print(f"Error downloading {url} to {dest_path}: {e}")
+            print(f"Error downloading {url} to {dest_path} via HTTP: {e}")
             return False
 
     @staticmethod
