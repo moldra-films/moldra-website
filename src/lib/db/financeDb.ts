@@ -24,6 +24,7 @@ export interface FinanceDatabase {
   assets: Asset[];
   importedTransactions: ImportedTransaction[];
   auditLogs: AuditLog[];
+  equipmentPhotos?: Record<number, string[]>;
 }
 
 const LOCAL_DB_PATH = path.join(process.cwd(), "src/lib/db/finance.json");
@@ -358,7 +359,8 @@ const SEED_DATA: FinanceDatabase = {
       newValue: "Database Setup",
       targetId: "system"
     }
-  ]
+  ],
+  equipmentPhotos: {}
 };
 
 export class FinanceDb {

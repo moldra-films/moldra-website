@@ -91,6 +91,7 @@ export interface Equipment {
   status: "Disponível" | "Em Uso" | "Em Manutenção";
   lastMaintenance: string;
   responsible: string;
+  photos?: string[];
 }
 
 export interface Location {
@@ -180,6 +181,8 @@ interface AdminContextProps {
   // Equipment actions
   updateEquipmentStatus: (id: number, status: Equipment["status"], responsible?: string) => void;
   addEquipment: (equipment: Omit<Equipment, "id">) => void;
+  updateEquipment: (id: number, equipment: Partial<Equipment>) => void;
+  deleteEquipment: (id: number) => void;
   addLocation: (location: Omit<Location, "id">) => void;
   
   // Notification actions
@@ -666,8 +669,20 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addEquipment = (equipment: Omit<Equipment, "id">) => {
-    setEquipments((prev) => [...prev, { ...equipment, id: prev.length + 1 }]);
+    const nextId = equipments.length > 0 ? Math.max(...equipments.map((e) => e.id)) + 1 : 1;
+    setEquipments((prev) => [...prev, { ...equipment, id: nextId }]);
     addNotification("Equipamento cadastrado", `O item '${equipment.name}' foi registrado no inventário técnico.`, "maintenance");
+  };
+
+  const updateEquipment = (id: number, updatedFields: Partial<Equipment>) => {
+    setEquipments((prev) =>
+      prev.map((eq) => (eq.id === id ? { ...eq, ...updatedFields } : eq))
+    );
+  };
+
+  const deleteEquipment = (id: number) => {
+    setEquipments((prev) => prev.filter((eq) => eq.id !== id));
+    addNotification("Equipamento removido", "Um item foi removido do inventário técnico.", "maintenance");
   };
 
   const addLocation = (location: Omit<Location, "id">) => {
@@ -822,6 +837,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         markTransactionPaid,
         updateEquipmentStatus,
         addEquipment,
+        updateEquipment,
+        deleteEquipment,
         addLocation,
         markAllNotificationsRead,
         addNotification,

@@ -173,5 +173,8 @@
       "newValue": "Vazio",
       "targetId": "system"
     }
-  ]
+  ],
+  "equipmentPhotos": {
+    "1": []
+  }
 }
