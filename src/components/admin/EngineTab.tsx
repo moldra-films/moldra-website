@@ -169,10 +169,24 @@ export default function EngineTab() {
 
   // Ping FastAPI Server on mount & set up polling when engineUrl changes
   useEffect(() => {
-    checkEngineStatus();
-    const interval = setInterval(checkEngineStatus, 4000);
-    return () => clearInterval(interval);
+    let active = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const poll = async () => {
+      await checkEngineStatus();
+      if (active) {
+        timeoutId = setTimeout(poll, 5000);
+      }
+    };
+
+    poll();
+
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+    };
   }, [engineUrl]);
+
 
   // Poll project details when selected project changes
   useEffect(() => {
@@ -233,21 +247,54 @@ export default function EngineTab() {
   };
 
   const checkEngineStatus = async () => {
-    try {
-      const cleanUrl = engineUrl.trim();
-      const res = await fetch(`${cleanUrl}/api/status?t=${Date.now()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setEngineStats(data);
-        setIsOnline(true);
-      } else {
-        setIsOnline(false);
+    const mainUrl = engineUrl.trim();
+    
+    // Helper to fetch status with abort signal
+    const fetchStatus = async (url: string) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      try {
+        const res = await fetch(`${url}/api/status?t=${Date.now()}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          return data;
+        }
+      } catch (e) {
+        // failed
+      } finally {
+        clearTimeout(timeoutId);
       }
-    } catch (e) {
-      setIsOnline(false);
-    } finally {
+      return null;
+    };
+
+    // 1. Try main URL
+    const mainData = await fetchStatus(mainUrl);
+    if (mainData) {
+      setEngineStats(mainData);
+      setIsOnline(true);
       setLoadingStatus(false);
+      return;
     }
+
+    // 2. If main URL is not local, try fallback to local URL
+    if (mainUrl !== "http://127.0.0.1:8000" && mainUrl !== "http://localhost:8000") {
+      const localData = await fetchStatus("http://127.0.0.1:8000");
+      if (localData) {
+        setEngineStats(localData);
+        setIsOnline(true);
+        setEngineUrl("http://127.0.0.1:8000");
+        localStorage.setItem("moldra_engine_url", "http://127.0.0.1:8000");
+        setLoadingStatus(false);
+        return;
+      }
+    }
+
+    // 3. Otherwise offline
+    setIsOnline(false);
+    setLoadingStatus(false);
   };
 
   const loadProjectSettings = async (projectName: string) => {

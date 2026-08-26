@@ -12,6 +12,15 @@ import boto3
 from datetime import datetime
 from botocore.config import Config
 
+# Load environment variables from .env.local or .env in the parent or current directory
+from dotenv import load_dotenv
+for path in ["../.env.local", "../.env", ".env.local", ".env"]:
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    if os.path.exists(full_path):
+        load_dotenv(full_path)
+        print(f"✓ Loaded environment variables from {full_path}")
+        break
+
 # Initialize R2 Client using standard Boto3
 r2_account_id = os.environ.get("R2_ACCOUNT_ID", "")
 r2_access_key_id = os.environ.get("R2_ACCESS_KEY_ID", "")

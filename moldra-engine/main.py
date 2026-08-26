@@ -1,6 +1,16 @@
 import os
 import tempfile
 import json
+
+# Load environment variables from .env.local or .env in the parent or current directory
+from dotenv import load_dotenv
+for path in ["../.env.local", "../.env", ".env.local", ".env"]:
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    if os.path.exists(full_path):
+        load_dotenv(full_path)
+        print(f"✓ Loaded environment variables from {full_path}")
+        break
+
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
