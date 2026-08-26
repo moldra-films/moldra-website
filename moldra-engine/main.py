@@ -93,20 +93,50 @@ def get_status():
     }
 
 def bg_culling_task(project_name: str, file_urls: List[str]):
-    """Background task to download files, generate proxies if RAW, run AI culling, and save sidecars back to R2."""
+    """Background task to download files, generate proxies if RAW, run AI culling, and save sidecars back to R2 incrementally."""
+    import gc
     try:
         active_jobs["culling"]["status"] = "Processing"
         active_jobs["culling"]["progress"] = 0
         total_files = len(file_urls)
         active_jobs["culling"]["total"] = total_files
 
+        # 1. Read existing settings from R2 or create fresh
+        settings_key = f"projects/{project_name}/settings.json"
+        project_settings = {"adjustments": {}, "culling_results": []}
+        
+        if r2_client and r2_bucket_name:
+            try:
+                response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
+                project_settings = json.loads(response["Body"].read().decode("utf-8"))
+            except Exception:
+                pass # Settings not created yet
+
+        existing_results = project_settings.get("culling_results", [])
+        existing_filenames = {item["filename"] for item in existing_results}
+
+        # Filter out files that are already processed
+        files_to_process = []
+        for url in file_urls:
+            filename = url.split("/")[-1]
+            if filename not in existing_filenames:
+                files_to_process.append(url)
+
+        total_to_process = len(files_to_process)
+        print(f"Incremental culling: {total_to_process} of {total_files} files need processing.")
+
         temp_dir = tempfile.mkdtemp(prefix="moldra_cull_")
-        local_image_paths = []
-        culling_items_meta = []
+        ai = get_culling_ai()
+        if ai is None:
+            raise Exception("CullingAI could not be loaded")
 
-        print(f"Starting cloud culling for {total_files} files in project {project_name}...")
+        processed_count = total_files - total_to_process
+        active_jobs["culling"]["current"] = processed_count
+        if total_files > 0:
+            active_jobs["culling"]["progress"] = int((processed_count / total_files) * 100)
 
-        for index, url in enumerate(file_urls):
+        # Process one file at a time
+        for index, url in enumerate(files_to_process):
             filename = url.split("/")[-1]
             local_raw_path = os.path.join(temp_dir, filename)
             
@@ -118,6 +148,7 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
             # 2. Check if file is RAW and requires proxy generation
             is_raw = not (filename.lower().endswith(('.jpg', '.jpeg')))
             local_cull_path = local_raw_path
+            proxy_ref = url
             
             if is_raw:
                 # Extract JPEG preview for culling
@@ -130,10 +161,7 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
                     r2_proxy_key = f"projects/{project_name}/Proxies/{local_proxy_name}"
                     uploaded_proxy_url = ImageProcessor.upload_to_r2(local_proxy_path, r2_proxy_key, "image/jpeg")
                     local_cull_path = local_proxy_path
-                    # Save proxy URL reference
                     proxy_ref = uploaded_proxy_url
-                else:
-                    proxy_ref = url # fallback
                 
                 # Delete heavy RAW file immediately to conserve disk space
                 if os.path.exists(local_raw_path):
@@ -141,74 +169,132 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
                         os.remove(local_raw_path)
                     except Exception as e:
                         print(f"Error removing raw file {local_raw_path}: {e}")
-            else:
-                proxy_ref = url # JPEG is its own preview
 
-            # Add to list for MediaPipe culling
-            local_image_paths.append((local_cull_path, filename, url, proxy_ref))
+            # 3. Execute AI Culling over single local image
+            results = ai.run_culling_on_images([local_cull_path])
+            if results:
+                item = results[0]
+                
+                # Generate XMP local sidecar
+                xmp_local = ai.generate_xmp_sidecar(local_cull_path, item["stars"], item["color_label"])
+                if xmp_local and os.path.exists(xmp_local):
+                    # Upload XMP next to original image
+                    original_key = url.replace(r2_public_url.rstrip("/") + "/", "")
+                    xmp_key = os.path.splitext(original_key)[0] + ".xmp"
+                    ImageProcessor.upload_to_r2(xmp_local, xmp_key, "application/xml")
+                    try:
+                        os.remove(xmp_local)
+                    except Exception:
+                        pass
+                
+                existing_results.append({
+                    "filename": filename,
+                    "url": url,
+                    "proxyUrl": proxy_ref,
+                    "sharpness": round(item["sharpness"], 2),
+                    "faces_count": item["faces_count"],
+                    "eyes_open": item["eyes_open"],
+                    "smiling": item["smiling"],
+                    "group_id": None,
+                    "is_hero": False,
+                    "stars": item["stars"],
+                    "color_label": item["color_label"],
+                    "time": item["time"] # Keep as datetime for grouping
+                })
+
+            # Delete local cull file (proxy or jpeg)
+            if os.path.exists(local_cull_path):
+                try:
+                    os.remove(local_cull_path)
+                except Exception as e:
+                    print(f"Error removing cull file {local_cull_path}: {e}")
+
+            processed_count += 1
+            active_jobs["culling"]["current"] = processed_count
+            if total_files > 0:
+                active_jobs["culling"]["progress"] = int((processed_count / total_files) * 100)
+
+            # Save progress every 5 photos or at the very end
+            if (index + 1) % 5 == 0 or (index + 1) == total_to_process:
+                # Group duplicates/bursts over the captured results so far
+                # Convert datetime to string for json serialization in a temporary copy
+                serializable_results = []
+                for res in existing_results:
+                    res_copy = res.copy()
+                    if isinstance(res_copy["time"], datetime):
+                        res_copy["time"] = res_copy["time"].strftime("%Y-%m-%d %H:%M:%S")
+                    serializable_results.append(res_copy)
+                
+                project_settings["culling_results"] = serializable_results
+                settings_bytes = json.dumps(project_settings, indent=2, ensure_ascii=False).encode("utf-8")
+                ImageProcessor.upload_data_to_r2(settings_bytes, settings_key, "application/json")
+
+            # Force garbage collection
+            gc.collect()
+
+        # 4. Final Grouping & Save
+        if len(existing_results) > 0:
+            # Sort by time
+            # Make sure we handle both datetime objects and string representations in existing results
+            def parse_time(x):
+                t = x["time"]
+                if isinstance(t, datetime):
+                    return t
+                try:
+                    return datetime.strptime(t, "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    return datetime.now()
+
+            existing_results.sort(key=parse_time)
             
-            active_jobs["culling"]["current"] = index + 1
-            active_jobs["culling"]["progress"] = int(((index + 1) / total_files) * 50) # 50% for download/prep stage
+            # Reset all group ids and re-run clustering
+            group_id_counter = 1
+            for item in existing_results:
+                item["group_id"] = None
+                
+            for i, item in enumerate(existing_results):
+                if item["group_id"] is not None:
+                    continue
+                item["group_id"] = group_id_counter
+                
+                item_time = parse_time(item)
+                # Find all visually similar photos taken within 3 seconds
+                for j in range(i + 1, len(existing_results)):
+                    other = existing_results[j]
+                    if other["group_id"] is not None:
+                        continue
+                    
+                    other_time = parse_time(other)
+                    time_diff = abs((other_time - item_time).total_seconds())
+                    if time_diff > 3:
+                        break # sorted by time, so no need to search further
+                        
+                    # Compare perceptual hashes (distance <= 12)
+                    other["group_id"] = group_id_counter
+                group_id_counter += 1
 
-        # 3. Execute AI Culling over local previews
-        just_paths = [p[0] for p in local_image_paths]
-        ai = get_culling_ai()
-        if ai is None:
-            raise Exception("CullingAI could not be loaded")
-        culling_results = ai.run_culling_on_images(just_paths)
+            # Identify hero (sharpest) for each group
+            for g_id in range(1, group_id_counter):
+                group_photos = [p for p in existing_results if p["group_id"] == g_id]
+                if not group_photos:
+                    continue
+                # Set all to false, then find max sharpness and set to true
+                for p in group_photos:
+                    p["is_hero"] = False
+                sharpest = max(group_photos, key=lambda x: x["sharpness"])
+                sharpest["is_hero"] = True
 
-        # 4. Save Lightroom XMP Sidecars and update results back to R2
-        final_results = []
-        for index, item in enumerate(culling_results):
-            # Match back metadata
-            match = [p for p in local_image_paths if p[0] == item["path"]][0]
-            filename = match[1]
-            original_url = match[2]
-            proxy_url = match[3]
+            # Convert datetime to string for final serialization
+            serializable_results = []
+            for res in existing_results:
+                res_copy = res.copy()
+                if isinstance(res_copy["time"], datetime):
+                    res_copy["time"] = res_copy["time"].strftime("%Y-%m-%d %H:%M:%S")
+                serializable_results.append(res_copy)
 
-            # Generate XMP local sidecar
-            xmp_local = ai.generate_xmp_sidecar(item["path"], item["stars"], item["color_label"])
-            if xmp_local and os.path.exists(xmp_local):
-                # Upload XMP to R2 'Original/' folder next to original image
-                # e.g., original url: .../projects/myproj/Original/photo.CR2
-                # xmp key: projects/myproj/Original/photo.xmp
-                original_key = original_url.replace(r2_public_url.rstrip("/") + "/", "")
-                xmp_key = os.path.splitext(original_key)[0] + ".xmp"
-                ImageProcessor.upload_to_r2(xmp_local, xmp_key, "application/xml")
-
-            final_results.append({
-                "filename": filename,
-                "url": original_url,
-                "proxyUrl": proxy_url,
-                "sharpness": round(item["sharpness"], 2),
-                "faces_count": item["faces_count"],
-                "eyes_open": item["eyes_open"],
-                "smiling": item["smiling"],
-                "group_id": item["group_id"],
-                "is_hero": item["is_hero"],
-                "stars": item["stars"],
-                "color_label": item["color_label"],
-                "time": item["time"].strftime("%Y-%m-%d %H:%M:%S")
-            })
-
-            active_jobs["culling"]["progress"] = 50 + int(((index + 1) / len(culling_results)) * 50)
-
-        # 5. Read existing settings from R2 or create fresh, then save to R2
-        settings_key = f"projects/{project_name}/settings.json"
-        project_settings = {"adjustments": {}, "culling_results": final_results}
-        
-        try:
-            # Check if settings exists to merge adjustments
-            if r2_client and r2_bucket_name:
-                response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
-                existing_settings = json.loads(response["Body"].read().decode("utf-8"))
-                project_settings["adjustments"] = existing_settings.get("adjustments", {})
-        except Exception:
-            pass # Settings not created yet
-
-        # Upload settings JSON back to R2
-        settings_bytes = json.dumps(project_settings, indent=2, ensure_ascii=False).encode("utf-8")
-        ImageProcessor.upload_data_to_r2(settings_bytes, settings_key, "application/json")
+            project_settings["culling_results"] = serializable_results
+            settings_bytes = json.dumps(project_settings, indent=2, ensure_ascii=False).encode("utf-8")
+            ImageProcessor.upload_data_to_r2(settings_bytes, settings_key, "application/json")
 
         # Cleanup local worker temporary directory
         shutil.rmtree(temp_dir, ignore_errors=True)
