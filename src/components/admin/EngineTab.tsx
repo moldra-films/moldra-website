@@ -53,7 +53,7 @@ interface UploadingFile {
   url?: string;
 }
 
-const ENGINE_URL = process.env.NEXT_PUBLIC_MOLDRA_ENGINE_URL || "http://127.0.0.1:8000";
+const DEFAULT_ENGINE_URL = process.env.NEXT_PUBLIC_MOLDRA_ENGINE_URL || "http://127.0.0.1:8000";
 
 const PRESETS = [
   {
@@ -122,6 +122,7 @@ export default function EngineTab() {
   const [isOnline, setIsOnline] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [engineStats, setEngineStats] = useState<any>(null);
+  const [engineUrl, setEngineUrl] = useState(DEFAULT_ENGINE_URL);
   
   // Projects state
   const [selectedProject, setSelectedProject] = useState("");
@@ -153,12 +154,22 @@ export default function EngineTab() {
   });
   const [copiedAdjustments, setCopiedAdjustments] = useState<any>(null);
 
-  // Ping FastAPI Server on mount & set up polling
+  // Load saved engine URL from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("moldra_engine_url");
+      if (saved) {
+        setEngineUrl(saved);
+      }
+    }
+  }, []);
+
+  // Ping FastAPI Server on mount & set up polling when engineUrl changes
   useEffect(() => {
     checkEngineStatus();
     const interval = setInterval(checkEngineStatus, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [engineUrl]);
 
   // Poll project details when selected project changes
   useEffect(() => {
@@ -168,7 +179,7 @@ export default function EngineTab() {
       setProjectSettings({ adjustments: {}, culling_results: [] });
       setSelectedPhoto(null);
     }
-  }, [selectedProject]);
+  }, [selectedProject, engineUrl]);
 
   // Keyboard navigation for full-screen editor
   useEffect(() => {
@@ -220,7 +231,7 @@ export default function EngineTab() {
 
   const checkEngineStatus = async () => {
     try {
-      const res = await fetch(`${ENGINE_URL}/api/status`);
+      const res = await fetch(`${engineUrl}/api/status`);
       if (res.ok) {
         const data = await res.json();
         setEngineStats(data);
@@ -238,7 +249,7 @@ export default function EngineTab() {
   const loadProjectSettings = async (projectName: string) => {
     setLoadingProject(true);
     try {
-      const res = await fetch(`${ENGINE_URL}/api/project/${projectName}/settings`);
+      const res = await fetch(`${engineUrl}/api/project/${projectName}/settings`);
       if (res.ok) {
         const data = await res.json();
         setProjectSettings(data);
@@ -335,7 +346,7 @@ export default function EngineTab() {
 
       alert("Upload concluído! Iniciando processamento IA de nitidez e detecção facial...");
       
-      const cullRes = await fetch(`${ENGINE_URL}/api/cull`, {
+      const cullRes = await fetch(`${engineUrl}/api/cull`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -374,7 +385,7 @@ export default function EngineTab() {
       }
     }));
 
-    fetch(`${ENGINE_URL}/api/adjust`, {
+    fetch(`${engineUrl}/api/adjust`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -409,7 +420,7 @@ export default function EngineTab() {
         }
       }));
 
-      fetch(`${ENGINE_URL}/api/adjust`, {
+      fetch(`${engineUrl}/api/adjust`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -421,6 +432,33 @@ export default function EngineTab() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!selectedProject) return;
+    const confirmDelete = confirm(
+      `ATENÇÃO: Tem certeza absoluta que deseja excluir o projeto "${selectedProject}"? \n\nIsso apagará permanentemente todos os arquivos originais, miniaturas e configurações salvas na nuvem R2. Esta ação NÃO pode ser desfeita!`
+    );
+    if (!confirmDelete) return;
+
+    setLoadingProject(true);
+    try {
+      const res = await fetch(`${engineUrl}/api/project/${selectedProject}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        alert("Projeto excluído com sucesso!");
+        setSelectedProject("");
+        checkEngineStatus();
+      } else {
+        const err = await res.json();
+        alert(`Erro ao excluir projeto: ${err.detail || "Erro desconhecido"}`);
+      }
+    } catch (e) {
+      alert("Erro de conexão ao tentar excluir o projeto.");
+    } finally {
+      setLoadingProject(false);
+    }
+  };
+
   const handleApplyToAll = async () => {
     if (!selectedProject || projectSettings.culling_results.length === 0) return;
     if (!confirm("Deseja aplicar os ajustes da foto selecionada em TODAS as fotos deste projeto?")) return;
@@ -428,7 +466,7 @@ export default function EngineTab() {
     setLoadingProject(true);
     try {
       const promises = projectSettings.culling_results.map((photo) => {
-        return fetch(`${ENGINE_URL}/api/adjust`, {
+        return fetch(`${engineUrl}/api/adjust`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -466,7 +504,7 @@ export default function EngineTab() {
     const photoAdj = projectSettings.adjustments?.[photo.filename] || {};
     const updatedAdj = { ...photoAdj, stars, colorLabel };
     
-    fetch(`${ENGINE_URL}/api/adjust`, {
+    fetch(`${engineUrl}/api/adjust`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -477,39 +515,12 @@ export default function EngineTab() {
     }).catch(e => console.error("Error saving metadata:", e));
   };
 
-  const handleDeleteProject = async () => {
-    if (!selectedProject) return;
-    const confirmDelete = confirm(
-      `ATENÇÃO: Tem certeza absoluta que deseja excluir o projeto "${selectedProject}"? \n\nIsso apagará permanentemente todos os arquivos originais, miniaturas e configurações salvas na nuvem R2. Esta ação NÃO pode ser desfeita!`
-    );
-    if (!confirmDelete) return;
-
-    setLoadingProject(true);
-    try {
-      const res = await fetch(`${ENGINE_URL}/api/project/${selectedProject}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        alert("Projeto excluído com sucesso!");
-        setSelectedProject("");
-        checkEngineStatus();
-      } else {
-        const err = await res.json();
-        alert(`Erro ao excluir projeto: ${err.detail || "Erro desconhecido"}`);
-      }
-    } catch (e) {
-      alert("Erro de conexão ao tentar excluir o projeto.");
-    } finally {
-      setLoadingProject(false);
-    }
-  };
-
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
     
     try {
-      const res = await fetch(`${ENGINE_URL}/api/export`, {
+      const res = await fetch(`${engineUrl}/api/export`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -638,20 +649,29 @@ export default function EngineTab() {
             </p>
           </div>
 
-          <div className="p-5 bg-black/40 border border-white/5 rounded-xl text-left font-mono text-[11px] max-w-md mx-auto space-y-2">
+          <div className="p-5 bg-black/40 border border-white/5 rounded-xl text-left font-sans text-xs max-w-md mx-auto space-y-3">
             <p className="text-primary font-bold">☁️ Configurar URL do Servidor em Nuvem:</p>
-            <p className="text-gray-400">Certifique-se de que a variável abaixo está configurada no seu `.env.local` de produção:</p>
-            <div className="bg-black/80 p-2.5 rounded border border-white/10 select-all">
-              NEXT_PUBLIC_MOLDRA_ENGINE_URL=https://sua-url-na-render.com
+            <p className="text-gray-400 font-sans">Cole a URL do seu servidor Render/Python abaixo para conectar o painel diretamente:</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={engineUrl}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEngineUrl(val);
+                  localStorage.setItem("moldra_engine_url", val);
+                }}
+                placeholder="https://sua-url-na-render.com"
+                className="flex-1 bg-black/80 border border-white/10 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={checkEngineStatus}
+                className="px-4 py-2 bg-primary hover:bg-[#B39356] text-black font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Conectar
+              </button>
             </div>
           </div>
-          
-          <button 
-            onClick={checkEngineStatus}
-            className="px-5 py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
-          >
-            Verificar Conexão
-          </button>
         </div>
       )}
 
