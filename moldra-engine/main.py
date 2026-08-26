@@ -1,6 +1,7 @@
 import os
 import tempfile
 import json
+import shutil
 
 # Load environment variables from .env.local or .env in the parent or current directory
 from dotenv import load_dotenv
