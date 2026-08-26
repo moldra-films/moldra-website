@@ -7,7 +7,7 @@ import {
   Layers, 
   Sliders, 
   Download, 
-  FolderOpen, 
+  UploadCloud, 
   Check, 
   X, 
   Loader2, 
@@ -15,15 +15,19 @@ import {
   Star, 
   Sparkles, 
   Eye, 
-  Smile, 
+  Smile,
   Copy, 
   Clipboard, 
-  CheckSquare
+  CheckSquare,
+  FileImage,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface CullingResult {
   filename: string;
+  url: string;
+  proxyUrl: string;
   sharpness: number;
   faces_count: number;
   eyes_open: boolean;
@@ -40,6 +44,16 @@ interface ProjectSettings {
   culling_results: CullingResult[];
 }
 
+interface UploadingFile {
+  name: string;
+  progress: number;
+  status: "Pendente" | "Carregando" | "Concluído" | "Falhou";
+  url?: string;
+}
+
+// Configurable endpoint pointing to Render/Railway or Localhost
+const ENGINE_URL = process.env.NEXT_PUBLIC_MOLDRA_ENGINE_URL || "http://127.0.0.1:8000";
+
 export default function EngineTab() {
   const [isOnline, setIsOnline] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -50,11 +64,18 @@ export default function EngineTab() {
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>({ adjustments: {}, culling_results: [] });
   const [loadingProject, setLoadingProject] = useState(false);
   
-  // Forms & parameters
-  const [ingestForm, setIngestForm] = useState({ projectName: "", sourceDir: "" });
-  const [exportForm, setExportForm] = useState({ watermarkText: "Moldra Films", scaleMaxDim: 0 });
+  // Upload & Ingestion states
+  const [projectNameInput, setProjectNameInput] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadQueue, setUploadQueue] = useState<UploadingFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   
-  // Selection / Editing states
+  // Export states
+  const [watermarkText, setWatermarkText] = useState("Moldra Films");
+  const [scaleMaxDim, setScaleMaxDim] = useState(0);
+  
+  // Editing states
   const [selectedPhoto, setSelectedPhoto] = useState<CullingResult | null>(null);
   const [adjustments, setAdjustments] = useState({
     exposure: 0.0,
@@ -65,9 +86,6 @@ export default function EngineTab() {
     noiseReduction: 0.0
   });
   const [copiedAdjustments, setCopiedAdjustments] = useState<any>(null);
-
-  // Background action states
-  const [pollingActive, setPollingActive] = useState(false);
 
   // Ping FastAPI Server on mount & set up polling
   useEffect(() => {
@@ -88,23 +106,11 @@ export default function EngineTab() {
 
   const checkEngineStatus = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/status");
+      const res = await fetch(`${ENGINE_URL}/api/status`);
       if (res.ok) {
         const data = await res.json();
         setEngineStats(data);
         setIsOnline(true);
-        
-        // If there's an active processing job, keep polling status frequently
-        const jobs = data.active_jobs;
-        if (
-          jobs.ingestion.status === "Processing" || 
-          jobs.culling.status === "Processing" || 
-          jobs.export.status === "Processing"
-        ) {
-          setPollingActive(true);
-        } else {
-          setPollingActive(false);
-        }
       } else {
         setIsOnline(false);
       }
@@ -118,13 +124,12 @@ export default function EngineTab() {
   const loadProjectSettings = async (projectName: string) => {
     setLoadingProject(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/project/${projectName}/settings`);
+      const res = await fetch(`${ENGINE_URL}/api/project/${projectName}/settings`);
       if (res.ok) {
         const data = await res.json();
         setProjectSettings(data);
         if (data.culling_results && data.culling_results.length > 0) {
           setSelectedPhoto(data.culling_results[0]);
-          // Load adjustments for this photo if any
           const photoName = data.culling_results[0].filename;
           const photoAdj = data.adjustments?.[photoName] || {
             exposure: 0.0,
@@ -144,52 +149,104 @@ export default function EngineTab() {
     }
   };
 
-  const handleIngest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ingestForm.projectName || !ingestForm.sourceDir) return;
-    
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_dir: ingestForm.sourceDir,
-          project_name: ingestForm.projectName
-        })
-      });
-      if (res.ok) {
-        alert("Ingestão iniciada no servidor local! Acompanhe o progresso na barra lateral de status.");
-        setIngestForm({ projectName: "", sourceDir: "" });
-        checkEngineStatus();
-      } else {
-        const err = await res.json();
-        alert(`Erro na ingestão: ${err.detail || "Erro desconhecido"}`);
-      }
-    } catch (err) {
-      alert("Erro ao conectar com o Moldra Engine local. Verifique se o servidor está ativo.");
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedFiles(filesArray);
+      setUploadQueue(filesArray.map(f => ({ name: f.name, progress: 0, status: "Pendente" })));
     }
   };
 
-  const handleRunCulling = async () => {
-    if (!selectedProject) return;
-    setLoadingProject(true);
+  const handleUploadAndCull = async () => {
+    if (!projectNameInput) {
+      alert("Por favor, digite o nome do projeto.");
+      return;
+    }
+    if (selectedFiles.length === 0) {
+      alert("Por favor, selecione ao menos uma foto.");
+      return;
+    }
+
+    setIsUploading(true);
+    const urls: string[] = [];
+    const queue = [...uploadQueue];
+
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/cull", {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        queue[i].status = "Carregando";
+        setUploadQueue([...queue]);
+
+        // Step 1: Request presigned URL from Next.js backend with project folder
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            folder: `projects/${projectNameInput}/Original`
+          }),
+        });
+
+        if (!res.ok) {
+          queue[i].status = "Falhou";
+          setUploadQueue([...queue]);
+          continue;
+        }
+
+        const { uploadUrl, fileUrl } = await res.json();
+        queue[i].progress = 40;
+        setUploadQueue([...queue]);
+
+        // Step 2: Upload directly from browser to Cloudflare R2
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+
+        if (!uploadRes.ok) {
+          queue[i].status = "Falhou";
+          setUploadQueue([...queue]);
+          continue;
+        }
+
+        queue[i].progress = 100;
+        queue[i].status = "Concluído";
+        queue[i].url = fileUrl;
+        setUploadQueue([...queue]);
+        urls.push(fileUrl);
+      }
+
+      setUploadedUrls(urls);
+      setIsUploading(false);
+
+      // Step 3: Trigger AI Culling on the uploaded URLs on FastAPI Cloud
+      alert("Upload concluído! Iniciando processamento IA de nitidez e detecção facial...");
+      
+      const cullRes = await fetch(`${ENGINE_URL}/api/cull`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_name: selectedProject })
+        body: JSON.stringify({
+          project_name: projectNameInput,
+          file_urls: urls
+        })
       });
-      if (res.ok) {
-        alert("Culling inteligente IA finalizado com sucesso!");
-        loadProjectSettings(selectedProject);
+
+      if (cullRes.ok) {
+        alert("Culling Inteligente concluído com sucesso!");
+        setSelectedProject(projectNameInput);
+        setProjectNameInput("");
+        setSelectedFiles([]);
+        setUploadQueue([]);
       } else {
-        const err = await res.json();
-        alert(`Erro no culling: ${err.detail}`);
+        const err = await cullRes.json();
+        alert(`Erro ao executar culling: ${err.detail}`);
       }
     } catch (err) {
-      alert("Erro de conexão ao rodar o Culling.");
-    } finally {
-      setLoadingProject(false);
+      console.error(err);
+      alert("Erro ao realizar upload ou culling na nuvem.");
+      setIsUploading(false);
     }
   };
 
@@ -198,7 +255,6 @@ export default function EngineTab() {
     const updated = { ...adjustments, [key]: val };
     setAdjustments(updated);
     
-    // Save locally to projectSettings state immediately
     setProjectSettings((prev) => ({
       ...prev,
       adjustments: {
@@ -207,8 +263,7 @@ export default function EngineTab() {
       }
     }));
 
-    // Send async save to FastAPI server
-    fetch("http://127.0.0.1:8000/api/adjust", {
+    fetch(`${ENGINE_URL}/api/adjust`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -227,8 +282,6 @@ export default function EngineTab() {
   const handlePasteAdjustments = () => {
     if (!copiedAdjustments || !selectedPhoto) return;
     setAdjustments(copiedAdjustments);
-    handleAdjustChange("exposure", copiedAdjustments.exposure);
-    // Trigger bulk saves for all parameters
     Object.keys(copiedAdjustments).forEach((key) => {
       handleAdjustChange(key, copiedAdjustments[key]);
     });
@@ -236,13 +289,12 @@ export default function EngineTab() {
 
   const handleApplyToAll = async () => {
     if (!selectedProject || projectSettings.culling_results.length === 0) return;
-    if (!confirm("Tem certeza que deseja aplicar os ajustes da foto atual em TODAS as fotos deste projeto?")) return;
+    if (!confirm("Deseja aplicar os ajustes da foto selecionada em TODAS as fotos deste projeto?")) return;
     
     setLoadingProject(true);
     try {
-      // Loop photos and trigger save for each
       const promises = projectSettings.culling_results.map((photo) => {
-        return fetch("http://127.0.0.1:8000/api/adjust", {
+        return fetch(`${ENGINE_URL}/api/adjust`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -253,7 +305,7 @@ export default function EngineTab() {
         });
       });
       await Promise.all(promises);
-      alert("Ajustes aplicados em lote com sucesso!");
+      alert("Ajustes aplicados em massa!");
       loadProjectSettings(selectedProject);
     } catch (e) {
       alert("Erro ao aplicar ajustes em massa.");
@@ -263,7 +315,6 @@ export default function EngineTab() {
   };
 
   const handleUpdatePhotoMetadata = (photo: CullingResult, stars: number, colorLabel: string) => {
-    // Local state update
     setProjectSettings((prev) => {
       const updatedResults = prev.culling_results.map((item) => {
         if (item.filename === photo.filename) {
@@ -278,11 +329,10 @@ export default function EngineTab() {
       setSelectedPhoto((prev) => prev ? { ...prev, stars, color_label: colorLabel } : null);
     }
 
-    // Save adjustment record to database containing stars/color
     const photoAdj = projectSettings.adjustments?.[photo.filename] || {};
     const updatedAdj = { ...photoAdj, stars, colorLabel };
     
-    fetch("http://127.0.0.1:8000/api/adjust", {
+    fetch(`${ENGINE_URL}/api/adjust`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -290,7 +340,7 @@ export default function EngineTab() {
         filename: photo.filename,
         adjustments: updatedAdj
       })
-    }).catch(e => console.error("Error saving metadata settings:", e));
+    }).catch(e => console.error("Error saving metadata:", e));
   };
 
   const handleExport = async (e: React.FormEvent) => {
@@ -298,17 +348,17 @@ export default function EngineTab() {
     if (!selectedProject) return;
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/export", {
+      const res = await fetch(`${ENGINE_URL}/api/export`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project_name: selectedProject,
-          watermark_text: exportForm.watermarkText,
-          scale_max_dim: Number(exportForm.scaleMaxDim)
+          watermark_text: watermarkText,
+          scale_max_dim: Number(scaleMaxDim)
         })
       });
       if (res.ok) {
-        alert("Fila de renderização paralela iniciada! Acompanhe o progresso na barra de status.");
+        alert("Renderização e Exportação paralelas iniciadas no servidor de nuvem!");
         checkEngineStatus();
       } else {
         const err = await res.json();
@@ -319,7 +369,6 @@ export default function EngineTab() {
     }
   };
 
-  // Group culling results by duplicate group_id for visual grouping
   const groupPhotos = () => {
     const groups: Record<number, CullingResult[]> = {};
     const nonGrouped: CullingResult[] = [];
@@ -347,30 +396,30 @@ export default function EngineTab() {
             <span className="p-1.5 bg-primary/10 rounded-lg text-primary">
               <Zap className="w-5 h-5" />
             </span>
-            <h2 className="text-base font-bold uppercase tracking-wider text-white">Moldra Engine</h2>
+            <h2 className="text-base font-bold uppercase tracking-wider text-white">Moldra Engine (Cloud Flow)</h2>
           </div>
-          <p className="text-xs text-gray-500 font-sans mt-1">Ingestão de RAWs, seleção inteligente por IA (culling), edição em lote e exportador de alta performance.</p>
+          <p className="text-xs text-gray-500 font-sans mt-1">Envie fotos RAW/JPEG, faça culling inteligente via IA e exporte em lote direto da nuvem.</p>
         </div>
 
-        {/* Local server online indicator */}
+        {/* Server online/offline badge */}
         <div className="flex items-center gap-2.5">
           {loadingStatus ? (
             <span className="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verificando...
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Conectando...
             </span>
           ) : isOnline ? (
             <span className="px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] uppercase font-extrabold tracking-wider rounded-xl flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5" /> Servidor Local Online (8000)
+              <Check className="w-3.5 h-3.5" /> Servidor Cloud Online
             </span>
           ) : (
             <span className="px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase font-extrabold tracking-wider rounded-xl flex items-center gap-1.5">
-              <X className="w-3.5 h-3.5" /> Servidor Local Offline
+              <X className="w-3.5 h-3.5" /> Servidor Cloud Offline
             </span>
           )}
         </div>
       </div>
 
-      {/* OFFLINE VIEW INSTRUCTIONS */}
+      {/* OFFLINE WARNING AND SETUP DIRECTIONS */}
       {!isOnline && !loadingStatus && (
         <div className="max-w-3xl mx-auto p-8 rounded-2xl bg-dark-card border border-white/5 space-y-6 text-center shadow-xl">
           <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-red-400">
@@ -378,125 +427,113 @@ export default function EngineTab() {
           </div>
           
           <div className="space-y-2">
-            <h3 className="text-lg font-bold text-white">Moldra Engine não está ativo no seu computador</h3>
+            <h3 className="text-lg font-bold text-white">O serviço de nuvem do Moldra Engine não está ativo</h3>
             <p className="text-xs text-gray-400 font-sans max-w-lg mx-auto leading-relaxed">
-              O Moldra Engine é uma suíte local pesada desenvolvida em Python para acessar o hardware da sua máquina, decodificar arquivos RAW e rodar o MediaPipe.
+              O backend em nuvem do Moldra Engine processa as requisições utilizando os contêineres Docker. Caso ainda não tenha realizado a implantação, você pode implantar ou rodar localmente.
             </p>
           </div>
 
-          <div className="p-5 bg-black/40 border border-white/5 rounded-xl text-left font-mono text-[11px] max-w-md mx-auto space-y-3">
-            <p className="text-primary font-bold">👉 Como inicializar o serviço local (1-Clique):</p>
-            <div className="bg-black/80 p-3 rounded-lg border border-white/10 select-all cursor-pointer">
-              cd moldra-engine && ./setup.sh
+          <div className="p-5 bg-black/40 border border-white/5 rounded-xl text-left font-mono text-[11px] max-w-md mx-auto space-y-2">
+            <p className="text-primary font-bold">☁️ Configurar URL do Servidor em Nuvem:</p>
+            <p className="text-gray-400">Certifique-se de que a variável abaixo está configurada no seu `.env.local` de produção:</p>
+            <div className="bg-black/80 p-2.5 rounded border border-white/10 select-all">
+              NEXT_PUBLIC_MOLDRA_ENGINE_URL=https://sua-url-na-render.com
             </div>
-            <p className="text-gray-500">Isso irá criar o ambiente virtual, instalar os pacotes (rawpy, cv2, mediapipe, uvicorn) e iniciar o backend na porta 8000.</p>
           </div>
           
           <button 
             onClick={checkEngineStatus}
             className="px-5 py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
           >
-            Tentar Reconectar
+            Verificar Conexão
           </button>
         </div>
       )}
 
-      {/* ONLINE INTERFACE DASHBOARD */}
+      {/* ACTIVE ONLINE WORKSPACE */}
       {isOnline && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
-          {/* LEFT SIDEBAR: Status & Actions */}
+          {/* SIDEBAR: Upload and Export */}
           <div className="lg:col-span-1 space-y-6">
             
-            {/* Server Resource Metrics */}
-            {engineStats && (
-              <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-4">
-                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
-                  <Cpu className="w-4 h-4 text-primary" />
-                  <h3 className="text-[10px] uppercase font-bold text-white tracking-wider">Recursos de Hardware</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-xs font-sans">
-                  <div>
-                    <span className="block text-gray-500 text-[9px] uppercase font-bold">Processador</span>
-                    <span className="text-white font-semibold">{engineStats.cpu_usage}</span>
-                  </div>
-                  <div>
-                    <span className="block text-gray-500 text-[9px] uppercase font-bold">Memória RAM</span>
-                    <span className="text-white font-semibold">{engineStats.ram_usage}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="block text-gray-500 text-[9px] uppercase font-bold">Núcleos de CPU Ativos</span>
-                    <span className="text-white font-semibold">{engineStats.cores_available} Cores (Multiprocessamento)</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Ingestion Form Card */}
+            {/* Upload Area */}
             <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-4">
               <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
-                <FolderOpen className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] uppercase font-bold text-white tracking-wider">Ingestão de Fotos (RAW)</h3>
+                <UploadCloud className="w-4 h-4 text-primary" />
+                <h3 className="text-[10px] uppercase font-bold text-white tracking-wider">Carregar Lote de Fotos</h3>
               </div>
 
-              <form onSubmit={handleIngest} className="space-y-3 font-sans text-xs">
+              <div className="space-y-4 font-sans text-xs">
                 <div>
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Nome do Projeto</label>
                   <input
                     type="text"
                     required
-                    value={ingestForm.projectName}
-                    onChange={(e) => setIngestForm({ ...ingestForm, projectName: e.target.value })}
+                    value={projectNameInput}
+                    onChange={(e) => setProjectNameInput(e.target.value)}
                     placeholder="Ex: Casamento_Ana_Luiz"
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-primary text-xs"
                   />
                 </div>
-                <div>
-                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Diretório do Cartão (SD/HD)</label>
-                  <input
-                    type="text"
-                    required
-                    value={ingestForm.sourceDir}
-                    onChange={(e) => setIngestForm({ ...ingestForm, sourceDir: e.target.value })}
-                    placeholder="Ex: /Volumes/SD_CARD/DCIM/100CANON"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-primary text-xs"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={engineStats?.active_jobs?.ingestion?.status === "Processing"}
-                  className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  Iniciar Importação
-                </button>
-              </form>
 
-              {/* Ingestion Progress bar */}
-              {engineStats?.active_jobs?.ingestion?.progress > 0 && (
-                <div className="pt-2 border-t border-white/5 space-y-1.5 font-sans">
-                  <div className="flex justify-between text-[9px] text-gray-400 font-mono">
-                    <span>Processando Importação</span>
-                    <span>{engineStats.active_jobs.ingestion.progress}%</span>
-                  </div>
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${engineStats.active_jobs.ingestion.progress}%` }}
-                    />
-                  </div>
-                  <span className="block text-[9px] text-gray-500 font-mono">
-                    Copias: {engineStats.active_jobs.ingestion.current} / {engineStats.active_jobs.ingestion.total}
+                {/* Dropzone Selector */}
+                <div className="flex flex-col items-center justify-center p-5 border border-dashed border-white/10 rounded-xl hover:border-primary/20 transition-all cursor-pointer relative bg-black/20 group">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.cr2,.cr3,.nef,.arw,.dng"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <UploadCloud className="w-6 h-6 text-gray-500 group-hover:text-primary transition-colors mb-2" />
+                  <span className="text-[10px] font-bold text-gray-300 font-sans block truncate max-w-[150px]">
+                    {selectedFiles.length > 0 ? `${selectedFiles.length} arquivos` : "Escolher fotos..."}
                   </span>
+                  <span className="text-[8px] text-gray-500 mt-0.5">RAW (CR2/CR3/NEF) ou JPEGs</span>
                 </div>
-              )}
+
+                {/* Upload Action Button */}
+                {selectedFiles.length > 0 && !isUploading && (
+                  <button
+                    onClick={handleUploadAndCull}
+                    className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    Iniciar Upload & Processar IA
+                  </button>
+                )}
+
+                {/* Upload Queue Progress */}
+                {uploadQueue.length > 0 && (
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                    <span className="block text-[8px] font-bold text-gray-500 uppercase tracking-widest">Fila de Upload</span>
+                    {uploadQueue.map((item, idx) => (
+                      <div key={idx} className="p-2 rounded bg-black/40 border border-white/5 space-y-1">
+                        <div className="flex justify-between items-center text-[9px] font-mono">
+                          <span className="text-gray-400 truncate max-w-[120px]">{item.name}</span>
+                          <span className={`${
+                            item.status === "Concluído" ? "text-green-400" :
+                            item.status === "Falhou" ? "text-red-400" : "text-primary"
+                          }`}>{item.status === "Carregando" ? `${item.progress}%` : item.status}</span>
+                        </div>
+                        {item.status === "Carregando" && (
+                          <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary transition-all" style={{ width: `${item.progress}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Export Rendering Form Card */}
+            {/* Export Parameters Card */}
             <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-4">
               <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
                 <Download className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] uppercase font-bold text-white tracking-wider">Fila de Exportação</h3>
+                <h3 className="text-[10px] uppercase font-bold text-white tracking-wider">Exportação na Nuvem</h3>
               </div>
 
               <form onSubmit={handleExport} className="space-y-3 font-sans text-xs">
@@ -504,21 +541,21 @@ export default function EngineTab() {
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Marca d'água</label>
                   <input
                     type="text"
-                    value={exportForm.watermarkText}
-                    onChange={(e) => setExportForm({ ...exportForm, watermarkText: e.target.value })}
+                    value={watermarkText}
+                    onChange={(e) => setWatermarkText(e.target.value)}
                     placeholder="Ex: Moldra Films"
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-primary text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Redimensionamento (Max Dimen.)</label>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">Redimensionamento</label>
                   <select
-                    value={exportForm.scaleMaxDim}
-                    onChange={(e) => setExportForm({ ...exportForm, scaleMaxDim: Number(e.target.value) })}
+                    value={scaleMaxDim}
+                    onChange={(e) => setScaleMaxDim(Number(e.target.value))}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-primary text-xs cursor-pointer"
                   >
-                    <option value={0}>Resolução Original (Máxima)</option>
-                    <option value={2048}>Entrega Web (2048px)</option>
+                    <option value={0}>Resolução Máxima</option>
+                    <option value={2048}>Para Redes Sociais (2048px)</option>
                     <option value={1080}>Light Preview (1080px)</option>
                   </select>
                 </div>
@@ -528,11 +565,11 @@ export default function EngineTab() {
                   className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Iniciar Exportação Lote
+                  Salvar Imagens no R2
                 </button>
               </form>
 
-              {/* Export Progress bar */}
+              {/* Export Queue Progress */}
               {engineStats?.active_jobs?.export?.progress > 0 && (
                 <div className="pt-2 border-t border-white/5 space-y-1.5 font-sans">
                   <div className="flex justify-between text-[9px] text-gray-400 font-mono">
@@ -546,7 +583,7 @@ export default function EngineTab() {
                     />
                   </div>
                   <span className="block text-[9px] text-gray-500 font-mono">
-                    Renders: {engineStats.active_jobs.export.current} / {engineStats.active_jobs.export.total}
+                    Salvas: {engineStats.active_jobs.export.current} / {engineStats.active_jobs.export.total}
                   </span>
                 </div>
               )}
@@ -554,19 +591,19 @@ export default function EngineTab() {
 
           </div>
 
-          {/* MAIN GRID WORKSPACE: Culling Catalog and Edit Panel */}
+          {/* MAIN GRAPHICS AREA */}
           <div className="lg:col-span-3 space-y-6">
             
-            {/* Top Toolbar: Active Project selector & IA Culling trigger */}
+            {/* Toolbar Area */}
             <div className="p-4 rounded-xl bg-dark-card border border-white/5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Projeto Ativo:</span>
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Projeto Selecionado:</span>
                 <select
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
                   className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer min-w-[200px]"
                 >
-                  <option value="">Selecione um projeto...</option>
+                  <option value="">Selecione...</option>
                   {engineStats?.projects_list?.map((p: string) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -574,46 +611,36 @@ export default function EngineTab() {
               </div>
 
               {selectedProject && (
-                <button
-                  onClick={handleRunCulling}
-                  disabled={loadingProject}
-                  className="px-4 py-2 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1.5"
-                >
-                  {loadingProject ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
-                  )}
-                  Executar Culling por IA
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-gray-500">Total: {projectSettings.culling_results.length} fotos</span>
+                </div>
               )}
             </div>
 
-            {/* If loading project settings */}
+            {/* Load State Indicator */}
             {loadingProject && (
               <div className="flex flex-col items-center justify-center p-20 space-y-4">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-xs text-gray-500 font-mono">Processando metadados e renderizando miniaturas...</p>
+                <p className="text-xs text-gray-500 font-mono">Carregando dados das fotos do Cloudflare R2...</p>
               </div>
             )}
 
-            {/* Catalog Grid Area */}
+            {/* Workspace Grid */}
             {!loadingProject && selectedProject && (
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 
-                {/* PHOTO GRID CATALOG */}
+                {/* PHOTO GRID */}
                 <div className="xl:col-span-2 space-y-6 max-h-[80vh] overflow-y-auto pr-2 scrollbar-hide">
                   
-                  {/* duplicate burst groups */}
+                  {/* Bursts */}
                   {Object.keys(groups).map((gIdStr) => {
                     const gId = Number(gIdStr);
                     const members = groups[gId];
-                    const hero = members.find(m => m.is_hero) || members[0];
                     return (
                       <div key={gId} className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-3">
                         <div className="flex justify-between items-center pb-2 border-b border-white/5">
                           <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5" /> Grupo de Rajada #{gId} ({members.length} fotos)
+                            <Layers className="w-3.5 h-3.5" /> Grupo de Burst #{gId} ({members.length} duplicadas)
                           </span>
                           <span className="text-[9px] text-gray-600 font-mono">{members[0].time}</span>
                         </div>
@@ -642,20 +669,17 @@ export default function EngineTab() {
                                     : "border-white/5 hover:border-white/15"
                                 }`}
                               >
-                                {/* Proxy image background */}
+                                {/* Direct CDN URL mapping */}
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={`http://127.0.0.1:8000/api/proxy/${selectedProject}/${photo.filename}`}
+                                  src={photo.proxyUrl}
                                   alt={photo.filename}
                                   className="absolute inset-0 w-full h-full object-cover z-0"
                                 />
 
-                                {/* Dark overlay */}
                                 <div className="absolute inset-0 bg-black/20 z-10" />
 
-                                {/* Image metadata status indicators */}
                                 <div className="p-2 z-20 flex justify-between items-start">
-                                  {/* Hero badge indicator */}
                                   {photo.is_hero ? (
                                     <span className="px-1.5 py-0.5 bg-primary text-black text-[7px] uppercase font-black rounded tracking-wide shadow flex items-center gap-0.5">
                                       <Sparkles className="w-2.5 h-2.5" /> HERO
@@ -664,7 +688,6 @@ export default function EngineTab() {
                                     <div />
                                   )}
 
-                                  {/* Color rating label */}
                                   <span className={`w-2.5 h-2.5 rounded-full ${
                                     photo.color_label === "Green" ? "bg-green-500" :
                                     photo.color_label === "Red" ? "bg-red-500" :
@@ -672,11 +695,9 @@ export default function EngineTab() {
                                   }`} />
                                 </div>
 
-                                {/* Bottom Info panel overlay */}
                                 <div className="p-2 bg-gradient-to-t from-black/80 to-transparent z-20 text-[9px] font-sans flex justify-between items-end">
                                   <span className="text-gray-400 truncate max-w-[80px] font-mono">{photo.filename}</span>
                                   <div className="flex items-center gap-1.5">
-                                    {/* Focus warning */}
                                     {photo.color_label === "Red" && (
                                       <span title={`Fora de foco (Score: ${photo.sharpness})`}>
                                         <AlertTriangle className="w-3 h-3 text-red-400" />
@@ -693,11 +714,11 @@ export default function EngineTab() {
                     );
                   })}
 
-                  {/* Non-grouped individual photos */}
+                  {/* Individual Photos */}
                   {nonGrouped.length > 0 && (
                     <div className="space-y-3">
                       <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-500 pb-1 border-b border-white/5">
-                        Fotos Individuais / Avulsas ({nonGrouped.length} fotos)
+                        Fotos Individuais ({nonGrouped.length})
                       </h4>
                       <div className="grid grid-cols-3 gap-3">
                         {nonGrouped.map((photo) => {
@@ -725,7 +746,7 @@ export default function EngineTab() {
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={`http://127.0.0.1:8000/api/proxy/${selectedProject}/${photo.filename}`}
+                                src={photo.proxyUrl}
                                 alt={photo.filename}
                                 className="absolute inset-0 w-full h-full object-cover z-0"
                               />
@@ -754,7 +775,7 @@ export default function EngineTab() {
 
                 </div>
 
-                {/* AD-JUSTMENT & PRE-VIEW PANEL */}
+                {/* AD-JUSTMENT / PRE-VIEW PANE */}
                 <div className="xl:col-span-1 space-y-6">
                   {selectedPhoto ? (
                     <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-5 flex flex-col sticky top-4">
@@ -763,25 +784,30 @@ export default function EngineTab() {
                       <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-white/10 relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={`http://127.0.0.1:8000/api/proxy/${selectedProject}/${selectedPhoto.filename}`}
+                          src={selectedPhoto.proxyUrl}
                           alt={selectedPhoto.filename}
                           className="w-full h-full object-contain"
                         />
                       </div>
 
-                      {/* Photo Metadata Info */}
+                      {/* Photo Metadata */}
                       <div className="space-y-3 font-sans text-xs">
                         <div className="flex justify-between items-start border-b border-white/5 pb-3">
                           <div>
-                            <span className="font-bold text-white block text-sm truncate max-w-[150px] font-mono">{selectedPhoto.filename}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-white block text-sm truncate max-w-[120px] font-mono">{selectedPhoto.filename}</span>
+                              <a href={selectedPhoto.url} target="_blank" rel="noreferrer" title="Ver original completo" className="text-primary hover:underline">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
                             <span className="text-[10px] text-gray-500 font-mono mt-0.5 block">{selectedPhoto.time}</span>
                           </div>
                           
-                          {/* Face mesh analytics badges */}
+                          {/* Face Mesh stats */}
                           <div className="flex flex-col items-end gap-1.5">
                             {selectedPhoto.faces_count > 0 ? (
-                              <div className="flex items-center gap-1">
-                                <span className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5">
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded text-[9px] font-bold uppercase tracking-wider">
                                   {selectedPhoto.faces_count} {selectedPhoto.faces_count === 1 ? "Rosto" : "Rostos"}
                                 </span>
                                 
@@ -793,6 +819,12 @@ export default function EngineTab() {
                                   <Eye className="w-3.5 h-3.5" />
                                   {selectedPhoto.eyes_open ? "Olhos Abert." : "Piscando"}
                                 </span>
+
+                                {selectedPhoto.smiling && (
+                                  <span className="px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                    <Smile className="w-3.5 h-3.5" /> Sorrindo
+                                  </span>
+                                )}
                               </div>
                             ) : (
                               <span className="px-1.5 py-0.5 bg-gray-500/10 border border-gray-500/20 text-gray-400 rounded text-[9px] font-bold uppercase tracking-wider">
@@ -802,7 +834,7 @@ export default function EngineTab() {
                           </div>
                         </div>
 
-                        {/* Star Rating and Color Label selectors */}
+                        {/* Star Rating and Color Label */}
                         <div className="flex items-center justify-between pt-1">
                           <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">Classificar</span>
                           
@@ -822,7 +854,7 @@ export default function EngineTab() {
                             })}
                           </div>
 
-                          {/* Color label indicator toggle button */}
+                          {/* Color label */}
                           <div className="flex items-center gap-1.5">
                             {["Red", "Yellow", "Green", "Blue", "None"].map((col) => {
                               const active = selectedPhoto.color_label === col;
@@ -849,10 +881,9 @@ export default function EngineTab() {
                       <div className="space-y-4 pt-4 border-t border-white/5">
                         <div className="flex items-center justify-between pb-1">
                           <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1">
-                            <Sliders className="w-3.5 h-3.5 text-primary" /> Ajustes de Imagem
+                            <Sliders className="w-3.5 h-3.5 text-primary" /> Ajustes Rápidos
                           </span>
                           
-                          {/* Clipboard button controls */}
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={handleCopyAdjustments}
@@ -906,10 +937,10 @@ export default function EngineTab() {
                           />
                         </div>
 
-                        {/* Temperature */}
+                        {/* Temp */}
                         <div className="space-y-1 font-sans text-xs">
                           <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                            <span>Balanço de Branco (Temp)</span>
+                            <span>Temperatura</span>
                             <span>{adjustments.temp > 0 ? `+${Math.round(adjustments.temp * 100)}` : Math.round(adjustments.temp * 100)}</span>
                           </div>
                           <input
@@ -974,7 +1005,7 @@ export default function EngineTab() {
                           />
                         </div>
 
-                        {/* Apply Preset buttons */}
+                        {/* Preset Actions */}
                         <div className="pt-2 flex gap-2">
                           <button
                             onClick={handleApplyToAll}
@@ -989,7 +1020,7 @@ export default function EngineTab() {
                     </div>
                   ) : (
                     <div className="p-5 rounded-2xl bg-dark-card border border-white/5 text-center text-xs text-gray-500 font-sans">
-                      Selecione uma foto do catálogo para ajustar.
+                      Selecione uma foto para carregar os controles de edição.
                     </div>
                   )}
                 </div>
@@ -997,14 +1028,14 @@ export default function EngineTab() {
               </div>
             )}
 
-            {/* If no project selected yet */}
+            {/* Empty State */}
             {!selectedProject && (
               <div className="p-12 text-center bg-dark-card border border-white/5 rounded-2xl space-y-4">
                 <Layers className="w-8 h-8 text-gray-600 mx-auto" />
                 <div>
-                  <h4 className="text-sm font-bold text-white">Nenhum Projeto Ativo</h4>
+                  <h4 className="text-sm font-bold text-white">Nenhum Projeto Ativo Selecionado</h4>
                   <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto font-sans leading-relaxed">
-                    Selecione um projeto existente na barra superior ou inicie uma nova importação no painel lateral esquerdo para começar o trabalho.
+                    Selecione um projeto em nuvem na barra superior para editar, ou digite o nome de um novo projeto e selecione arquivos para fazer o upload direto de fotos.
                   </p>
                 </div>
               </div>

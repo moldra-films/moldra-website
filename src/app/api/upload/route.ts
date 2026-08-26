@@ -43,7 +43,7 @@ export async function DELETE(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { fileName, fileType } = await request.json();
+    const { fileName, fileType, folder } = await request.json();
 
     if (!fileName || !fileType) {
       return NextResponse.json(
@@ -61,7 +61,9 @@ export async function POST(request: Request) {
 
     // Generate unique key for the asset to avoid collisions
     const cleanFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const key = `assets/${Date.now()}-${cleanFileName}`;
+    const key = folder 
+      ? `${folder.replace(/\/$/, "")}/${cleanFileName}`
+      : `assets/${Date.now()}-${cleanFileName}`;
 
     // Create S3 PUT Command
     const command = new PutObjectCommand({

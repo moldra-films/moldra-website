@@ -1,25 +1,23 @@
 import os
-import glob
+import tempfile
 import json
-import psutil
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import List, Optional
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 
 # Local imports
-from image_processor import ImageProcessor, PROJECTS_ROOT
+from image_processor import ImageProcessor, r2_client, r2_bucket_name, r2_public_url
 from culling_ai import CullingAI
 
-app = FastAPI(title="Moldra Engine API", version="1.0.0")
+app = FastAPI(title="Moldra Engine Cloud API", version="2.0.0")
 
-# Enable CORS for Next.js panel
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production you can restrict this to ["http://localhost:3000"]
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,336 +25,243 @@ app.add_middleware(
 
 # Global task state tracking
 active_jobs = {
-    "ingestion": {"progress": 0, "status": "Idle", "total": 0, "current": 0},
     "culling": {"progress": 0, "status": "Idle", "total": 0, "current": 0},
     "export": {"progress": 0, "status": "Idle", "total": 0, "current": 0}
 }
 
-class IngestRequest(BaseModel):
-    source_dir: str
-    project_name: str
-
 class CullRequest(BaseModel):
     project_name: str
-
-class AdjustmentRequest(BaseModel):
-    project_name: str
-    filename: str
-    adjustments: dict
+    file_urls: List[str] # List of public URLs of uploaded RAW/JPEG files
 
 class ExportRequest(BaseModel):
     project_name: str
     watermark_text: Optional[str] = "Moldra Films"
-    scale_max_dim: Optional[int] = 0 # 0 means full resolution
+    scale_max_dim: Optional[int] = 0
 
 @app.get("/api/status")
 def get_status():
-    """Returns general server status and resource utilization details."""
-    cpu_percent = psutil.cpu_percent()
-    ram = psutil.virtual_memory()
-    
-    # Scan active projects in Moldra_Projects
+    """Returns general server status and active cloud jobs."""
+    # List projects by querying R2 prefix 'projects/'
     projects = []
-    if os.path.exists(PROJECTS_ROOT):
-        projects = [d for d in os.listdir(PROJECTS_ROOT) if os.path.isdir(os.path.join(PROJECTS_ROOT, d))]
+    if r2_client and r2_bucket_name:
+        try:
+            response = r2_client.list_objects_v2(
+                Bucket=r2_bucket_name,
+                Prefix="projects/",
+                Delimiter="/"
+            )
+            if "CommonPrefixes" in response:
+                projects = [p["Prefix"].replace("projects/", "").rstrip("/") for p in response["CommonPrefixes"]]
+        except Exception as e:
+            print(f"Error listing projects from R2: {e}")
 
     return {
         "status": "online",
-        "cpu_usage": f"{cpu_percent}%",
-        "ram_usage": f"{ram.percent}%",
+        "mode": "cloud-first",
         "projects_count": len(projects),
         "projects_list": projects,
         "cores_available": multiprocessing.cpu_count(),
         "active_jobs": active_jobs
     }
 
-def bg_ingest_task(source_dir: str, project_name: str):
-    """Background task to copy RAW files and extract lightweight JPEG proxies."""
+def bg_culling_task(project_name: str, file_urls: List[str]):
+    """Background task to download files, generate proxies if RAW, run AI culling, and save sidecars back to R2."""
     try:
-        active_jobs["ingestion"]["status"] = "Processing"
-        active_jobs["ingestion"]["progress"] = 0
-        
-        # 1. Create project directories
-        paths = ImageProcessor.create_project_structure(project_name)
-        
-        # 2. Scan source directory for RAW/JPEG files
-        extensions = ['*.cr2', '*.cr3', '*.nef', '*.arw', '*.dng', '*.jpg', '*.jpeg', '*.tiff']
-        source_files = []
-        for ext in extensions:
-            source_files.extend(glob.glob(os.path.join(source_dir, ext)))
-            source_files.extend(glob.glob(os.path.join(source_dir, ext.upper())))
-            
-        total_files = len(source_files)
-        active_jobs["ingestion"]["total"] = total_files
-        
-        if total_files == 0:
-            active_jobs["ingestion"]["status"] = "Completed (No files found)"
-            active_jobs["ingestion"]["progress"] = 100
-            return
-            
-        print(f"Ingesting {total_files} images from {source_dir}...")
-        
-        for index, file_path in enumerate(source_files):
-            filename = os.path.basename(file_path)
-            dest_raw = os.path.join(paths["original"], filename)
-            
-            # Copy original file to project folder
-            shutil.copy2(file_path, dest_raw)
-            
-            # Generate JPEG proxy
-            proxy_name = os.path.splitext(filename)[0] + ".jpg"
-            dest_proxy = os.path.join(paths["proxies"], proxy_name)
-            
-            # If the file is already a JPEG, copy and resize it
-            if filename.lower().endswith(('.jpg', '.jpeg')):
-                shutil.copy2(dest_raw, dest_proxy)
-                ImageProcessor.resize_to_proxy(dest_proxy)
-            else:
-                # Extract preview from RAW file
-                success = ImageProcessor.extract_embedded_jpeg(dest_raw, dest_proxy)
-                if not success:
-                    # Fallback to creating a blank thumbnail
-                    blank = np.zeros((300, 300, 3), dtype=np.uint8)
-                    cv2.imwrite(dest_proxy, blank)
-                    
-            # Update progress status
-            active_jobs["ingestion"]["current"] = index + 1
-            active_jobs["ingestion"]["progress"] = int(((index + 1) / total_files) * 100)
-            
-        active_jobs["ingestion"]["status"] = "Completed"
-        active_jobs["ingestion"]["progress"] = 100
-        
-    except Exception as e:
-        print(f"Error during background ingestion: {e}")
-        active_jobs["ingestion"]["status"] = f"Failed: {str(e)}"
-        active_jobs["ingestion"]["progress"] = 0
+        active_jobs["culling"]["status"] = "Processing"
+        active_jobs["culling"]["progress"] = 0
+        total_files = len(file_urls)
+        active_jobs["culling"]["total"] = total_files
 
-@app.post("/api/ingest")
-def start_ingest(req: IngestRequest, bg_tasks: BackgroundTasks):
-    """Triggers asynchronous ingestion from memory card to local project directories."""
-    if not os.path.exists(req.source_dir):
-        raise HTTPException(status_code=400, detail="Diretório de origem não existe.")
+        temp_dir = tempfile.mkdtemp(prefix="moldra_cull_")
+        local_image_paths = []
+        culling_items_meta = []
+
+        print(f"Starting cloud culling for {total_files} files in project {project_name}...")
+
+        for index, url in enumerate(file_urls):
+            filename = url.split("/")[-1]
+            local_raw_path = os.path.join(temp_dir, filename)
+            
+            # 1. Download file from R2 to worker local storage
+            success = ImageProcessor.download_temp_file(url, local_raw_path)
+            if not success:
+                continue
+
+            # 2. Check if file is RAW and requires proxy generation
+            is_raw = not (filename.lower().endswith(('.jpg', '.jpeg')))
+            local_cull_path = local_raw_path
+            
+            if is_raw:
+                # Extract JPEG preview for culling
+                local_proxy_name = os.path.splitext(filename)[0] + ".jpg"
+                local_proxy_path = os.path.join(temp_dir, "proxy_" + local_proxy_name)
+                
+                extracted = ImageProcessor.extract_embedded_jpeg(local_raw_path, local_proxy_path)
+                if extracted:
+                    # Upload proxy preview back to R2
+                    r2_proxy_key = f"projects/{project_name}/Proxies/{local_proxy_name}"
+                    uploaded_proxy_url = ImageProcessor.upload_to_r2(local_proxy_path, r2_proxy_key, "image/jpeg")
+                    local_cull_path = local_proxy_path
+                    # Save proxy URL reference
+                    proxy_ref = uploaded_proxy_url
+                else:
+                    proxy_ref = url # fallback
+            else:
+                proxy_ref = url # JPEG is its own preview
+
+            # Add to list for MediaPipe culling
+            local_image_paths.append((local_cull_path, filename, url, proxy_ref))
+            
+            active_jobs["culling"]["current"] = index + 1
+            active_jobs["culling"]["progress"] = int(((index + 1) / total_files) * 50) # 50% for download/prep stage
+
+        # 3. Execute AI Culling over local previews
+        just_paths = [p[0] for p in local_image_paths]
+        culling_results = CullingAI.run_culling_on_images(just_paths)
+
+        # 4. Save Lightroom XMP Sidecars and update results back to R2
+        final_results = []
+        for index, item in enumerate(culling_results):
+            # Match back metadata
+            match = [p for p in local_image_paths if p[0] == item["path"]][0]
+            filename = match[1]
+            original_url = match[2]
+            proxy_url = match[3]
+
+            # Generate XMP local sidecar
+            xmp_local = CullingAI.generate_xmp_sidecar(item["path"], item["stars"], item["color_label"])
+            if xmp_local and os.path.exists(xmp_local):
+                # Upload XMP to R2 'Original/' folder next to original image
+                # e.g., original url: .../projects/myproj/Original/photo.CR2
+                # xmp key: projects/myproj/Original/photo.xmp
+                original_key = original_url.replace(r2_public_url.rstrip("/") + "/", "")
+                xmp_key = os.path.splitext(original_key)[0] + ".xmp"
+                ImageProcessor.upload_to_r2(xmp_local, xmp_key, "application/xml")
+
+            final_results.append({
+                "filename": filename,
+                "url": original_url,
+                "proxyUrl": proxy_url,
+                "sharpness": round(item["sharpness"], 2),
+                "faces_count": item["faces_count"],
+                "eyes_open": item["eyes_open"],
+                "smiling": item["smiling"],
+                "group_id": item["group_id"],
+                "is_hero": item["is_hero"],
+                "stars": item["stars"],
+                "color_label": item["color_label"],
+                "time": item["time"].strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+            active_jobs["culling"]["progress"] = 50 + int(((index + 1) / len(culling_results)) * 50)
+
+        # 5. Read existing settings from R2 or create fresh, then save to R2
+        settings_key = f"projects/{project_name}/settings.json"
+        project_settings = {"adjustments": {}, "culling_results": final_results}
         
-    # Reset job metrics
-    active_jobs["ingestion"] = {"progress": 0, "status": "Pending", "total": 0, "current": 0}
-    bg_tasks.add_task(bg_ingest_task, req.source_dir, req.project_name)
-    return {"message": "Ingestão iniciada no background.", "project": req.project_name}
+        try:
+            # Check if settings exists to merge adjustments
+            if r2_client and r2_bucket_name:
+                response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
+                existing_settings = json.loads(response["Body"].read().decode("utf-8"))
+                project_settings["adjustments"] = existing_settings.get("adjustments", {})
+        except Exception:
+            pass # Settings not created yet
+
+        # Upload settings JSON back to R2
+        settings_bytes = json.dumps(project_settings, indent=2, ensure_ascii=False).encode("utf-8")
+        ImageProcessor.upload_data_to_r2(settings_bytes, settings_key, "application/json")
+
+        # Cleanup local worker temporary directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+        active_jobs["culling"]["status"] = "Completed"
+        active_jobs["culling"]["progress"] = 100
+
+    except Exception as e:
+        print(f"Error in background culling: {e}")
+        active_jobs["culling"]["status"] = f"Failed: {str(e)}"
+        active_jobs["culling"]["progress"] = 0
 
 @app.post("/api/cull")
-def start_cull(req: CullRequest):
-    """
-    Synchronously runs culling pipeline over JPEG proxies.
-    Returns clustered list containing focus score, eye aspect ratios, and Hero photo selection.
-    """
-    proj_dir = os.path.join(PROJECTS_ROOT, req.project_name)
-    proxies_dir = os.path.join(proj_dir, "Proxies")
-    
-    if not os.path.exists(proxies_dir):
-        raise HTTPException(status_code=400, detail="Projeto não encontrado ou proxies ausentes.")
-        
-    # Scan proxy images
-    proxy_paths = glob.glob(os.path.join(proxies_dir, "*.jpg"))
-    if not proxy_paths:
-        return {"message": "Nenhuma imagem encontrada na pasta de proxies.", "results": []}
-        
-    print(f"Running AI Culling on {len(proxy_paths)} images...")
-    active_jobs["culling"]["status"] = "Processing"
-    active_jobs["culling"]["total"] = len(proxy_paths)
-    
-    # Run pipeline
-    results = CullingAI.run_culling_on_images(proxy_paths)
-    
-    # Write initial XMP files for Lightroom sidecar compatibility
-    for item in results:
-        CullingAI.generate_xmp_sidecar(
-            image_path=item["path"].replace("Proxies", "Original"), # Point sidecars to original files
-            stars=item["stars"],
-            color_label=item["color_label"]
-        )
-        
-    # Convert absolute paths to relative paths for UI safety
-    serializable_results = []
-    for item in results:
-        serializable_results.append({
-            "filename": item["filename"],
-            "sharpness": round(item["sharpness"], 2),
-            "faces_count": item["faces_count"],
-            "eyes_open": item["eyes_open"],
-            "smiling": item["smiling"],
-            "group_id": item["group_id"],
-            "is_hero": item["is_hero"],
-            "stars": item["stars"],
-            "color_label": item["color_label"],
-            "time": item["time"].strftime("%Y-%m-%d %H:%M:%S")
-        })
-        
-    active_jobs["culling"]["status"] = "Completed"
-    active_jobs["culling"]["progress"] = 100
-    
-    # Save culling metadata locally inside project settings
-    settings_path = os.path.join(proj_dir, "settings.json")
-    project_settings = {}
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, 'r', encoding='utf-8') as f:
-                project_settings = json.load(f)
-        except Exception:
-            pass
-            
-    project_settings["culling_results"] = serializable_results
-    with open(settings_path, 'w', encoding='utf-8') as f:
-        json.dump(project_settings, f, indent=2, ensure_ascii=False)
-        
-    return {
-        "project": req.project_name,
-        "total_images": len(proxy_paths),
-        "results": serializable_results
-    }
-
-@app.post("/api/adjust")
-def save_adjustment(req: AdjustmentRequest):
-    """Saves user modifications (exposure, contrast, white balance adjustments) to a project settings JSON."""
-    proj_dir = os.path.join(PROJECTS_ROOT, req.project_name)
-    if not os.path.exists(proj_dir):
-        raise HTTPException(status_code=400, detail="Projeto não encontrado.")
-        
-    settings_path = os.path.join(proj_dir, "settings.json")
-    project_settings = {}
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, 'r', encoding='utf-8') as f:
-                project_settings = json.load(f)
-        except Exception:
-            pass
-            
-    if "adjustments" not in project_settings:
-        project_settings["adjustments"] = {}
-        
-    project_settings["adjustments"][req.filename] = req.adjustments
-    
-    with open(settings_path, 'w', encoding='utf-8') as f:
-        json.dump(project_settings, f, indent=2, ensure_ascii=False)
-        
-    return {"status": "success", "message": f"Ajustes salvos para {req.filename}"}
-
-@app.get("/api/project/{project_name}/settings")
-def get_project_settings(project_name: str):
-    """Retrieves metadata and custom adjustments saved in the project settings JSON."""
-    proj_dir = os.path.join(PROJECTS_ROOT, project_name)
-    settings_path = os.path.join(proj_dir, "settings.json")
-    
-    if not os.path.exists(settings_path):
-        return {"adjustments": {}, "culling_results": []}
-        
-    try:
-        with open(settings_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao ler configurações: {str(e)}")
+def trigger_cull(req: CullRequest, bg_tasks: BackgroundTasks):
+    """Triggers background task to download R2 files, process culling, and save sidecars."""
+    active_jobs["culling"] = {"progress": 0, "status": "Pending", "total": 0, "current": 0}
+    bg_tasks.add_task(bg_culling_task, req.project_name, req.file_urls)
+    return {"message": "Culling iniciado em background.", "project": req.project_name}
 
 def bg_export_task(project_name: str, watermark_text: str, scale_max_dim: int):
-    """Multiprocessing background task to render and export all images."""
+    """Downloads original images, applies saved adjustments and watermark, and uploads to R2."""
     try:
         active_jobs["export"]["status"] = "Processing"
         active_jobs["export"]["progress"] = 0
         
-        proj_dir = os.path.join(PROJECTS_ROOT, project_name)
-        original_dir = os.path.join(proj_dir, "Original")
-        prontas_dir = os.path.join(proj_dir, "Prontas")
-        settings_path = os.path.join(proj_dir, "settings.json")
-        
-        # Load adjustments map from settings
-        adjustments_map = {}
-        if os.path.exists(settings_path):
-            try:
-                with open(settings_path, 'r', encoding='utf-8') as f:
-                    project_settings = json.load(f)
-                    adjustments_map = project_settings.get("adjustments", {})
-            except Exception:
-                pass
+        settings_key = f"projects/{project_name}/settings.json"
+        project_settings = {"adjustments": {}, "culling_results": []}
 
-        # Scan original RAW/JPG files
-        original_files = []
-        for ext in ['*.cr2', '*.cr3', '*.nef', '*.arw', '*.dng', '*.jpg', '*.jpeg']:
-            original_files.extend(glob.glob(os.path.join(original_dir, ext)))
-            original_files.extend(glob.glob(os.path.join(original_dir, ext.upper())))
-            
-        total_files = len(original_files)
+        # 1. Fetch settings from R2
+        if r2_client and r2_bucket_name:
+            try:
+                response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
+                project_settings = json.loads(response["Body"].read().decode("utf-8"))
+            except Exception as e:
+                print(f"Could not load project settings from R2: {e}")
+
+        culling_results = project_settings.get("culling_results", [])
+        adjustments_map = project_settings.get("adjustments", {})
+        total_files = len(culling_results)
         active_jobs["export"]["total"] = total_files
-        
+
         if total_files == 0:
-            active_jobs["export"]["status"] = "Completed (No original files found)"
+            active_jobs["export"]["status"] = "Completed (No culling results found)"
             active_jobs["export"]["progress"] = 100
             return
-            
-        # Create execution tasks for multiprocessing pool
+
         tasks = []
-        for file_path in original_files:
-            filename = os.path.basename(file_path)
-            # Find matching adjustments or use default empty adjustments
+        for photo in culling_results:
+            filename = photo["filename"]
+            original_url = photo["url"]
             adj = adjustments_map.get(filename, {})
             
             output_name = os.path.splitext(filename)[0] + ".jpg"
-            output_path = os.path.join(prontas_dir, output_name)
-            
+            r2_key_output = f"projects/{project_name}/Prontas/{output_name}"
+
             tasks.append({
-                "raw_path": file_path,
-                "output_path": output_path,
+                "file_url": original_url,
+                "r2_key_output": r2_key_output,
                 "adjustments": adj,
                 "watermark_text": watermark_text,
                 "scale_max_dim": scale_max_dim
             })
 
-        # Run process pool executor to render in parallel
-        # Max workers matches CPU core count for optimal speed
+        # Process pool multiprocessing
         max_workers = multiprocessing.cpu_count()
-        print(f"Exporting {total_files} images using process pool with {max_workers} workers...")
-        
+        print(f"Starting cloud export for {total_files} files using {max_workers} workers...")
+
         completed = 0
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            # Submit tasks to pool
             futures = [executor.submit(ImageProcessor.export_worker, t) for t in tasks]
-            
             for future in futures:
-                # Wait for each task to complete
                 future.result()
                 completed += 1
                 active_jobs["export"]["current"] = completed
                 active_jobs["export"]["progress"] = int((completed / total_files) * 100)
-                
+
         active_jobs["export"]["status"] = "Completed"
         active_jobs["export"]["progress"] = 100
-        
+
     except Exception as e:
-        print(f"Error during background export: {e}")
+        print(f"Error in background export: {e}")
         active_jobs["export"]["status"] = f"Failed: {str(e)}"
         active_jobs["export"]["progress"] = 0
 
 @app.post("/api/export")
-def start_export(req: ExportRequest, bg_tasks: BackgroundTasks):
-    """Spawns multiprocessing render engine to export all RAW files to watermark JPEGs."""
-    proj_dir = os.path.join(PROJECTS_ROOT, req.project_name)
-    if not os.path.exists(proj_dir):
-        raise HTTPException(status_code=400, detail="Projeto não encontrado.")
-        
-    # Reset job status
+def trigger_export(req: ExportRequest, bg_tasks: BackgroundTasks):
+    """Triggers background multiprocessing render export."""
     active_jobs["export"] = {"progress": 0, "status": "Pending", "total": 0, "current": 0}
     bg_tasks.add_task(bg_export_task, req.project_name, req.watermark_text, req.scale_max_dim)
-    return {"message": "Renderização e exportação iniciadas.", "project": req.project_name}
-
-@app.get("/api/proxy/{project_name}/{filename}")
-def get_proxy_image(project_name: str, filename: str):
-    """Serves the proxy JPEG image from local disk to the client browser."""
-    # Ensure proxy file extension is .jpg
-    proxy_name = os.path.splitext(filename)[0] + ".jpg"
-    proxy_path = os.path.join(PROJECTS_ROOT, project_name, "Proxies", proxy_name)
-    
-    if not os.path.exists(proxy_path):
-        raise HTTPException(status_code=404, detail="Proxy image not found.")
-        
-    return FileResponse(proxy_path)
+    return {"message": "Exportação iniciada em background.", "project": req.project_name}
 
 if __name__ == "__main__":
     import uvicorn
-    # Start server on localhost:8000
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
