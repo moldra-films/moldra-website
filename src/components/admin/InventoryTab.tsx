@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useAdmin, Equipment } from "@/context/AdminContext";
 import { Cpu, MapPin, Check, RotateCcw, AlertTriangle, UserCheck, Plus, X, Edit, Trash2, Loader2, UploadCloud } from "lucide-react";
-import R2UploadTest from "./R2UploadTest";
 import { motion } from "framer-motion";
 
 export default function InventoryTab() {
@@ -17,7 +16,7 @@ export default function InventoryTab() {
     addLocation 
   } = useAdmin();
   
-  const [activeSubTab, setActiveSubTab] = useState<"equipamentos" | "locacoes" | "r2">("equipamentos");
+  const [activeSubTab, setActiveSubTab] = useState<"equipamentos" | "locacoes">("equipamentos");
   
   // Checkout drawer/state
   const [selectedEq, setSelectedEq] = useState<Equipment | null>(null);
@@ -224,14 +223,6 @@ export default function InventoryTab() {
             >
               Locações
             </button>
-            <button
-              onClick={() => setActiveSubTab("r2")}
-              className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
-                activeSubTab === "r2" ? "bg-primary text-black" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Mídias (R2)
-            </button>
           </div>
         </div>
       </div>
@@ -384,8 +375,6 @@ export default function InventoryTab() {
           ))}
         </div>
       )}
-      
-      {activeSubTab === "r2" && <R2UploadTest />}
 
       {/* Checkout Selection Drawer Overlay */}
       {selectedEq && (
