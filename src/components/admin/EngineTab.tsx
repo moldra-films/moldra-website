@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import JSZip from "jszip";
 import { 
   Zap, 
   Cpu, 
@@ -140,6 +141,8 @@ export default function EngineTab() {
   const [useWatermark, setUseWatermark] = useState(true);
   const [watermarkText, setWatermarkText] = useState("Moldra Films");
   const [scaleMaxDim, setScaleMaxDim] = useState(0);
+  const [isZipping, setIsZipping] = useState(false);
+  const [zipProgress, setZipProgress] = useState(0);
   
   // Full screen editor mode state
   const [selectedPhoto, setSelectedPhoto] = useState<CullingResult | null>(null);
@@ -541,6 +544,57 @@ export default function EngineTab() {
     }
   };
 
+  const handleDownloadZip = async () => {
+    if (!selectedProject || projectSettings.culling_results.length === 0) return;
+    
+    setIsZipping(true);
+    setZipProgress(0);
+    
+    try {
+      const zip = new JSZip();
+      const total = projectSettings.culling_results.length;
+      
+      for (let i = 0; i < total; i++) {
+        const photo = projectSettings.culling_results[i];
+        const exportedUrl = photo.url.replace("/Original/", "/Prontas/");
+        // Fix extension to .jpg
+        const lastDot = exportedUrl.lastIndexOf(".");
+        const cleanUrl = exportedUrl.substring(0, lastDot) + ".jpg";
+        
+        // Fetch the file as a blob
+        const res = await fetch(cleanUrl);
+        if (!res.ok) {
+          throw new Error(`Erro ao baixar a foto ${photo.filename} da nuvem.`);
+        }
+        const blob = await res.blob();
+        
+        // Add to zip
+        const outputName = photo.filename.substring(0, photo.filename.lastIndexOf(".")) + ".jpg";
+        zip.file(outputName, blob);
+        
+        setZipProgress(Math.round(((i + 1) / total) * 100));
+      }
+      
+      // Generate ZIP and trigger browser download
+      const content = await zip.generateAsync({ type: "blob" });
+      const downloadUrl = URL.createObjectURL(content);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${selectedProject}_editado.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+      
+      alert("Download do lote ZIP concluído com sucesso!");
+    } catch (e: any) {
+      console.error(e);
+      alert(`Falha ao gerar ZIP: ${e.message || "Erro desconhecido"}`);
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
   const groupPhotos = () => {
     const groups: Record<number, CullingResult[]> = {};
     const nonGrouped: CullingResult[] = [];
@@ -796,14 +850,51 @@ export default function EngineTab() {
                     <option value={1080}>Light Preview (1080px)</option>
                   </select>
                 </div>
-                <button
-                  type="submit"
-                  disabled={!selectedProject || engineStats?.active_jobs?.export?.status === "Processing"}
-                  className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Salvar Imagens no R2
-                </button>
+                {isZipping ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-2.5 bg-primary/20 text-primary font-semibold rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5"
+                  >
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Criando ZIP... {zipProgress}%
+                  </button>
+                ) : engineStats?.active_jobs?.export?.status === "Pending" || engineStats?.active_jobs?.export?.status === "Processing" ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-2.5 bg-primary/20 text-primary font-semibold rounded-xl text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5"
+                  >
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Exportando no R2... {engineStats.active_jobs.export.progress}%
+                  </button>
+                ) : engineStats?.active_jobs?.export?.status === "Completed" ? (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadZip}
+                      className="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Baixar Lote Editado (ZIP)
+                    </button>
+                    <button
+                      type="submit"
+                      className="w-full py-1 text-gray-500 hover:text-white transition-colors text-[9px] uppercase font-bold tracking-wider text-center cursor-pointer"
+                    >
+                      Re-exportar Imagens
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!selectedProject}
+                    className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Salvar Imagens no R2
+                  </button>
+                )}
               </form>
 
               {/* Export Queue Progress */}
