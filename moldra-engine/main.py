@@ -10,7 +10,15 @@ import multiprocessing
 
 # Local imports
 from image_processor import ImageProcessor, r2_client, r2_bucket_name, r2_public_url
-from culling_ai import CullingAI
+
+culling_error = None
+try:
+    from culling_ai import CullingAI
+except Exception as e:
+    import traceback
+    culling_error = traceback.format_exc()
+    print(f"⚠️ Warning: CullingAI failed to load:\n{culling_error}")
+    CullingAI = None
 
 app = FastAPI(title="Moldra Engine Cloud API", version="2.0.0")
 
@@ -61,7 +69,8 @@ def get_status():
         "projects_count": len(projects),
         "projects_list": projects,
         "cores_available": multiprocessing.cpu_count(),
-        "active_jobs": active_jobs
+        "active_jobs": active_jobs,
+        "culling_error": culling_error
     }
 
 def bg_culling_task(project_name: str, file_urls: List[str]):
@@ -186,6 +195,11 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
 @app.post("/api/cull")
 def trigger_cull(req: CullRequest, bg_tasks: BackgroundTasks):
     """Triggers background task to download R2 files, process culling, and save sidecars."""
+    if CullingAI is None:
+        raise HTTPException(
+            status_code=500,
+            detail=f"O processador de IA (CullingAI) não foi inicializado com sucesso. Erro: {culling_error}"
+        )
     active_jobs["culling"] = {"progress": 0, "status": "Pending", "total": 0, "current": 0}
     bg_tasks.add_task(bg_culling_task, req.project_name, req.file_urls)
     return {"message": "Culling iniciado em background.", "project": req.project_name}
