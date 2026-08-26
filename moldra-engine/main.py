@@ -5,7 +5,7 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import multiprocessing
 
 # Local imports
@@ -248,12 +248,12 @@ def bg_export_task(project_name: str, watermark_text: str, scale_max_dim: int):
                 "scale_max_dim": scale_max_dim
             })
 
-        # Process pool multiprocessing
-        max_workers = multiprocessing.cpu_count()
-        print(f"Starting cloud export for {total_files} files using {max_workers} workers...")
+        # Thread pool execution (lightweight memory footprint for serverless/containers)
+        max_workers = min(2, multiprocessing.cpu_count())
+        print(f"Starting cloud export for {total_files} files using {max_workers} threads...")
 
         completed = 0
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(ImageProcessor.export_worker, t) for t in tasks]
             for future in futures:
                 future.result()
