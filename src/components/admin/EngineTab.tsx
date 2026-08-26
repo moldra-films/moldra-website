@@ -234,7 +234,8 @@ export default function EngineTab() {
 
   const checkEngineStatus = async () => {
     try {
-      const res = await fetch(`${engineUrl}/api/status`);
+      const cleanUrl = engineUrl.trim();
+      const res = await fetch(`${cleanUrl}/api/status`);
       if (res.ok) {
         const data = await res.json();
         setEngineStats(data);
@@ -712,8 +713,9 @@ export default function EngineTab() {
                 value={engineUrl}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setEngineUrl(val);
-                  localStorage.setItem("moldra_engine_url", val);
+                  const cleanVal = val.trim();
+                  setEngineUrl(cleanVal);
+                  localStorage.setItem("moldra_engine_url", cleanVal);
                 }}
                 placeholder="https://sua-url-na-render.com"
                 className="flex-1 bg-black/80 border border-white/10 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-primary"
