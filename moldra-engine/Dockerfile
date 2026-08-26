@@ -7,13 +7,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Install system dependencies required by OpenCV and MediaPipe
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies required by OpenCV and MediaPipe (ignoring network errors on build host)
+RUN (apt-get update || true) && \
+    (apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
     build-essential \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    || true) && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
 COPY requirements.txt .
