@@ -51,8 +51,8 @@ app.add_middleware(
 
 # Global task state tracking
 active_jobs = {
-    "culling": {"progress": 0, "status": "Idle", "total": 0, "current": 0},
-    "export": {"progress": 0, "status": "Idle", "total": 0, "current": 0}
+    "culling": {"progress": 0, "status": "Idle", "total": 0, "current": 0, "project_name": None},
+    "export": {"progress": 0, "status": "Idle", "total": 0, "current": 0, "project_name": None}
 }
 
 class CullRequest(BaseModel):
@@ -371,6 +371,10 @@ def delete_project(project_name: str):
                 )
                 deleted_count += len(delete_keys)
                 
+        # Reset export job tracking if the deleted project was the one being tracked
+        if active_jobs["export"].get("project_name") == project_name:
+            active_jobs["export"] = {"progress": 0, "status": "Idle", "total": 0, "current": 0, "project_name": None}
+            
         return {"status": "success", "message": f"Projeto '{project_name}' deletado com sucesso. {deleted_count} arquivos removidos do R2."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao deletar projeto: {str(e)}")
@@ -378,7 +382,7 @@ def delete_project(project_name: str):
 @app.post("/api/export")
 def trigger_export(req: ExportRequest, bg_tasks: BackgroundTasks):
     """Triggers background multiprocessing render export."""
-    active_jobs["export"] = {"progress": 0, "status": "Pending", "total": 0, "current": 0}
+    active_jobs["export"] = {"progress": 0, "status": "Pending", "total": 0, "current": 0, "project_name": req.project_name}
     bg_tasks.add_task(bg_export_task, req.project_name, req.watermark_text, req.scale_max_dim)
     return {"message": "Exportação iniciada em background.", "project": req.project_name}
 

@@ -917,7 +917,7 @@ export default function EngineTab() {
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     Exportando no R2... {engineStats.active_jobs.export.progress}%
                   </button>
-                ) : engineStats?.active_jobs?.export?.status === "Completed" ? (
+                ) : (engineStats?.active_jobs?.export?.status === "Completed" && engineStats?.active_jobs?.export?.project_name === selectedProject) ? (
                   <div className="space-y-2">
                     <button
                       type="button"
