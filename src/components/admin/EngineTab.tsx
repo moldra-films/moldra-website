@@ -55,6 +55,33 @@ interface UploadingFile {
 
 const ENGINE_URL = process.env.NEXT_PUBLIC_MOLDRA_ENGINE_URL || "http://127.0.0.1:8000";
 
+const PRESETS = [
+  {
+    name: "Original",
+    values: { exposure: 0, contrast: 0, temp: 0, saturation: 0, sharpness: 0, noiseReduction: 0 }
+  },
+  {
+    name: "Cinemático",
+    values: { exposure: -0.15, contrast: 0.25, temp: 0.15, saturation: -0.15, sharpness: 0.25, noiseReduction: 0.1 }
+  },
+  {
+    name: "P&B Clássico",
+    values: { exposure: 0.1, contrast: 0.35, temp: 0, saturation: -1.0, sharpness: 0.2, noiseReduction: 0.05 }
+  },
+  {
+    name: "Vintage",
+    values: { exposure: 0.2, contrast: -0.2, temp: 0.3, saturation: -0.2, sharpness: 0.1, noiseReduction: 0.25 }
+  },
+  {
+    name: "Vibrante",
+    values: { exposure: 0.1, contrast: 0.15, temp: 0.05, saturation: 0.35, sharpness: 0.3, noiseReduction: 0.1 }
+  },
+  {
+    name: "Golden Hour",
+    values: { exposure: 0.15, contrast: 0.1, temp: 0.45, saturation: 0.1, sharpness: 0.2, noiseReduction: 0 }
+  }
+];
+
 export default function EngineTab() {
   const [isOnline, setIsOnline] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -334,6 +361,29 @@ export default function EngineTab() {
     });
   };
 
+  const handleApplyPreset = (values: typeof adjustments) => {
+    setAdjustments(values);
+    if (selectedPhoto) {
+      setProjectSettings((prev) => ({
+        ...prev,
+        adjustments: {
+          ...prev.adjustments,
+          [selectedPhoto.filename]: values
+        }
+      }));
+
+      fetch(`${ENGINE_URL}/api/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_name: selectedProject,
+          filename: selectedPhoto.filename,
+          adjustments: values
+        })
+      }).catch(e => console.error("Error saving preset:", e));
+    }
+  };
+
   const handleApplyToAll = async () => {
     if (!selectedProject || projectSettings.culling_results.length === 0) return;
     if (!confirm("Deseja aplicar os ajustes da foto selecionada em TODAS as fotos deste projeto?")) return;
@@ -433,6 +483,31 @@ export default function EngineTab() {
   };
 
   const { groups, nonGrouped } = groupPhotos();
+
+  // CSS Filter Generator for Real-Time preview
+  const getFilterStyle = () => {
+    const brightness = 100 + (adjustments.exposure * 25); // Exposure: -3..3 -> 25%..175%
+    const contrast = 100 + (adjustments.contrast * 100);  // Contrast: -1..1 -> 0%..200%
+    const saturate = 100 + (adjustments.saturation * 100); // Saturation: -1..1 -> 0%..200%
+    
+    return {
+      filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%)`,
+    };
+  };
+
+  // CSS Temperature Simulation overlay
+  const getTempOverlayStyle = () => {
+    if (adjustments.temp === 0) return { display: "none" };
+    
+    const isWarm = adjustments.temp > 0;
+    const color = isWarm ? "rgba(255, 140, 0, " : "rgba(0, 191, 255, ";
+    const opacity = Math.abs(adjustments.temp) * 0.15; // Max 15% opacity blend
+    
+    return {
+      backgroundColor: `${color}${opacity})`,
+      mixBlendMode: "multiply" as const,
+    };
+  };
 
   return (
     <div className="p-8 space-y-8">
@@ -754,7 +829,6 @@ export default function EngineTab() {
                                 </div>
                               </div>
                               
-                              {/* Hover maximize indicator overlay */}
                               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-30 flex items-center justify-center">
                                 <Maximize2 className="w-6 h-6 text-white" />
                               </div>
@@ -898,15 +972,24 @@ export default function EngineTab() {
                   <ChevronLeft className="w-6 h-6" />
                 </button>
 
-                {/* Main Large Image */}
-                <motion.img
-                  key={selectedPhoto.filename}
-                  initial={{ scale: 0.98, opacity: 0.9 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  src={selectedPhoto.proxyUrl}
-                  alt={selectedPhoto.filename}
-                  className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl border border-white/10"
-                />
+                {/* Main Large Image Wrapper with live CSS filter style */}
+                <div className="relative max-w-full max-h-[75vh] rounded-lg overflow-hidden border border-white/10 shadow-2xl">
+                  <motion.img
+                    key={selectedPhoto.filename}
+                    initial={{ scale: 0.98, opacity: 0.9 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    src={selectedPhoto.proxyUrl}
+                    alt={selectedPhoto.filename}
+                    style={getFilterStyle()}
+                    className="max-w-full max-h-[75vh] object-contain transition-all duration-75"
+                  />
+                  
+                  {/* Color Temperature Overlay simulation */}
+                  <div 
+                    className="absolute inset-0 pointer-events-none transition-all duration-200"
+                    style={getTempOverlayStyle()}
+                  />
+                </div>
 
                 {/* Right Navigation Arrow */}
                 <button 
@@ -1087,7 +1170,7 @@ export default function EngineTab() {
                   {/* Temperature */}
                   <div className="space-y-1 font-sans text-xs">
                     <div className="flex justify-between font-mono text-[10px] text-gray-400">
-                      <span>Temperatura</span>
+                      <span>Temperatura (WB)</span>
                       <span>{adjustments.temp > 0 ? `+${Math.round(adjustments.temp * 100)}` : Math.round(adjustments.temp * 100)}</span>
                     </div>
                     <input
@@ -1150,6 +1233,22 @@ export default function EngineTab() {
                       onChange={(e) => handleAdjustChange("noiseReduction", Number(e.target.value))}
                       className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-primary"
                     />
+                  </div>
+                </div>
+
+                {/* PRESETS PANEL */}
+                <div className="space-y-3 pt-4 border-t border-white/5">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Estilos Pré-definidos (LUTs)</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        onClick={() => handleApplyPreset(preset.values)}
+                        className="py-2 px-1 bg-black/30 hover:bg-primary hover:text-black border border-white/5 rounded-lg text-[9px] uppercase font-bold tracking-wider text-white transition-all text-center cursor-pointer truncate"
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
