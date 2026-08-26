@@ -58,7 +58,7 @@ const ENGINE_URL = process.env.NEXT_PUBLIC_MOLDRA_ENGINE_URL || "http://127.0.0.
 const PRESETS = [
   {
     name: "Original",
-    values: { exposure: 0, contrast: 0, temp: 0, saturation: 0, sharpness: 0, noiseReduction: 0 }
+    values: { exposure: 0.0, contrast: 0.0, temp: 0.0, saturation: 0.0, sharpness: 0.0, noiseReduction: 0.0 }
   },
   {
     name: "Cinemático",
@@ -66,19 +66,31 @@ const PRESETS = [
   },
   {
     name: "P&B Clássico",
-    values: { exposure: 0.1, contrast: 0.35, temp: 0, saturation: -1.0, sharpness: 0.2, noiseReduction: 0.05 }
+    values: { exposure: 0.1, contrast: 0.35, temp: 0.0, saturation: -1.0, sharpness: 0.2, noiseReduction: 0.05 }
   },
   {
-    name: "Vintage",
-    values: { exposure: 0.2, contrast: -0.2, temp: 0.3, saturation: -0.2, sharpness: 0.1, noiseReduction: 0.25 }
+    name: "Vintage Faded",
+    values: { exposure: 0.2, contrast: -0.25, temp: 0.25, saturation: -0.2, sharpness: 0.1, noiseReduction: 0.2 }
   },
   {
-    name: "Vibrante",
-    values: { exposure: 0.1, contrast: 0.15, temp: 0.05, saturation: 0.35, sharpness: 0.3, noiseReduction: 0.1 }
+    name: "Vibrante Pop",
+    values: { exposure: 0.1, contrast: 0.2, temp: 0.05, saturation: 0.4, sharpness: 0.3, noiseReduction: 0.1 }
   },
   {
     name: "Golden Hour",
-    values: { exposure: 0.15, contrast: 0.1, temp: 0.45, saturation: 0.1, sharpness: 0.2, noiseReduction: 0 }
+    values: { exposure: 0.15, contrast: 0.1, temp: 0.5, saturation: 0.1, sharpness: 0.2, noiseReduction: 0.0 }
+  },
+  {
+    name: "Muted Matte",
+    values: { exposure: 0.2, contrast: -0.15, temp: 0.1, saturation: -0.3, sharpness: 0.15, noiseReduction: 0.15 }
+  },
+  {
+    name: "Frio Cyber",
+    values: { exposure: -0.1, contrast: 0.2, temp: -0.4, saturation: 0.25, sharpness: 0.25, noiseReduction: 0.1 }
+  },
+  {
+    name: "Contraste Drama",
+    values: { exposure: -0.25, contrast: 0.4, temp: -0.05, saturation: -0.25, sharpness: 0.4, noiseReduction: 0.05 }
   }
 ];
 
@@ -484,25 +496,44 @@ export default function EngineTab() {
 
   const { groups, nonGrouped } = groupPhotos();
 
-  // CSS Filter Generator for Real-Time preview
+  // CSS Filter Generator based on input adjustments
   const getFilterStyle = () => {
-    const brightness = 100 + (adjustments.exposure * 25); // Exposure: -3..3 -> 25%..175%
-    const contrast = 100 + (adjustments.contrast * 100);  // Contrast: -1..1 -> 0%..200%
-    const saturate = 100 + (adjustments.saturation * 100); // Saturation: -1..1 -> 0%..200%
-    
+    const brightness = 100 + (adjustments.exposure * 25);
+    const contrast = 100 + (adjustments.contrast * 100);
+    const saturate = 100 + (adjustments.saturation * 100);
     return {
       filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%)`,
     };
   };
 
-  // CSS Temperature Simulation overlay
+  // Temperature Simulation overlay style
   const getTempOverlayStyle = () => {
     if (adjustments.temp === 0) return { display: "none" };
-    
     const isWarm = adjustments.temp > 0;
     const color = isWarm ? "rgba(255, 140, 0, " : "rgba(0, 191, 255, ";
-    const opacity = Math.abs(adjustments.temp) * 0.15; // Max 15% opacity blend
-    
+    const opacity = Math.abs(adjustments.temp) * 0.15;
+    return {
+      backgroundColor: `${color}${opacity})`,
+      mixBlendMode: "multiply" as const,
+    };
+  };
+
+  // Static Preset Filter style generator for thumbnails
+  const getPresetFilterStyle = (vals: typeof adjustments) => {
+    const brightness = 100 + (vals.exposure * 25);
+    const contrast = 100 + (vals.contrast * 100);
+    const saturate = 100 + (vals.saturation * 100);
+    return {
+      filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%)`,
+    };
+  };
+
+  // Static Temperature Simulation overlay style for thumbnails
+  const getPresetTempOverlayStyle = (temp: number) => {
+    if (temp === 0) return { display: "none" };
+    const isWarm = temp > 0;
+    const color = isWarm ? "rgba(255, 140, 0, " : "rgba(0, 191, 255, ";
+    const opacity = Math.abs(temp) * 0.15;
     return {
       backgroundColor: `${color}${opacity})`,
       mixBlendMode: "multiply" as const,
@@ -984,7 +1015,7 @@ export default function EngineTab() {
                     className="max-w-full max-h-[75vh] object-contain transition-all duration-75"
                   />
                   
-                  {/* Color Temperature Overlay simulation */}
+                  {/* Color Temperature Simulation overlay */}
                   <div 
                     className="absolute inset-0 pointer-events-none transition-all duration-200"
                     style={getTempOverlayStyle()}
@@ -1236,17 +1267,33 @@ export default function EngineTab() {
                   </div>
                 </div>
 
-                {/* PRESETS PANEL */}
+                {/* VISUAL PRESETS GRID (LUTs with thumbnails) */}
                 <div className="space-y-3 pt-4 border-t border-white/5">
                   <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Estilos Pré-definidos (LUTs)</span>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-3">
                     {PRESETS.map((preset) => (
                       <button
                         key={preset.name}
                         onClick={() => handleApplyPreset(preset.values)}
-                        className="py-2 px-1 bg-black/30 hover:bg-primary hover:text-black border border-white/5 rounded-lg text-[9px] uppercase font-bold tracking-wider text-white transition-all text-center cursor-pointer truncate"
+                        className="flex flex-col items-center gap-1.5 p-1 rounded-xl bg-black/30 hover:bg-white/5 border border-white/5 hover:border-primary/20 transition-all cursor-pointer group text-left"
                       >
-                        {preset.name}
+                        {/* Preset preview thumbnail with current photo & preset filters */}
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-white/10">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={selectedPhoto.proxyUrl}
+                            alt={preset.name}
+                            style={getPresetFilterStyle(preset.values)}
+                            className="w-full h-full object-cover transition-all"
+                          />
+                          <div 
+                            className="absolute inset-0 pointer-events-none"
+                            style={getPresetTempOverlayStyle(preset.values.temp)}
+                          />
+                        </div>
+                        <span className="text-[8px] font-sans font-bold text-gray-400 group-hover:text-primary transition-colors text-center block w-full truncate px-1">
+                          {preset.name}
+                        </span>
                       </button>
                     ))}
                   </div>
