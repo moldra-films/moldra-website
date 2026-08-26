@@ -167,13 +167,19 @@ export default function EngineTab() {
     }
   }, []);
 
-  // Ping FastAPI Server on mount & set up polling when engineUrl changes
+  // Ping FastAPI Server on mount & set up polling when engineUrl or selectedProject changes
   useEffect(() => {
     let active = true;
     let timeoutId: NodeJS.Timeout;
 
     const poll = async () => {
       await checkEngineStatus();
+      
+      // Silently refresh project settings if a project is selected to show live culling/export progress
+      if (active && selectedProject) {
+        await loadProjectSettings(selectedProject, true);
+      }
+      
       if (active) {
         timeoutId = setTimeout(poll, 5000);
       }
@@ -185,7 +191,7 @@ export default function EngineTab() {
       active = false;
       clearTimeout(timeoutId);
     };
-  }, [engineUrl]);
+  }, [engineUrl, selectedProject]);
 
 
   // Poll project details when selected project changes
@@ -297,17 +303,28 @@ export default function EngineTab() {
     setLoadingStatus(false);
   };
 
-  const loadProjectSettings = async (projectName: string) => {
-    setLoadingProject(true);
+  const loadProjectSettings = async (projectName: string, silent = false) => {
+    if (!silent) setLoadingProject(true);
     try {
       const res = await fetch(`${engineUrl.trim()}/api/project/${projectName}/settings?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setProjectSettings(data);
         if (data.culling_results && data.culling_results.length > 0) {
-          setSelectedPhoto(data.culling_results[0]);
-          const photoName = data.culling_results[0].filename;
-          const photoAdj = data.adjustments?.[photoName] || {
+          // Determine which photo should be active (preserve selection if it exists in the new dataset)
+          let activePhoto = selectedPhoto;
+          if (activePhoto) {
+            const updated = data.culling_results.find((p: any) => p.filename === activePhoto!.filename);
+            if (updated) {
+              activePhoto = updated;
+            }
+          } else {
+            activePhoto = data.culling_results[0];
+          }
+          
+          setSelectedPhoto(activePhoto);
+          
+          const photoAdj = data.adjustments?.[activePhoto.filename] || {
             exposure: 0.0,
             contrast: 0.0,
             temp: 0.0,
@@ -321,7 +338,7 @@ export default function EngineTab() {
     } catch (e) {
       console.error("Error loading project settings:", e);
     } finally {
-      setLoadingProject(false);
+      if (!silent) setLoadingProject(false);
     }
   };
 
