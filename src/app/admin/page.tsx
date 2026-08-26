@@ -17,6 +17,7 @@ import ApprovalTab from "@/components/admin/ApprovalTab";
 import AICopilotTab from "@/components/admin/AICopilotTab";
 import EventMediaTab from "@/components/admin/EventMediaTab";
 import SettingsTab from "@/components/admin/SettingsTab";
+import EngineTab from "@/components/admin/EngineTab";
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -42,6 +43,8 @@ export default function AdminPage() {
         return "Gestão de Mídias de Eventos";
       case "copilot":
         return "IA Copilot Produtora";
+      case "moldra-engine":
+        return "Moldra Engine Studio Flow";
       case "settings":
         return "Configurações Globais";
       default:
@@ -69,6 +72,8 @@ export default function AdminPage() {
         return <EventMediaTab />;
       case "copilot":
         return <AICopilotTab />;
+      case "moldra-engine":
+        return <EngineTab />;
       case "settings":
         return <SettingsTab />;
       default:

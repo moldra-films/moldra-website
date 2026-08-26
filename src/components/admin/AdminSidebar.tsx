@@ -15,7 +15,8 @@ import {
   LogOut,
   Camera,
   X,
-  ChevronDown
+  ChevronDown,
+  Zap
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -100,6 +101,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
     { id: "approval", label: "Portal de Aprovação", icon: Eye },
     { id: "event-media", label: "Mídias de Eventos", icon: Camera },
     { id: "copilot", label: "IA Copilot", icon: Cpu },
+    { id: "moldra-engine", label: "Moldra Engine", icon: Zap },
     { id: "settings", label: "Configurações", icon: Settings },
   ];
 
