@@ -269,6 +269,57 @@ def bg_export_task(project_name: str, watermark_text: str, scale_max_dim: int):
         active_jobs["export"]["status"] = f"Failed: {str(e)}"
         active_jobs["export"]["progress"] = 0
 
+class AdjustmentRequest(BaseModel):
+    project_name: str
+    filename: str
+    adjustments: dict
+
+@app.get("/api/project/{project_name}/settings")
+def get_project_settings(project_name: str):
+    """Retrieves settings and adjustments for a project directly from Cloudflare R2."""
+    settings_key = f"projects/{project_name}/settings.json"
+    if not r2_client or not r2_bucket_name:
+        return {"adjustments": {}, "culling_results": []}
+    try:
+        response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
+        return json.loads(response["Body"].read().decode("utf-8"))
+    except Exception as e:
+        # Check if error is NoSuchKey (404)
+        if "NoSuchKey" in str(e):
+            return {"adjustments": {}, "culling_results": []}
+        raise HTTPException(status_code=500, detail=f"Erro ao ler configurações: {str(e)}")
+
+@app.post("/api/adjust")
+def save_adjustment(req: AdjustmentRequest):
+    """Saves or updates custom adjustments for a specific photo inside R2 settings JSON."""
+    settings_key = f"projects/{req.project_name}/settings.json"
+    project_settings = {"adjustments": {}, "culling_results": []}
+    
+    if not r2_client or not r2_bucket_name:
+        raise HTTPException(status_code=500, detail="R2 client is not configured.")
+        
+    try:
+        # Try fetching existing settings
+        try:
+            response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
+            project_settings = json.loads(response["Body"].read().decode("utf-8"))
+        except Exception as e:
+            if "NoSuchKey" not in str(e):
+                raise e
+            
+        if "adjustments" not in project_settings:
+            project_settings["adjustments"] = {}
+            
+        # Update adjustments for this file
+        project_settings["adjustments"][req.filename] = req.adjustments
+        
+        # Save back to R2
+        settings_bytes = json.dumps(project_settings, indent=2, ensure_ascii=False).encode("utf-8")
+        ImageProcessor.upload_data_to_r2(settings_bytes, settings_key, "application/json")
+        return {"status": "success", "message": f"Ajustes salvos para {req.filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar ajustes: {str(e)}")
+
 @app.post("/api/export")
 def trigger_export(req: ExportRequest, bg_tasks: BackgroundTasks):
     """Triggers background multiprocessing render export."""
