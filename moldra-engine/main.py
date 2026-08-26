@@ -13,6 +13,8 @@ from image_processor import ImageProcessor, r2_client, r2_bucket_name, r2_public
 
 culling_error = None
 try:
+    # Diagnostic check to force print the underlying ImportError if MediaPipe binary loading fails
+    import mediapipe.python._framework_bindings
     from culling_ai import CullingAI
 except Exception as e:
     import traceback

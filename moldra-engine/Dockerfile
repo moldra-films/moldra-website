@@ -4,14 +4,14 @@ FROM python:3.10-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
-ENV CACHE_BYPASS=20260825_2227
+ENV CACHE_BYPASS=20260825_2237
 
 WORKDIR /app
 
 # Install system dependencies required by OpenCV and MediaPipe (forcing IPv4 to prevent IPv6 timeouts on Render)
 RUN apt-get -o Acquire::ForceIPv4=true update && \
     apt-get -o Acquire::ForceIPv4=true install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     build-essential \
     && apt-get clean \
