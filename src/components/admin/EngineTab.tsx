@@ -235,7 +235,7 @@ export default function EngineTab() {
   const checkEngineStatus = async () => {
     try {
       const cleanUrl = engineUrl.trim();
-      const res = await fetch(`${cleanUrl}/api/status`);
+      const res = await fetch(`${cleanUrl}/api/status?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setEngineStats(data);
@@ -253,7 +253,7 @@ export default function EngineTab() {
   const loadProjectSettings = async (projectName: string) => {
     setLoadingProject(true);
     try {
-      const res = await fetch(`${engineUrl}/api/project/${projectName}/settings`);
+      const res = await fetch(`${engineUrl.trim()}/api/project/${projectName}/settings?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setProjectSettings(data);
