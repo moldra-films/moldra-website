@@ -12,13 +12,21 @@ import multiprocessing
 from image_processor import ImageProcessor, r2_client, r2_bucket_name, r2_public_url
 
 culling_error = None
-try:
-    from culling_ai import CullingAI
-except Exception as e:
-    import traceback
-    culling_error = traceback.format_exc()
-    print(f"⚠️ Warning: CullingAI failed to load:\n{culling_error}")
-    CullingAI = None
+CullingAI = None
+
+def get_culling_ai():
+    global CullingAI, culling_error
+    if CullingAI is not None:
+        return CullingAI
+    try:
+        from culling_ai import CullingAI as LoadedCullingAI
+        CullingAI = LoadedCullingAI
+        return CullingAI
+    except Exception as e:
+        import traceback
+        culling_error = traceback.format_exc()
+        print(f"⚠️ Warning: CullingAI failed to load:\n{culling_error}")
+        return None
 
 app = FastAPI(title="Moldra Engine Cloud API", version="2.0.0")
 
@@ -126,7 +134,10 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
 
         # 3. Execute AI Culling over local previews
         just_paths = [p[0] for p in local_image_paths]
-        culling_results = CullingAI.run_culling_on_images(just_paths)
+        ai = get_culling_ai()
+        if ai is None:
+            raise Exception("CullingAI could not be loaded")
+        culling_results = ai.run_culling_on_images(just_paths)
 
         # 4. Save Lightroom XMP Sidecars and update results back to R2
         final_results = []
@@ -138,7 +149,7 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
             proxy_url = match[3]
 
             # Generate XMP local sidecar
-            xmp_local = CullingAI.generate_xmp_sidecar(item["path"], item["stars"], item["color_label"])
+            xmp_local = ai.generate_xmp_sidecar(item["path"], item["stars"], item["color_label"])
             if xmp_local and os.path.exists(xmp_local):
                 # Upload XMP to R2 'Original/' folder next to original image
                 # e.g., original url: .../projects/myproj/Original/photo.CR2
@@ -195,7 +206,8 @@ def bg_culling_task(project_name: str, file_urls: List[str]):
 @app.post("/api/cull")
 def trigger_cull(req: CullRequest, bg_tasks: BackgroundTasks):
     """Triggers background task to download R2 files, process culling, and save sidecars."""
-    if CullingAI is None:
+    ai = get_culling_ai()
+    if ai is None:
         raise HTTPException(
             status_code=500,
             detail=f"O processador de IA (CullingAI) não foi inicializado com sucesso. Erro: {culling_error}"
