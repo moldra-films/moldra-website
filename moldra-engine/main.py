@@ -399,14 +399,30 @@ def get_project_settings(project_name: str):
     """Retrieves settings and adjustments for a project directly from Cloudflare R2."""
     settings_key = f"projects/{project_name}/settings.json"
     if not r2_client or not r2_bucket_name:
-        return {"adjustments": {}, "culling_results": []}
+        return {"adjustments": {}, "culling_results": [], "has_exported": False}
     try:
         response = r2_client.get_object(Bucket=r2_bucket_name, Key=settings_key)
-        return json.loads(response["Body"].read().decode("utf-8"))
+        data = json.loads(response["Body"].read().decode("utf-8"))
+        
+        # Check if there are any files in the Prontas folder
+        has_exported = False
+        try:
+            list_res = r2_client.list_objects_v2(
+                Bucket=r2_bucket_name,
+                Prefix=f"projects/{project_name}/Prontas/",
+                MaxKeys=1
+            )
+            if "Contents" in list_res and len(list_res["Contents"]) > 0:
+                has_exported = True
+        except Exception:
+            pass
+            
+        data["has_exported"] = has_exported
+        return data
     except Exception as e:
         # Check if error is NoSuchKey (404)
         if "NoSuchKey" in str(e):
-            return {"adjustments": {}, "culling_results": []}
+            return {"adjustments": {}, "culling_results": [], "has_exported": False}
         raise HTTPException(status_code=500, detail=f"Erro ao ler configurações: {str(e)}")
 
 @app.post("/api/adjust")

@@ -660,8 +660,8 @@ export default function EngineTab() {
         const lastDot = exportedUrl.lastIndexOf(".");
         const cleanUrl = exportedUrl.substring(0, lastDot) + ".jpg";
         
-        // Fetch the file as a blob
-        const res = await fetch(cleanUrl);
+        // Fetch the file as a blob via proxy-image to bypass browser CORS block
+        const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(cleanUrl)}`);
         if (!res.ok) {
           throw new Error(`Erro ao baixar a foto ${photo.filename} da nuvem.`);
         }
@@ -968,7 +968,7 @@ export default function EngineTab() {
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     Exportando no R2... {engineStats.active_jobs.export.progress}%
                   </button>
-                ) : (engineStats?.active_jobs?.export?.status === "Completed" && engineStats?.active_jobs?.export?.project_name === selectedProject) ? (
+                ) : ((engineStats?.active_jobs?.export?.status === "Completed" && engineStats?.active_jobs?.export?.project_name === selectedProject) || projectSettings?.has_exported) ? (
                   <div className="space-y-2">
                     <button
                       type="button"
