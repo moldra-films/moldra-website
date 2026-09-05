@@ -169,6 +169,9 @@ export default function FinanceTab() {
     dueDate: new Date().toISOString().split("T")[0],
     status: "Pendente" as Transaction["status"],
     notes: "",
+    recurrence: "Não recorrente" as "Não recorrente" | "Parcelar ou Repetir" | "Fixa Mensal",
+    installmentsCount: 2,
+    installmentMode: "divide" as "divide" | "repeat",
   });
 
   const [transferForm, setTransferForm] = useState({
@@ -409,30 +412,119 @@ export default function FinanceTab() {
         return t;
       });
     } else {
-      // Create new transaction
-      const newTx: Transaction = {
-        id: newTxId,
-        description: txForm.description,
-        type: txForm.type,
-        category: txForm.category,
-        subcategory: txForm.subcategory,
-        customerOrProvider: txForm.customerOrProvider,
-        bankAccountId: txForm.bankAccountId,
-        paymentMethod: txForm.paymentMethod,
-        value: valueNum,
-        date: txForm.date,
-        dueDate: txForm.dueDate,
-        status: txForm.status,
-        origin: "Manual",
-        receiptUrl: null,
-        notes: txForm.notes
-      };
-      
-      updated = [...transactions, newTx];
-      
-      // Update bank account balance if paid/received immediately
-      if ((newTx.status === "Recebido" || newTx.status === "Pago") && newTx.bankAccountId) {
-        updateAccountBalance(newTx.bankAccountId, newTx.value, newTx.type === "Entrada" ? "add" : "sub");
+      // Create new transaction(s) based on recurrence
+      if (txForm.recurrence === "Parcelar ou Repetir") {
+        const count = Math.max(2, Math.min(60, Number(txForm.installmentsCount) || 2));
+        const valPerInstallment = txForm.installmentMode === "divide"
+          ? Number((valueNum / count).toFixed(2))
+          : valueNum;
+
+        const newTxs: Transaction[] = [];
+        const baseDueDate = new Date(txForm.dueDate + "T00:00:00");
+        const baseDate = new Date(txForm.date + "T00:00:00");
+
+        for (let i = 0; i < count; i++) {
+          const dDue = new Date(baseDueDate);
+          dDue.setMonth(dDue.getMonth() + i);
+          const dDate = new Date(baseDate);
+          dDate.setMonth(dDate.getMonth() + i);
+
+          const isFirst = i === 0;
+          const itemStatus = isFirst ? txForm.status : "Pendente";
+
+          const itemTx: Transaction = {
+            id: `tx-${Date.now()}-${i + 1}`,
+            description: `${txForm.description} (${i + 1}/${count})`,
+            type: txForm.type,
+            category: txForm.category,
+            subcategory: txForm.subcategory,
+            customerOrProvider: txForm.customerOrProvider,
+            bankAccountId: txForm.bankAccountId,
+            paymentMethod: txForm.paymentMethod,
+            value: valPerInstallment,
+            date: dDate.toISOString().split("T")[0],
+            dueDate: dDue.toISOString().split("T")[0],
+            status: itemStatus,
+            origin: "Manual",
+            receiptUrl: null,
+            notes: txForm.notes ? `[Parcela ${i + 1}/${count}] ${txForm.notes}` : `[Parcela ${i + 1}/${count}]`,
+          };
+
+          newTxs.push(itemTx);
+
+          if (isFirst && (itemStatus === "Recebido" || itemStatus === "Pago") && itemTx.bankAccountId) {
+            updateAccountBalance(itemTx.bankAccountId, itemTx.value, itemTx.type === "Entrada" ? "add" : "sub");
+          }
+        }
+
+        updated = [...transactions, ...newTxs];
+      } else if (txForm.recurrence === "Fixa Mensal") {
+        const newTxs: Transaction[] = [];
+        const baseDueDate = new Date(txForm.dueDate + "T00:00:00");
+        const baseDate = new Date(txForm.date + "T00:00:00");
+
+        for (let i = 0; i < 12; i++) {
+          const dDue = new Date(baseDueDate);
+          dDue.setMonth(dDue.getMonth() + i);
+          const dDate = new Date(baseDate);
+          dDate.setMonth(dDate.getMonth() + i);
+
+          const monthName = dDue.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+          const isFirst = i === 0;
+          const itemStatus = isFirst ? txForm.status : "Pendente";
+
+          const itemTx: Transaction = {
+            id: `tx-${Date.now()}-${i + 1}`,
+            description: `${txForm.description} [${monthName}]`,
+            type: txForm.type,
+            category: txForm.category,
+            subcategory: txForm.subcategory,
+            customerOrProvider: txForm.customerOrProvider,
+            bankAccountId: txForm.bankAccountId,
+            paymentMethod: txForm.paymentMethod,
+            value: valueNum,
+            date: dDate.toISOString().split("T")[0],
+            dueDate: dDue.toISOString().split("T")[0],
+            status: itemStatus,
+            origin: "Manual",
+            receiptUrl: null,
+            notes: txForm.notes ? `[Fixa Mensal] ${txForm.notes}` : `[Fixa Mensal]`,
+          };
+
+          newTxs.push(itemTx);
+
+          if (isFirst && (itemStatus === "Recebido" || itemStatus === "Pago") && itemTx.bankAccountId) {
+            updateAccountBalance(itemTx.bankAccountId, itemTx.value, itemTx.type === "Entrada" ? "add" : "sub");
+          }
+        }
+
+        updated = [...transactions, ...newTxs];
+      } else {
+        // Single non-recurring transaction
+        const newTx: Transaction = {
+          id: newTxId,
+          description: txForm.description,
+          type: txForm.type,
+          category: txForm.category,
+          subcategory: txForm.subcategory,
+          customerOrProvider: txForm.customerOrProvider,
+          bankAccountId: txForm.bankAccountId,
+          paymentMethod: txForm.paymentMethod,
+          value: valueNum,
+          date: txForm.date,
+          dueDate: txForm.dueDate,
+          status: txForm.status,
+          origin: "Manual",
+          receiptUrl: null,
+          notes: txForm.notes
+        };
+        
+        updated = [...transactions, newTx];
+        
+        // Update bank account balance if paid/received immediately
+        if ((newTx.status === "Recebido" || newTx.status === "Pago") && newTx.bankAccountId) {
+          updateAccountBalance(newTx.bankAccountId, newTx.value, newTx.type === "Entrada" ? "add" : "sub");
+        }
       }
     }
 
@@ -922,6 +1014,9 @@ export default function FinanceTab() {
       dueDate: new Date().toISOString().split("T")[0],
       status: "Pendente",
       notes: "",
+      recurrence: "Não recorrente",
+      installmentsCount: 2,
+      installmentMode: "divide",
     });
     setShowTransactionModal(true);
   };
@@ -943,6 +1038,9 @@ export default function FinanceTab() {
       dueDate: tx.dueDate,
       status: tx.status,
       notes: tx.notes || "",
+      recurrence: "Não recorrente",
+      installmentsCount: 2,
+      installmentMode: "divide",
     });
     setShowTransactionModal(true);
   };
@@ -964,6 +1062,9 @@ export default function FinanceTab() {
       dueDate: new Date().toISOString().split("T")[0],
       status: "Pendente",
       notes: "",
+      recurrence: "Não recorrente",
+      installmentsCount: 2,
+      installmentMode: "divide",
     });
   };
 
@@ -3045,6 +3146,97 @@ Moldra Films • Recife/PE`;
                   />
                 </div>
               </div>
+
+              {/* Recorrência / Frequência Selector */}
+              <div>
+                <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5 flex items-center justify-between">
+                  <span>Recorrência</span>
+                  {txForm.recurrence !== "Não recorrente" && (
+                    <span className="text-[9px] text-primary font-bold">
+                      {txForm.recurrence === "Parcelar ou Repetir" 
+                        ? `${txForm.installmentsCount}x parcelas` 
+                        : "12 meses recorrentes"}
+                    </span>
+                  )}
+                </label>
+                <select
+                  value={txForm.recurrence}
+                  onChange={(e) => setTxForm({ ...txForm, recurrence: e.target.value as any })}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans cursor-pointer"
+                >
+                  <option value="Não recorrente" className="bg-[#121212] text-white">
+                    Não recorrente
+                  </option>
+                  <option value="Parcelar ou Repetir" className="bg-[#121212] text-white">
+                    Parcelar ou Repetir
+                  </option>
+                  <option value="Fixa Mensal" className="bg-[#121212] text-white">
+                    Fixa Mensal
+                  </option>
+                </select>
+              </div>
+
+              {/* Extended controls when "Parcelar ou Repetir" is selected */}
+              {txForm.recurrence === "Parcelar ou Repetir" && (
+                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">
+                        Número de Parcelas
+                      </label>
+                      <select
+                        value={txForm.installmentsCount}
+                        onChange={(e) => setTxForm({ ...txForm, installmentsCount: Number(e.target.value) })}
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-primary cursor-pointer font-sans"
+                      >
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24, 36].map((num) => (
+                          <option key={num} value={num} className="bg-[#121212]">
+                            {num}x parcelas
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1">
+                        Forma de Cálculo
+                      </label>
+                      <select
+                        value={txForm.installmentMode}
+                        onChange={(e) => setTxForm({ ...txForm, installmentMode: e.target.value as any })}
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-primary cursor-pointer font-sans"
+                      >
+                        <option value="divide" className="bg-[#121212]">
+                          Dividir total ({txForm.installmentsCount}x de R$ {((txForm.value || 0) / (txForm.installmentsCount || 1)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                        </option>
+                        <option value="repeat" className="bg-[#121212]">
+                          Repetir valor ({txForm.installmentsCount}x de R$ {(txForm.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-gray-400 font-sans flex items-center gap-1.5 pt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    <span>
+                      Serão geradas <strong>{txForm.installmentsCount} entradas</strong> mensais automáticas no fluxo de caixa.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Extended controls when "Fixa Mensal" is selected */}
+              {txForm.recurrence === "Fixa Mensal" && (
+                <div className="p-3.5 rounded-xl bg-primary/[0.04] border border-primary/20 space-y-1">
+                  <div className="flex items-center gap-2 text-primary font-bold text-xs">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    Entrada Fixa Mensal
+                  </div>
+                  <p className="text-[11px] text-gray-400 font-sans leading-relaxed">
+                    Será criado um cronograma mensal recorrente de <strong>R$ {(txForm.value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> pelos próximos 12 meses.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
