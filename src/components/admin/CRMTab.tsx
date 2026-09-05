@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAdmin, Lead, Client } from "@/context/AdminContext";
-import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall, Edit, Trash2 } from "lucide-react";
+import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall, Edit, Trash2, GripVertical } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function CRMTab() {
@@ -23,6 +23,8 @@ export default function CRMTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddLead, setShowAddLead] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [draggedLeadId, setDraggedLeadId] = useState<number | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<Lead["stage"] | null>(null);
 
   // New Lead Form State
   const [newLead, setNewLead] = useState({
@@ -176,20 +178,43 @@ export default function CRMTab() {
     setShowAddClient(false);
   };
 
-  const handleStageChange = (leadId: number, currentStage: Lead["stage"], direction: "next" | "prev") => {
-    const stages: Lead["stage"][] = [
-      "Novo Lead",
-      "Primeiro Contato",
-      "Reunião Agendada",
-      "Proposta Enviada",
-      "Negociação"
-    ];
-    const currentIndex = stages.indexOf(currentStage);
-    if (direction === "next" && currentIndex < stages.length - 1) {
-      updateLeadStage(leadId, stages[currentIndex + 1]);
-    } else if (direction === "prev" && currentIndex > 0) {
-      updateLeadStage(leadId, stages[currentIndex - 1]);
+  // Drag and Drop Handlers for Kanban Cards
+  const handleDragStart = (e: React.DragEvent, leadId: number) => {
+    e.dataTransfer.setData("text/plain", leadId.toString());
+    e.dataTransfer.effectAllowed = "move";
+    setDraggedLeadId(leadId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedLeadId(null);
+    setDragOverStage(null);
+  };
+
+  const handleDragOverColumn = (e: React.DragEvent, stage: Lead["stage"]) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverStage !== stage) {
+      setDragOverStage(stage);
     }
+  };
+
+  const handleDragLeaveColumn = (e: React.DragEvent, stage: Lead["stage"]) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (dragOverStage === stage) {
+      setDragOverStage(null);
+    }
+  };
+
+  const handleDropOnColumn = (e: React.DragEvent, stage: Lead["stage"]) => {
+    e.preventDefault();
+    const rawId = e.dataTransfer.getData("text/plain");
+    const leadId = rawId ? Number(rawId) : draggedLeadId;
+    
+    if (leadId) {
+      updateLeadStage(leadId, stage);
+    }
+    setDragOverStage(null);
+    setDraggedLeadId(null);
   };
 
   // Filter clients based on search
@@ -345,84 +370,114 @@ export default function CRMTab() {
         </motion.div>
       )}
 
-      {/* Kanban Board Grid */}
+      {/* Kanban Board Grid with Drag & Drop */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {pipelineStages.map((stageObj) => {
           const stageLeads = leads.filter((lead) => lead.stage === stageObj.stage);
+          const isOver = dragOverStage === stageObj.stage;
           return (
-            <div key={stageObj.stage} className="flex flex-col rounded-2xl bg-dark-card border border-white/5 min-h-[400px]">
+            <div 
+              key={stageObj.stage} 
+              onDragOver={(e) => handleDragOverColumn(e, stageObj.stage)}
+              onDragLeave={(e) => handleDragLeaveColumn(e, stageObj.stage)}
+              onDrop={(e) => handleDropOnColumn(e, stageObj.stage)}
+              className={`flex flex-col rounded-2xl bg-dark-card border transition-all duration-200 min-h-[440px] ${
+                isOver 
+                  ? "border-primary ring-2 ring-primary/30 bg-primary/[0.04] shadow-xl shadow-primary/5" 
+                  : "border-white/5"
+              }`}
+            >
               {/* Stage Header */}
-              <div className={`px-4 py-3 rounded-t-2xl border-b border-white/5 flex items-center justify-between ${stageObj.color}`}>
+              <div className={`px-4 py-3 rounded-t-2xl border-b border-white/5 flex items-center justify-between transition-colors ${stageObj.color} ${isOver ? "bg-primary/20" : ""}`}>
                 <span className="text-[11px] font-bold uppercase tracking-wider">{stageObj.label}</span>
                 <span className="text-xs font-bold font-display px-2 py-0.5 rounded-full bg-white/5">{stageLeads.length}</span>
               </div>
 
-              {/* Stage Cards */}
-              <div className="p-3 space-y-3 overflow-y-auto flex-1">
-                {stageLeads.map((lead) => (
-                  <div
-                    key={lead.id}
-                    className="p-4 rounded-xl bg-black/50 border border-white/5 hover:border-white/10 transition-all flex flex-col justify-between space-y-3 group"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start gap-2">
-                        <span className="text-[10px] text-primary uppercase font-bold tracking-widest">{lead.projectType}</span>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleEditLeadClick(lead)}
-                            className="p-0.5 hover:bg-white/15 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
-                            title="Editar Lead"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => deleteLead(lead.id)}
-                            className="p-0.5 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
-                            title="Excluir Lead"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+              {/* Stage Cards Container */}
+              <div className="p-3 space-y-3 overflow-y-auto flex-1 flex flex-col">
+                {stageLeads.map((lead) => {
+                  const isBeingDragged = draggedLeadId === lead.id;
+                  return (
+                    <div
+                      key={lead.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, lead.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`p-4 rounded-xl bg-black/50 border transition-all duration-150 flex flex-col justify-between space-y-3 group cursor-grab active:cursor-grabbing select-none ${
+                        isBeingDragged
+                          ? "opacity-40 border-dashed border-primary scale-[0.98] shadow-none"
+                          : "border-white/5 hover:border-primary/40 hover:shadow-lg hover:shadow-black/40 hover:bg-black/70"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <GripVertical className="w-3.5 h-3.5 text-gray-600 group-hover:text-primary transition-colors shrink-0" />
+                            <span className="text-[10px] text-primary uppercase font-bold tracking-widest">{lead.projectType}</span>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditLeadClick(lead);
+                              }}
+                              className="p-1 hover:bg-white/15 rounded text-gray-400 hover:text-white cursor-pointer transition-colors"
+                              title="Editar Lead"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteLead(lead.id);
+                              }}
+                              className="p-1 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
+                              title="Excluir Lead"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <h4 className="text-xs font-bold text-white mt-1 font-display leading-tight">{lead.company}</h4>
+                        <p className="text-[10px] text-gray-500 font-sans mt-0.5">{lead.name}</p>
+                        <p className="text-[10px] text-gray-400 font-sans mt-2 line-clamp-2 leading-relaxed font-light">{lead.details}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                        <span className="text-xs font-bold text-white font-mono">
+                          R$ {lead.value.toLocaleString("pt-BR")}
+                        </span>
+                        
+                        {/* Interaction Controls */}
+                        <div className="flex items-center gap-1">
+                          {/* Convert to Client Button (Shows up on Negociação or when ready) */}
+                          {lead.stage === "Negociação" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                convertLeadToClient(lead.id);
+                              }}
+                              className="px-2 py-1 bg-primary hover:bg-[#B39356] text-black rounded-lg cursor-pointer transition-colors text-[10px] font-bold flex items-center gap-1 shadow-sm"
+                              title="Converter em Cliente"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Converter</span>
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <h4 className="text-xs font-bold text-white mt-1 font-display leading-tight">{lead.company}</h4>
-                      <p className="text-[10px] text-gray-500 font-sans mt-0.5">{lead.name}</p>
-                      <p className="text-[10px] text-gray-400 font-sans mt-2 line-clamp-2 leading-relaxed font-light">{lead.details}</p>
                     </div>
+                  );
+                })}
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <span className="text-xs font-bold text-white">R$ {lead.value.toLocaleString()}</span>
-                      
-                      {/* Interaction Controls */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleStageChange(lead.id, lead.stage, "prev")}
-                          className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer"
-                        >
-                          &larr;
-                        </button>
-                        <button
-                          onClick={() => handleStageChange(lead.id, lead.stage, "next")}
-                          className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer"
-                        >
-                          &rarr;
-                        </button>
-                        
-                        {/* Convert to Client Button (Shows up on last pipeline stage) */}
-                        {lead.stage === "Negociação" && (
-                          <button
-                            onClick={() => convertLeadToClient(lead.id)}
-                            className="p-1 bg-primary hover:bg-[#B39356] text-black rounded ml-1 cursor-pointer transition-colors"
-                            title="Converter em Cliente"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
                 {stageLeads.length === 0 && (
-                  <div className="text-center py-8 text-[10px] text-gray-600 font-sans">Sem leads</div>
+                  <div className={`flex-1 flex items-center justify-center border-2 border-dashed rounded-xl p-4 text-center text-[10px] transition-colors ${
+                    isOver 
+                      ? "border-primary/40 bg-primary/5 text-primary font-bold" 
+                      : "border-white/5 text-gray-600 font-sans"
+                  }`}>
+                    {isOver ? "Solte o card aqui" : "Sem leads nesta etapa"}
+                  </div>
                 )}
               </div>
             </div>
