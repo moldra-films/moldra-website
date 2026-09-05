@@ -2576,9 +2576,20 @@ export default function FinanceTab() {
             animate={{ scale: 1, opacity: 1 }} 
             className="w-full max-w-lg bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
           >
-            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-primary" /> {txForm.id ? "Editar Lançamento" : `Registrar Nova ${txForm.type}`}
+            <div className={`px-6 py-4 border-b flex justify-between items-center transition-colors ${
+              txForm.type === "Entrada" 
+                ? "border-emerald-500/20 bg-emerald-950/20" 
+                : "border-red-500/20 bg-red-950/20"
+            }`}>
+              <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-colors ${
+                txForm.type === "Entrada" ? "text-emerald-400" : "text-red-400"
+              }`}>
+                {txForm.type === "Entrada" ? (
+                  <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <ArrowDownRight className="w-4 h-4 text-red-400" />
+                )}
+                {txForm.id ? `Editar ${txForm.type}` : `Registrar Nova ${txForm.type}`}
               </h3>
               <button onClick={() => setShowTransactionModal(false)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
                 <X className="w-4 h-4" />
@@ -2586,6 +2597,42 @@ export default function FinanceTab() {
             </div>
 
             <form onSubmit={handleSaveTransaction} className="p-6 space-y-4 text-xs">
+              {/* Type Switcher */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-black/40 border border-white/5 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setTxForm({ 
+                    ...txForm, 
+                    type: "Entrada",
+                    category: txForm.category === "Alimentação" ? "Serviços" : txForm.category,
+                    status: txForm.status === "Pago" ? "Recebido" : txForm.status
+                  })}
+                  className={`py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    txForm.type === "Entrada"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm"
+                      : "text-gray-400 hover:text-white border border-transparent"
+                  }`}
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" /> Entrada
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTxForm({ 
+                    ...txForm, 
+                    type: "Saída",
+                    category: txForm.category === "Serviços" ? "Alimentação" : txForm.category,
+                    status: txForm.status === "Recebido" ? "Pago" : txForm.status
+                  })}
+                  className={`py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    txForm.type === "Saída"
+                      ? "bg-red-500/20 text-red-400 border border-red-500/30 shadow-sm"
+                      : "text-gray-400 hover:text-white border border-transparent"
+                  }`}
+                >
+                  <ArrowDownRight className="w-3.5 h-3.5" /> Saída
+                </button>
+              </div>
+
               <div>
                 <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Descrição</label>
                 <input
@@ -2729,9 +2776,13 @@ export default function FinanceTab() {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                className={`w-full py-3 font-semibold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  txForm.type === "Entrada"
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/40"
+                    : "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-950/40"
+                }`}
               >
-                Salvar Movimentação
+                Salvar {txForm.type === "Entrada" ? "Entrada" : "Saída"}
               </button>
             </form>
           </motion.div>
