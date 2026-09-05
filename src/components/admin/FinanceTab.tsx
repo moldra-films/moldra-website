@@ -381,6 +381,17 @@ export default function FinanceTab() {
     };
   })();
 
+  // Latest revenues and expenses feeds for Financial Dashboard
+  const recentRevenues = [...transactions]
+    .filter(t => t.type === "Entrada" || (t.type as string) === "Receita")
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6);
+
+  const recentExpenses = [...transactions]
+    .filter(t => t.type === "Saída" || (t.type as string) === "Despesa")
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6);
+
   // Transaction CRUD Actions
   const handleSaveTransaction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1881,6 +1892,252 @@ Moldra Films • Recife/PE`;
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Últimas Receitas & Últimas Despesas (Feed em 2 Colunas) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Card 1: Últimas Receitas */}
+                  <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-4">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-green-500/10 text-green-400 border border-green-500/20">
+                          <ArrowDownRight className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                            Últimas Receitas
+                            <span className="px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded text-[9px] font-mono">
+                              {transactions.filter(t => t.type === "Entrada" || (t.type as string) === "Receita").length}
+                            </span>
+                          </h3>
+                          <span className="text-[10px] text-gray-500 block">
+                            Entradas e faturamentos recentes
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openNewTransaction("Entrada")}
+                          className="px-2.5 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" /> Nova
+                        </button>
+                        <button
+                          onClick={() => {
+                            setTypeFilter("Entrada");
+                            setActiveSubTab("transactions");
+                          }}
+                          className="text-[10px] text-primary hover:underline font-bold cursor-pointer flex items-center gap-0.5"
+                        >
+                          Ver todas <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {recentRevenues.length === 0 ? (
+                        <div className="p-8 text-center bg-black/20 border border-white/5 rounded-xl space-y-2">
+                          <DollarSign className="w-8 h-8 text-gray-600 mx-auto" />
+                          <span className="text-xs text-gray-500 block uppercase font-mono">
+                            Nenhuma receita registrada
+                          </span>
+                          <button
+                            onClick={() => openNewTransaction("Entrada")}
+                            className="text-xs text-primary font-bold hover:underline cursor-pointer"
+                          >
+                            + Registrar Primeira Receita
+                          </button>
+                        </div>
+                      ) : (
+                        recentRevenues.map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="p-3.5 bg-black/25 hover:bg-black/35 border border-white/5 rounded-xl flex items-center justify-between gap-3 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 shrink-0">
+                                <ArrowDownRight className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-white truncate block">
+                                    {tx.description}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider border shrink-0 ${
+                                    tx.status === "Recebido" || tx.status === "Pago"
+                                      ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                      : tx.status === "Vencido"
+                                      ? "bg-red-500/10 text-red-400 border-red-500/20"
+                                      : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                  }`}>
+                                    {tx.status}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 truncate">
+                                  <span className="text-gray-300 font-medium truncate max-w-[130px]">
+                                    {tx.customerOrProvider || "Cliente não informado"}
+                                  </span>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="text-gray-500">{tx.category}</span>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="text-gray-500 font-mono">
+                                    {tx.date ? new Date(tx.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="text-right">
+                                <span className="text-xs font-bold text-green-400 font-mono block">
+                                  + R$ {tx.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-[9px] text-gray-500 block uppercase">
+                                  {tx.paymentMethod}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 border-l border-white/5 pl-2">
+                                <button
+                                  onClick={() => handleOpenReceiptModal(tx)}
+                                  className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg cursor-pointer transition-colors"
+                                  title="Gerar Recibo"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => openEditTransaction(tx)}
+                                  className="p-1.5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Últimas Despesas */}
+                  <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-4">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20">
+                          <ArrowUpRight className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                            Últimas Despesas
+                            <span className="px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded text-[9px] font-mono">
+                              {transactions.filter(t => t.type === "Saída" || (t.type as string) === "Despesa").length}
+                            </span>
+                          </h3>
+                          <span className="text-[10px] text-gray-500 block">
+                            Saídas, pagamentos e custos recentes
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openNewTransaction("Saída")}
+                          className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" /> Nova
+                        </button>
+                        <button
+                          onClick={() => {
+                            setTypeFilter("Saída");
+                            setActiveSubTab("transactions");
+                          }}
+                          className="text-[10px] text-primary hover:underline font-bold cursor-pointer flex items-center gap-0.5"
+                        >
+                          Ver todas <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {recentExpenses.length === 0 ? (
+                        <div className="p-8 text-center bg-black/20 border border-white/5 rounded-xl space-y-2">
+                          <DollarSign className="w-8 h-8 text-gray-600 mx-auto" />
+                          <span className="text-xs text-gray-500 block uppercase font-mono">
+                            Nenhuma despesa registrada
+                          </span>
+                          <button
+                            onClick={() => openNewTransaction("Saída")}
+                            className="text-xs text-primary font-bold hover:underline cursor-pointer"
+                          >
+                            + Registrar Primeira Despesa
+                          </button>
+                        </div>
+                      ) : (
+                        recentExpenses.map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="p-3.5 bg-black/25 hover:bg-black/35 border border-white/5 rounded-xl flex items-center justify-between gap-3 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                                <ArrowUpRight className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-white truncate block">
+                                    {tx.description}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider border shrink-0 ${
+                                    tx.status === "Pago" || tx.status === "Recebido"
+                                      ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                      : tx.status === "Vencido"
+                                      ? "bg-red-500/10 text-red-400 border-red-500/20"
+                                      : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                  }`}>
+                                    {tx.status}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 truncate">
+                                  <span className="text-gray-300 font-medium truncate max-w-[130px]">
+                                    {tx.customerOrProvider || "Fornecedor não informado"}
+                                  </span>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="text-gray-500">{tx.category}</span>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="text-gray-500 font-mono">
+                                    {tx.date ? new Date(tx.date + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="text-right">
+                                <span className="text-xs font-bold text-red-400 font-mono block">
+                                  - R$ {tx.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-[9px] text-gray-500 block uppercase">
+                                  {tx.paymentMethod}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 border-l border-white/5 pl-2">
+                                <button
+                                  onClick={() => openEditTransaction(tx)}
+                                  className="p-1.5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
