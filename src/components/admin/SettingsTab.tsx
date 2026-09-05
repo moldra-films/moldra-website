@@ -34,7 +34,7 @@ export interface Account {
 }
 
 export default function SettingsTab() {
-  const { serviceTypes, addServiceType, deleteServiceType } = useAdmin();
+  const { serviceTypes, addServiceType, deleteServiceType, confirmModal } = useAdmin();
   const [newService, setNewService] = useState("");
 
   const handleAddService = (e: React.FormEvent) => {
@@ -369,27 +369,38 @@ export default function SettingsTab() {
 
   const handleDeleteAccount = async (id: string, accountEmail: string) => {
     if (accountEmail === "admin@moldrafilms.com.br") {
-      alert("Este é o acesso administrativo principal do sistema e não pode ser removido.");
-      return;
-    }
-
-    if (!confirm(`Tem certeza que deseja remover o acesso para ${accountEmail}?`)) {
-      return;
-    }
-
-    const updatedAccounts = accounts.filter((acc) => acc.id !== id);
-    setAccounts(updatedAccounts);
-
-    try {
-      await fetch("/api/admin-accounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedAccounts),
+      confirmModal({
+        title: "Operação Bloqueada",
+        message: "Este é o acesso administrativo principal do sistema e não pode ser removido.",
+        confirmText: "Entendido",
+        cancelText: "Fechar",
+        variant: "warning",
+        onConfirm: () => {},
       });
-      window.dispatchEvent(new CustomEvent("moldra-user-updated"));
-    } catch (err) {
-      console.error("Error removing account:", err);
+      return;
     }
+
+    confirmModal({
+      title: "Remover Usuário",
+      message: `Tem certeza que deseja remover o acesso para ${accountEmail}?`,
+      confirmText: "Remover Usuário",
+      variant: "danger",
+      onConfirm: async () => {
+        const updatedAccounts = accounts.filter((acc) => acc.id !== id);
+        setAccounts(updatedAccounts);
+
+        try {
+          await fetch("/api/admin-accounts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedAccounts),
+          });
+          window.dispatchEvent(new CustomEvent("moldra-user-updated"));
+        } catch (err) {
+          console.error("Error removing account:", err);
+        }
+      },
+    });
   };
 
   const getInitials = (nameStr?: string, emailStr?: string) => {
@@ -906,7 +917,17 @@ export default function SettingsTab() {
               <div key={i} className="p-4 flex items-center justify-between gap-4">
                 <span className="text-xs font-bold text-white font-display">{service}</span>
                 <button
-                  onClick={() => deleteServiceType(service)}
+                  onClick={() => {
+                    confirmModal({
+                      title: "Remover Categoria",
+                      message: `Deseja realmente remover a categoria de serviço "${service}" do portfólio?`,
+                      confirmText: "Remover Categoria",
+                      variant: "danger",
+                      onConfirm: () => {
+                        deleteServiceType(service);
+                      },
+                    });
+                  }}
                   className="p-1.5 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
                   title="Remover Categoria"
                 >

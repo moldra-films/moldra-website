@@ -13,7 +13,8 @@ export default function InventoryTab() {
     addEquipment, 
     updateEquipment, 
     deleteEquipment, 
-    addLocation 
+    addLocation,
+    confirmModal 
   } = useAdmin();
   
   const [activeSubTab, setActiveSubTab] = useState<"equipamentos" | "locacoes">("equipamentos");
@@ -101,9 +102,15 @@ export default function InventoryTab() {
   };
 
   const handleDeleteEquipmentClick = (id: number, name: string) => {
-    if (confirm(`Tem certeza que deseja excluir o equipamento "${name}"?`)) {
-      deleteEquipment(id);
-    }
+    confirmModal({
+      title: "Excluir Equipamento",
+      message: `Tem certeza que deseja excluir o equipamento "${name}" do inventário? Esta ação não pode ser desfeita.`,
+      confirmText: "Excluir Equipamento",
+      variant: "danger",
+      onConfirm: () => {
+        deleteEquipment(id);
+      },
+    });
   };
 
   const handleCreateEquipment = (e: React.FormEvent) => {

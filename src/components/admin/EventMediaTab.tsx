@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 export default function EventMediaTab() {
-  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, transactions } = useAdmin();
+  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, transactions, confirmModal } = useAdmin();
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   // Filter transactions for photo sales
@@ -225,10 +225,16 @@ export default function EventMediaTab() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm("Tem certeza que deseja remover este evento e todas as suas fotos?")) {
-                          deleteEventMedia(event.id);
-                          if (selectedEventId === event.id) setSelectedEventId(null);
-                        }
+                        confirmModal({
+                          title: "Excluir Galeria de Evento",
+                          message: `Tem certeza que deseja remover o evento "${event.name}" e todas as suas fotos?`,
+                          confirmText: "Excluir Evento",
+                          variant: "danger",
+                          onConfirm: () => {
+                            deleteEventMedia(event.id);
+                            if (selectedEventId === event.id) setSelectedEventId(null);
+                          },
+                        });
                       }}
                       className="p-1.5 bg-white/5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-lg border border-white/5 transition-colors cursor-pointer"
                       title="Deletar Evento"
@@ -397,7 +403,17 @@ export default function EventMediaTab() {
                       </div>
 
                       <button
-                        onClick={() => deletePhotoFromEvent(selectedEvent.id, photo.id)}
+                        onClick={() => {
+                          confirmModal({
+                            title: "Excluir Foto",
+                            message: "Tem certeza que deseja excluir esta foto do evento?",
+                            confirmText: "Excluir Foto",
+                            variant: "danger",
+                            onConfirm: () => {
+                              deletePhotoFromEvent(selectedEvent.id, photo.id);
+                            },
+                          });
+                        }}
                         className="absolute top-2 right-2 p-1.5 bg-black/75 hover:bg-red-500 text-white rounded-lg transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
                         title="Deletar foto"
                       >

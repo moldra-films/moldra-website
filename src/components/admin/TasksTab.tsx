@@ -6,7 +6,7 @@ import { Plus, CheckSquare, Clock, Tag, X, User, Edit, Trash2, GripVertical } fr
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function TasksTab() {
-  const { tasks, projects, addTask, updateTaskStatus, updateTask, deleteTask, toggleTaskItem } = useAdmin();
+  const { tasks, projects, addTask, updateTaskStatus, updateTask, deleteTask, toggleTaskItem, confirmModal } = useAdmin();
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -353,7 +353,12 @@ export default function TasksTab() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  deleteTask(task.id);
+                                  confirmModal({
+                                    title: "Excluir Tarefa",
+                                    message: `Tem certeza de que deseja excluir a tarefa "${task.title}"?`,
+                                    confirmText: "Excluir Tarefa",
+                                    onConfirm: () => deleteTask(task.id)
+                                  });
                                 }}
                                 className="p-1 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
                                 title="Excluir Tarefa"

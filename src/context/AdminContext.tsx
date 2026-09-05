@@ -1,6 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { AlertTriangle, Trash2, X, RefreshCw } from "lucide-react";
+
+export interface ConfirmModalOptions {
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: "danger" | "warning" | "info";
+  onConfirm: () => void | Promise<void>;
+}
 
 // Interfaces
 export interface Lead {
@@ -204,6 +214,7 @@ interface AdminContextProps {
   updateEventMedia: (id: number, event: Partial<EventMedia>) => void;
   activeFinanceSubTab: string;
   setActiveFinanceSubTab: (tab: string) => void;
+  confirmModal: (options: ConfirmModalOptions) => void;
 }
 
 const AdminContext = createContext<AdminContextProps | undefined>(undefined);
@@ -230,6 +241,32 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeFinanceSubTab, setActiveFinanceSubTab] = useState("dashboard");
+
+  // Global Confirmation Modal State
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmModalOptions | null>(null);
+  const [isConfirmLoading, setIsConfirmLoading] = useState(false);
+
+  const confirmModal = (options: ConfirmModalOptions) => {
+    setConfirmConfig(options);
+  };
+
+  const closeConfirmModal = () => {
+    if (isConfirmLoading) return;
+    setConfirmConfig(null);
+  };
+
+  const handleExecuteConfirm = async () => {
+    if (!confirmConfig) return;
+    try {
+      setIsConfirmLoading(true);
+      await confirmConfig.onConfirm();
+    } catch (e) {
+      console.error("Error executing confirmed action:", e);
+    } finally {
+      setIsConfirmLoading(false);
+      setConfirmConfig(null);
+    }
+  };
 
   // Load state from Supabase database on client-side mount
   useEffect(() => {
@@ -861,10 +898,64 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addServiceType,
         deleteServiceType,
         activeFinanceSubTab,
-        setActiveFinanceSubTab
+        setActiveFinanceSubTab,
+        confirmModal
       }}
     >
       {children}
+
+      {/* Global Confirmation Modal */}
+      {confirmConfig && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-dark-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl p-6 space-y-5 animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-xl shrink-0 ${
+                confirmConfig.variant === "warning" 
+                  ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20" 
+                  : confirmConfig.variant === "info" 
+                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" 
+                  : "bg-red-500/10 text-red-400 border border-red-500/20"
+              }`}>
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5 min-w-0 flex-1">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-display">
+                  {confirmConfig.title || "Confirmar Exclusão"}
+                </h3>
+                <p className="text-xs text-gray-300 leading-relaxed font-sans">
+                  {confirmConfig.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5">
+              <button
+                type="button"
+                disabled={isConfirmLoading}
+                onClick={closeConfirmModal}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl text-xs uppercase font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {confirmConfig.cancelText || "Cancelar"}
+              </button>
+              <button
+                type="button"
+                disabled={isConfirmLoading}
+                onClick={handleExecuteConfirm}
+                className={`px-4 py-2 rounded-xl text-xs uppercase font-bold transition-colors cursor-pointer flex items-center gap-2 ${
+                  confirmConfig.variant === "warning"
+                    ? "bg-yellow-500 hover:bg-yellow-600 text-black font-extrabold"
+                    : confirmConfig.variant === "info"
+                    ? "bg-blue-500 hover:bg-blue-600 text-white"
+                    : "bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
+                } disabled:opacity-50`}
+              >
+                {isConfirmLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                {confirmConfig.confirmText || "Confirmar Exclusão"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminContext.Provider>
   );
 };

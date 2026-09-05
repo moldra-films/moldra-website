@@ -106,7 +106,7 @@ const BankLogoBadge = ({ bank }: { bank: string }) => {
 };
 
 export default function FinanceTab() {
-  const { clients, activeFinanceSubTab: activeSubTab, setActiveFinanceSubTab: setActiveSubTab } = useAdmin();
+  const { clients, activeFinanceSubTab: activeSubTab, setActiveFinanceSubTab: setActiveSubTab, confirmModal } = useAdmin();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter States
@@ -571,14 +571,20 @@ export default function FinanceTab() {
   };
 
   const handleDeleteTransaction = (tx: Transaction) => {
-    if (confirm(`Tem certeza de que deseja excluir a transação "${tx.description}"? A operação será registrada no log de auditoria.`)) {
-      // Revert bank balances if it was previously paid
-      if (tx.status === "Pago" || tx.status === "Recebido") {
-        updateAccountBalance(tx.bankAccountId!, tx.value, tx.type === "Entrada" ? "sub" : "add");
-      }
-      const filtered = transactions.filter(t => t.id !== tx.id);
-      saveEntity("transactions", filtered);
-    }
+    confirmModal({
+      title: "Excluir Transação",
+      message: `Tem certeza de que deseja excluir a transação "${tx.description}"? A operação será registrada no log de auditoria.`,
+      confirmText: "Excluir Transação",
+      variant: "danger",
+      onConfirm: () => {
+        // Revert bank balances if it was previously paid
+        if (tx.status === "Pago" || tx.status === "Recebido") {
+          updateAccountBalance(tx.bankAccountId!, tx.value, tx.type === "Entrada" ? "sub" : "add");
+        }
+        const filtered = transactions.filter(t => t.id !== tx.id);
+        saveEntity("transactions", filtered);
+      },
+    });
   };
 
   const handleUploadClick = (txId: string) => {
@@ -631,42 +637,53 @@ export default function FinanceTab() {
       return;
     }
 
-    const fromAcc = bankAccounts.find(b => b.id === transferForm.fromAccountId);
-    if (fromAcc && fromAcc.currentBalance < valueNum) {
-      if (!confirm("O saldo da conta de origem é menor que o valor da transferência. Continuar?")) return;
-    }
+    const executeTransfer = () => {
+      const transferTx: Transaction = {
+        id: `tx-tf-${Date.now()}`,
+        description: `Transferência de ${bankAccounts.find(b => b.id === transferForm.fromAccountId)?.bank} para ${bankAccounts.find(b => b.id === transferForm.toAccountId)?.bank}`,
+        type: "Transferência",
+        category: "Transferência",
+        customerOrProvider: "Moldra Films",
+        fromBankAccountId: transferForm.fromAccountId,
+        toBankAccountId: transferForm.toAccountId,
+        paymentMethod: "Transferência",
+        value: valueNum,
+        date: transferForm.date,
+        dueDate: transferForm.date,
+        status: "Pago",
+        origin: "Manual",
+        receiptUrl: null,
+        notes: transferForm.notes
+      };
 
-    const transferTx: Transaction = {
-      id: `tx-tf-${Date.now()}`,
-      description: `Transferência de ${bankAccounts.find(b => b.id === transferForm.fromAccountId)?.bank} para ${bankAccounts.find(b => b.id === transferForm.toAccountId)?.bank}`,
-      type: "Transferência",
-      category: "Transferência",
-      customerOrProvider: "Moldra Films",
-      fromBankAccountId: transferForm.fromAccountId,
-      toBankAccountId: transferForm.toAccountId,
-      paymentMethod: "Transferência",
-      value: valueNum,
-      date: transferForm.date,
-      dueDate: transferForm.date,
-      status: "Pago",
-      origin: "Manual",
-      receiptUrl: null,
-      notes: transferForm.notes
+      // Update balances
+      updateAccountBalance(transferForm.fromAccountId, valueNum, "sub");
+      updateAccountBalance(transferForm.toAccountId, valueNum, "add");
+
+      saveEntity("transactions", [...transactions, transferTx]);
+      setShowTransferModal(false);
+      setTransferForm({
+        value: 0,
+        fromAccountId: "",
+        toAccountId: "",
+        date: new Date().toISOString().split("T")[0],
+        notes: "",
+      });
     };
 
-    // Update balances
-    updateAccountBalance(transferForm.fromAccountId, valueNum, "sub");
-    updateAccountBalance(transferForm.toAccountId, valueNum, "add");
+    const fromAcc = bankAccounts.find(b => b.id === transferForm.fromAccountId);
+    if (fromAcc && fromAcc.currentBalance < valueNum) {
+      confirmModal({
+        title: "Saldo Insuficiente",
+        message: "O saldo da conta de origem é menor que o valor da transferência. Deseja continuar?",
+        confirmText: "Continuar Transferência",
+        variant: "warning",
+        onConfirm: executeTransfer,
+      });
+      return;
+    }
 
-    saveEntity("transactions", [...transactions, transferTx]);
-    setShowTransferModal(false);
-    setTransferForm({
-      value: 0,
-      fromAccountId: "",
-      toAccountId: "",
-      date: new Date().toISOString().split("T")[0],
-      notes: "",
-    });
+    executeTransfer();
   };
 
   // Helper function to update bank account balance
@@ -812,11 +829,18 @@ export default function FinanceTab() {
   };
 
   const handleDeleteBilling = (bill: Billing) => {
-    if (!confirm(`Deseja realmente excluir a cobrança "${bill.service}" de ${bill.client}?`)) return;
-    const updatedBillings = billings.filter(b => b.id !== bill.id);
-    const updatedTxs = transactions.filter(t => t.billingId !== bill.id);
-    saveEntity("billings", updatedBillings);
-    saveEntity("transactions", updatedTxs);
+    confirmModal({
+      title: "Excluir Cobrança",
+      message: `Deseja realmente excluir a cobrança "${bill.service}" de ${bill.client}?`,
+      confirmText: "Excluir Cobrança",
+      variant: "danger",
+      onConfirm: () => {
+        const updatedBillings = billings.filter(b => b.id !== bill.id);
+        const updatedTxs = transactions.filter(t => t.billingId !== bill.id);
+        saveEntity("billings", updatedBillings);
+        saveEntity("transactions", updatedTxs);
+      },
+    });
   };
 
   const handleClearanceBilling = (bill: Billing) => {
@@ -949,11 +973,18 @@ export default function FinanceTab() {
   };
 
   const handleDeletePayable = (pay: Payable) => {
-    if (!confirm(`Deseja realmente excluir a conta a pagar "${pay.description}" de ${pay.provider}?`)) return;
-    const updatedPayables = payables.filter(p => p.id !== pay.id);
-    const updatedTxs = transactions.filter(t => t.payableId !== pay.id);
-    saveEntity("payables", updatedPayables);
-    saveEntity("transactions", updatedTxs);
+    confirmModal({
+      title: "Excluir Conta a Pagar",
+      message: `Deseja realmente excluir a conta a pagar "${pay.description}" de ${pay.provider}?`,
+      confirmText: "Excluir Conta",
+      variant: "danger",
+      onConfirm: () => {
+        const updatedPayables = payables.filter(p => p.id !== pay.id);
+        const updatedTxs = transactions.filter(t => t.payableId !== pay.id);
+        saveEntity("payables", updatedPayables);
+        saveEntity("transactions", updatedTxs);
+      },
+    });
   };
 
   const handleClearancePayable = (pay: Payable) => {
@@ -1170,36 +1201,38 @@ export default function FinanceTab() {
 
   // Asset Depreciation
   const executeAssetDepreciation = () => {
-    if (confirm("Deseja aplicar o ajuste anual de depreciação contábil nos equipamentos cadastrados (10% a.a.)?")) {
-      const updated = assets.map(a => {
-        if (a.status === "Ativo") {
-          const depValue = a.acquisitionValue * (a.depreciationRate / 100);
-          const newValue = Math.max(0, a.currentBookValue - depValue);
-          
-          // Log adjustment
-          const now = new Date();
-          const log: AuditLog = {
-            id: `log-dep-${Date.now()}-${a.id}`,
-            user: activeUser,
-            date: now.toISOString().split("T")[0],
-            time: now.toTimeString().split(" ")[0],
-            action: `Depreciação aplicada no ativo "${a.name}": Valor contábil ajustado de R$ ${a.currentBookValue.toLocaleString()} para R$ ${newValue.toLocaleString()}`,
-            oldValue: `R$ ${a.currentBookValue}`,
-            newValue: `R$ ${newValue}`,
-            targetId: a.id
-          };
-          dbSaveAudit(log);
-
-          return {
-            ...a,
-            currentBookValue: newValue
-          };
-        }
-        return a;
-      });
-      saveEntity("assets", updated);
-      alert("Ajuste de depreciação patrimonial aplicado com sucesso!");
-    }
+    confirmModal({
+      title: "Ajuste de Depreciação",
+      message: "Deseja aplicar o ajuste anual de depreciação contábil nos equipamentos cadastrados (10% a.a.)?",
+      confirmText: "Aplicar Depreciação",
+      variant: "warning",
+      onConfirm: () => {
+        const updated = assets.map(a => {
+          if (a.status === "Ativo") {
+            const depValue = a.acquisitionValue * (a.depreciationRate / 100);
+            const newValue = Math.max(0, a.currentBookValue - depValue);
+            
+            // Log adjustment
+            const now = new Date();
+            const log: AuditLog = {
+              id: `log-dep-${Date.now()}-${a.id}`,
+              user: activeUser,
+              date: now.toISOString().split("T")[0],
+              time: now.toTimeString().split(" ")[0],
+              action: `Depreciação aplicada no ativo "${a.name}": Valor contábil ajustado de R$ ${a.currentBookValue.toLocaleString()} para R$ ${newValue.toLocaleString()}`,
+              oldValue: `R$ ${a.currentBookValue}`,
+              newValue: `R$ ${newValue}`,
+              targetId: a.id
+            };
+            saveEntity("audit-logs", [log, ...auditLogs]);
+            return { ...a, currentBookValue: newValue };
+          }
+          return a;
+        });
+        saveEntity("assets", updated);
+        alert("Ajuste de depreciação patrimonial aplicado com sucesso!");
+      },
+    });
   };
 
   const dbSaveAudit = async (log: AuditLog) => {
@@ -1633,23 +1666,29 @@ Moldra Films • Manaus/AM`;
   };
 
   const handleDeleteAccount = (acc: BankAccount) => {
-    if (confirm(`Tem certeza de que deseja excluir a conta bancária "${acc.name}"? Todos os saldos vinculados a ela serão removidos.`)) {
-      const updated = bankAccounts.filter(b => b.id !== acc.id);
-      saveEntity("bank-accounts", updated);
-      
-      const now = new Date();
-      const log: AuditLog = {
-        id: `log-del-bank-${Date.now()}`,
-        user: activeUser,
-        date: now.toISOString().split("T")[0],
-        time: now.toTimeString().split(" ")[0],
-        action: `${activeUser} excluiu a conta bancária "${acc.name}" (${acc.bank}).`,
-        oldValue: JSON.stringify(acc),
-        newValue: null,
-        targetId: acc.id
-      };
-      saveEntity("audit-logs", [log, ...auditLogs]);
-    }
+    confirmModal({
+      title: "Excluir Conta Bancária",
+      message: `Tem certeza de que deseja excluir a conta bancária "${acc.name}"? Todos os saldos vinculados a ela serão removidos.`,
+      confirmText: "Excluir Conta",
+      variant: "danger",
+      onConfirm: () => {
+        const updated = bankAccounts.filter(b => b.id !== acc.id);
+        saveEntity("bank-accounts", updated);
+        
+        const now = new Date();
+        const log: AuditLog = {
+          id: `log-del-bank-${Date.now()}`,
+          user: activeUser,
+          date: now.toISOString().split("T")[0],
+          time: now.toTimeString().split(" ")[0],
+          action: `${activeUser} excluiu a conta bancária "${acc.name}" (${acc.bank}).`,
+          oldValue: JSON.stringify(acc),
+          newValue: null,
+          targetId: acc.id
+        };
+        saveEntity("audit-logs", [log, ...auditLogs]);
+      },
+    });
   };
 
   // Financial goals add
@@ -3451,9 +3490,15 @@ Moldra Films • Manaus/AM`;
                               </div>
                               <button
                                 onClick={() => {
-                                  if (confirm("Deseja excluir esta meta?")) {
-                                    saveEntity("goals", goals.filter(g => g.id !== goal.id));
-                                  }
+                                  confirmModal({
+                                    title: "Excluir Meta Financeira",
+                                    message: `Deseja realmente excluir a meta "${goal.name}"?`,
+                                    confirmText: "Excluir Meta",
+                                    variant: "danger",
+                                    onConfirm: () => {
+                                      saveEntity("goals", goals.filter(g => g.id !== goal.id));
+                                    },
+                                  });
                                 }}
                                 className="p-1 hover:bg-white/5 text-gray-500 hover:text-red-400 rounded transition-colors"
                               >

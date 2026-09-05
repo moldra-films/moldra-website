@@ -65,7 +65,7 @@ const getStatusColor = (status: Project["status"]) => {
 };
 
 export default function ProjectsTab() {
-  const { projects, clients, serviceTypes, addProject, updateProject, deleteProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist } = useAdmin();
+  const { projects, clients, serviceTypes, addProject, updateProject, deleteProject, updateProjectStatus, updateProjectShotList, updateProjectChecklist, confirmModal } = useAdmin();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "calendario" | "timeline">("lista");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   
@@ -188,10 +188,15 @@ export default function ProjectsTab() {
   };
 
   const handleDeleteProject = (id: number) => {
-    if (confirm("Tem certeza que deseja excluir permanentemente este projeto?")) {
-      deleteProject(id);
-      setSelectedProject(null);
-    }
+    confirmModal({
+      title: "Excluir Projeto",
+      message: "Tem certeza que deseja excluir permanentemente este projeto da produtora?",
+      confirmText: "Excluir Projeto",
+      onConfirm: () => {
+        deleteProject(id);
+        setSelectedProject(null);
+      }
+    });
   };
   const [newProj, setNewProj] = useState({
     name: "",

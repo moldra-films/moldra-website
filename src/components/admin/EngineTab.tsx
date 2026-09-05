@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import JSZip from "jszip";
+import { useAdmin } from "@/context/AdminContext";
 import { 
   Zap, 
   Cpu, 
@@ -121,6 +122,7 @@ const PRESETS = [
 ];
 
 export default function EngineTab() {
+  const { confirmModal } = useAdmin();
   const [isOnline, setIsOnline] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [engineStats, setEngineStats] = useState<any>(null);
@@ -535,58 +537,65 @@ export default function EngineTab() {
     }
   };
 
-  const handleDeleteProject = async () => {
+  const handleDeleteProject = () => {
     if (!selectedProject) return;
-    const confirmDelete = confirm(
-      `ATENÇÃO: Tem certeza absoluta que deseja excluir o projeto "${selectedProject}"? \n\nIsso apagará permanentemente todos os arquivos originais, miniaturas e configurações salvas na nuvem R2. Esta ação NÃO pode ser desfeita!`
-    );
-    if (!confirmDelete) return;
-
-    setLoadingProject(true);
-    try {
-      const res = await fetch(`${engineUrl}/api/project/${selectedProject}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        alert("Projeto excluído com sucesso!");
-        setSelectedProject("");
-        checkEngineStatus();
-      } else {
-        const err = await res.json();
-        alert(`Erro ao excluir projeto: ${err.detail || "Erro desconhecido"}`);
-      }
-    } catch (e) {
-      alert("Erro de conexão ao tentar excluir o projeto.");
-    } finally {
-      setLoadingProject(false);
-    }
+    confirmModal({
+      title: "Excluir Projeto de IA",
+      message: `ATENÇÃO: Tem certeza absoluta que deseja excluir o projeto "${selectedProject}"? Isso apagará permanentemente todos os arquivos originais, miniaturas e configurações salvas na nuvem R2. Esta ação NÃO pode ser desfeita!`,
+      confirmText: "Excluir Projeto Permanentemente",
+      variant: "danger",
+      onConfirm: async () => {
+        setLoadingProject(true);
+        try {
+          const res = await fetch(`${engineUrl}/api/project/${selectedProject}`, {
+            method: "DELETE"
+          });
+          if (res.ok) {
+            setSelectedProject("");
+            checkEngineStatus();
+          } else {
+            const err = await res.json();
+            alert(`Erro ao excluir projeto: ${err.detail || "Erro desconhecido"}`);
+          }
+        } catch (e) {
+          alert("Erro de conexão ao tentar excluir o projeto.");
+        } finally {
+          setLoadingProject(false);
+        }
+      },
+    });
   };
 
-  const handleApplyToAll = async () => {
+  const handleApplyToAll = () => {
     if (!selectedProject || projectSettings.culling_results.length === 0) return;
-    if (!confirm("Deseja aplicar os ajustes da foto selecionada em TODAS as fotos deste projeto?")) return;
-    
-    setLoadingProject(true);
-    try {
-      const promises = projectSettings.culling_results.map((photo) => {
-        return fetch(`${engineUrl}/api/adjust`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            project_name: selectedProject,
-            filename: photo.filename,
-            adjustments: adjustments
-          })
-        });
-      });
-      await Promise.all(promises);
-      alert("Ajustes aplicados em massa!");
-      loadProjectSettings(selectedProject);
-    } catch (e) {
-      alert("Erro ao aplicar ajustes em massa.");
-    } finally {
-      setLoadingProject(false);
-    }
+    confirmModal({
+      title: "Aplicar em Massa",
+      message: "Deseja aplicar os ajustes da foto selecionada em TODAS as fotos deste projeto?",
+      confirmText: "Aplicar em Todas",
+      variant: "warning",
+      onConfirm: async () => {
+        setLoadingProject(true);
+        try {
+          const promises = projectSettings.culling_results.map((photo) => {
+            return fetch(`${engineUrl}/api/adjust`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                project_name: selectedProject,
+                filename: photo.filename,
+                adjustments: adjustments
+              })
+            });
+          });
+          await Promise.all(promises);
+          loadProjectSettings(selectedProject);
+        } catch (e) {
+          alert("Erro de conexão ao sincronizar ajustes.");
+        } finally {
+          setLoadingProject(false);
+        }
+      },
+    });
   };
 
   const handleUpdatePhotoMetadata = (photo: CullingResult, stars: number, colorLabel: string) => {

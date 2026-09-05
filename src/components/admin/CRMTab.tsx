@@ -17,7 +17,8 @@ export default function CRMTab() {
     addClient, 
     updateClient, 
     deleteClient,
-    serviceTypes
+    serviceTypes,
+    confirmModal
   } = useAdmin();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -482,7 +483,12 @@ export default function CRMTab() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                deleteLead(lead.id);
+                                confirmModal({
+                                  title: "Excluir Lead",
+                                  message: `Tem certeza de que deseja excluir o lead "${lead.name}" (${lead.company || "Sem empresa"})?`,
+                                  confirmText: "Excluir Lead",
+                                  onConfirm: () => deleteLead(lead.id)
+                                });
                               }}
                               className="p-1 hover:bg-red-500/15 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
                               title="Excluir Lead"
@@ -622,7 +628,14 @@ export default function CRMTab() {
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => deleteClient(client.id)}
+                          onClick={() => {
+                            confirmModal({
+                              title: "Excluir Cliente",
+                              message: `Tem certeza de que deseja excluir o cliente "${client.name}" e todo seu histórico comercial?`,
+                              confirmText: "Excluir Cliente",
+                              onConfirm: () => deleteClient(client.id)
+                            });
+                          }}
                           className="p-1 hover:bg-red-500/10 rounded text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
                           title="Excluir Cliente"
                         >
