@@ -17,20 +17,27 @@ function mapEntityToKey(entity: string): keyof FinanceDatabase | null {
   }
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ entity: string }> }
 ) {
   try {
     const { entity } = await params;
-    const db = await FinanceDb.load();
+    const db = await FinanceDb.load(true);
     const key = mapEntityToKey(entity);
 
     if (!key) {
       return NextResponse.json({ error: `Unknown entity: ${entity}` }, { status: 400 });
     }
 
-    return NextResponse.json(db[key]);
+    return NextResponse.json(db[key], {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error: any) {
     console.error(`Error in GET /api/finance/${error.message}:`, error);
     return NextResponse.json({ error: error.message }, { status: 500 });

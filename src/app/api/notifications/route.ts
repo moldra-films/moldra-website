@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const { data, error } = await supabase
       .from("notifications")
       .select("*")
-      // Show newest first for notifications or keep order? In context, it might be unshifted (added to start),
-      // but ordering by id ascending and then unshifting or reversing in JS is standard. Let's order by ID ascending
       .order("id", { ascending: true });
 
     if (error) throw error;
 
-    const mapped = data.map((notif: any) => ({
+    const mapped = (data || []).map((notif: any) => ({
       id: notif.id,
       title: notif.title,
       description: notif.description,
@@ -21,7 +22,11 @@ export async function GET() {
       type: notif.type,
     }));
 
-    return NextResponse.json(mapped);
+    return NextResponse.json(mapped, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error: any) {
     console.error("Error reading notifications from Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

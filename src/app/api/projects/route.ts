@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -10,7 +13,7 @@ export async function GET() {
 
     if (error) throw error;
 
-    const mapped = data.map((proj: any) => ({
+    const mapped = (data || []).map((proj: any) => ({
       id: proj.id,
       name: proj.name,
       clientName: proj.client_name,
@@ -29,7 +32,11 @@ export async function GET() {
       version: proj.version || "v1",
     }));
 
-    return NextResponse.json(mapped);
+    return NextResponse.json(mapped, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error: any) {
     console.error("Error reading projects from Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

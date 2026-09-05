@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const { data, error } = await supabase.from("profiles").select("*");
     if (error) throw error;
     
     // Seed default admin accounts if table is empty
-    if (data.length === 0) {
+    if (!data || data.length === 0) {
       const DEFAULT_SEEDS = [
         { id: "default-1", email: "admin@moldrafilms.com.br", name: "Administrador", role: "admin", created_at: new Date().toISOString() },
         { id: "default-2", email: "mikelly@moldrafilms.com.br", name: "Mikelly Maduro", role: "admin", created_at: new Date().toISOString() },
@@ -22,10 +25,14 @@ export async function GET() {
         role: profile.role,
         createdAt: profile.created_at
       }));
-      return NextResponse.json(mapped);
+      return NextResponse.json(mapped, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      });
     }
 
-    const mapped = data.map((profile: any) => ({
+    const mapped = (data || []).map((profile: any) => ({
       id: profile.id,
       email: profile.email,
       name: profile.name || profile.email.split("@")[0],

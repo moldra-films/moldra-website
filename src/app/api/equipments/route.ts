@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import { FinanceDb } from "@/lib/db/financeDb";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -11,7 +14,7 @@ export async function GET() {
 
     if (error) throw error;
 
-    const mapped = data.map((eq: any) => ({
+    const mapped = (data || []).map((eq: any) => ({
       id: eq.id,
       name: eq.name,
       category: eq.category,
@@ -21,16 +24,25 @@ export async function GET() {
       responsible: eq.responsible,
     }));
 
-    // Read photos from R2-synced finance database
-    const financeDb = await FinanceDb.load();
-    const photosMap = financeDb.equipmentPhotos || {};
+    // Read photos safely from R2-synced finance database
+    let photosMap: Record<number, string[]> = {};
+    try {
+      const financeDb = await FinanceDb.load(true);
+      photosMap = financeDb.equipmentPhotos || {};
+    } catch (photoErr) {
+      console.warn("Could not load equipment photos mapping:", photoErr);
+    }
 
     const mappedWithPhotos = mapped.map((eq: any) => ({
       ...eq,
       photos: photosMap[eq.id] || []
     }));
 
-    return NextResponse.json(mappedWithPhotos);
+    return NextResponse.json(mappedWithPhotos, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error: any) {
     console.error("Error reading equipments from Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -45,22 +57,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload, must be an array" }, { status: 400 });
     }
 
-    // Save photos map to R2-synced finance database
-    const financeDb = await FinanceDb.load();
-    if (!financeDb.equipmentPhotos) {
-      financeDb.equipmentPhotos = {};
+    // 1. Save photos map safely to R2-synced finance database
+    try {
+      const financeDb = await FinanceDb.load();
+      if (!financeDb.equipmentPhotos) {
+        financeDb.equipmentPhotos = {};
+      }
+
+      const photosMap = financeDb.equipmentPhotos;
+      body.forEach((eq: any) => {
+        if (eq.photos) {
+          photosMap[eq.id] = eq.photos;
+        }
+      });
+
+      await FinanceDb.save(financeDb);
+    } catch (photoErr) {
+      console.warn("Could not sync equipment photos to R2/FinanceDb:", photoErr);
     }
 
-    const photosMap = financeDb.equipmentPhotos;
-    body.forEach((eq: any) => {
-      if (eq.photos) {
-        photosMap[eq.id] = eq.photos;
-      }
-    });
-
-    await FinanceDb.save(financeDb);
-
-    // 1. Delete all current rows in Supabase
+    // 2. Delete all current rows in Supabase
     const { error: deleteError } = await supabase
       .from("equipments")
       .delete()
@@ -68,7 +84,7 @@ export async function POST(request: Request) {
     
     if (deleteError) throw deleteError;
 
-    // 2. Insert new equipments in Supabase (excluding photos field)
+    // 3. Insert new equipments in Supabase (excluding photos field)
     if (body.length > 0) {
       const insertRows = body.map((eq: any) => ({
         id: eq.id,

@@ -233,19 +233,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Load state from Supabase database on client-side mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Fetch centralized data from Supabase
+      const noCacheOptions = { cache: "no-store" as const, headers: { "Cache-Control": "no-cache" } };
       Promise.all([
-        fetch("/api/event-media").then((res) => res.ok ? res.json() : Promise.reject("event-media error")),
-        fetch("/api/transactions").then((res) => res.ok ? res.json() : Promise.reject("transactions error")),
-        fetch("/api/leads").then((res) => res.ok ? res.json() : Promise.reject("leads error")),
-        fetch("/api/clients").then((res) => res.ok ? res.json() : Promise.reject("clients error")),
-        fetch("/api/projects").then((res) => res.ok ? res.json() : Promise.reject("projects error")),
-        fetch("/api/tasks").then((res) => res.ok ? res.json() : Promise.reject("tasks error")),
-        fetch("/api/equipments").then((res) => res.ok ? res.json() : Promise.reject("equipments error")),
-        fetch("/api/locations").then((res) => res.ok ? res.json() : Promise.reject("locations error")),
-        fetch("/api/contracts").then((res) => res.ok ? res.json() : Promise.reject("contracts error")),
-        fetch("/api/notifications").then((res) => res.ok ? res.json() : Promise.reject("notifications error")),
-        fetch("/api/service-types").then((res) => res.ok ? res.json() : Promise.reject("service-types error")),
+        fetch("/api/event-media", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/transactions", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/leads", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/clients", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/projects", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/tasks", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/equipments", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/locations", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/contracts", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/notifications", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
+        fetch("/api/service-types", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
       ])
         .then(([
           eventMediaData,
@@ -260,48 +260,51 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           notificationsData,
           serviceTypesData
         ]) => {
-          // Process eventMediaData migrations
-          const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
-          const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
-          let migrated = false;
+          // Process eventMediaData migrations safely
+          if (Array.isArray(eventMediaData)) {
+            const oldSubdomain = "pub-3afde87ff96b7a4df43f2365f22e537e.r2.dev";
+            const newSubdomain = "pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev";
+            let migrated = false;
 
-          const migratedData = eventMediaData.map((event: any) => {
-            const updatedPhotos = event.photos.map((photo: any) => {
-              if (photo.url.includes(oldSubdomain)) {
-                migrated = true;
-                return {
-                  ...photo,
-                  url: photo.url.replace(oldSubdomain, newSubdomain),
-                };
-              }
-              return photo;
+            const migratedData = eventMediaData.map((event: any) => {
+              const photos = Array.isArray(event?.photos) ? event.photos : [];
+              const updatedPhotos = photos.map((photo: any) => {
+                if (photo?.url?.includes(oldSubdomain)) {
+                  migrated = true;
+                  return {
+                    ...photo,
+                    url: photo.url.replace(oldSubdomain, newSubdomain),
+                  };
+                }
+                return photo;
+              });
+              return {
+                ...event,
+                photos: updatedPhotos,
+              };
             });
-            return {
-              ...event,
-              photos: updatedPhotos,
-            };
-          });
 
-          setEventMedias(migratedData);
-          if (migrated) {
-            fetch("/api/event-media", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(migratedData),
-            }).catch((e) => console.error("Error saving migrated R2 database:", e));
+            setEventMedias(migratedData);
+            if (migrated) {
+              fetch("/api/event-media", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(migratedData),
+              }).catch((e) => console.error("Error saving migrated R2 database:", e));
+            }
           }
 
-          // Sync database values to React states
-          setTransactions(transactionsData);
-          setLeads(leadsData);
-          setClients(clientsData);
-          setProjects(projectsData);
-          setTasks(tasksData);
-          setEquipments(equipmentsData);
-          setLocations(locationsData);
-          setContracts(contractsData);
-          setNotifications(notificationsData);
-          setServiceTypes(serviceTypesData);
+          // Sync database values to React states safely
+          if (Array.isArray(transactionsData)) setTransactions(transactionsData);
+          if (Array.isArray(leadsData)) setLeads(leadsData);
+          if (Array.isArray(clientsData)) setClients(clientsData);
+          if (Array.isArray(projectsData)) setProjects(projectsData);
+          if (Array.isArray(tasksData)) setTasks(tasksData);
+          if (Array.isArray(equipmentsData)) setEquipments(equipmentsData);
+          if (Array.isArray(locationsData)) setLocations(locationsData);
+          if (Array.isArray(contractsData)) setContracts(contractsData);
+          if (Array.isArray(notificationsData)) setNotifications(notificationsData);
+          if (Array.isArray(serviceTypesData) && serviceTypesData.length > 0) setServiceTypes(serviceTypesData);
         })
         .catch((err) => {
           console.error("Failed to load database data:", err);
@@ -669,8 +672,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addEquipment = (equipment: Omit<Equipment, "id">) => {
-    const nextId = equipments.length > 0 ? Math.max(...equipments.map((e) => e.id)) + 1 : 1;
-    setEquipments((prev) => [...prev, { ...equipment, id: nextId }]);
+    setEquipments((prev) => {
+      const nextId = prev.length > 0 ? Math.max(...prev.map((e) => e.id)) + 1 : 1;
+      return [...prev, { ...equipment, id: nextId }];
+    });
     addNotification("Equipamento cadastrado", `O item '${equipment.name}' foi registrado no inventário técnico.`, "maintenance");
   };
 
@@ -686,7 +691,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addLocation = (location: Omit<Location, "id">) => {
-    setLocations((prev) => [...prev, { ...location, id: prev.length + 1 }]);
+    setLocations((prev) => {
+      const nextId = prev.length > 0 ? Math.max(...prev.map((l) => l.id)) + 1 : 1;
+      return [...prev, { ...location, id: nextId }];
+    });
   };
 
   // Notification actions

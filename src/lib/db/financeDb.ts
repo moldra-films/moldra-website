@@ -411,64 +411,62 @@ export class FinanceDb {
     }
   }
 
-  // Load database (memory cache -> local file -> R2 -> seed default)
-  public static async load(): Promise<FinanceDatabase> {
-    if (this.cache) return this.cache;
-
-    // Ensure the folder exists
-    const dir = path.dirname(LOCAL_DB_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+  // Load database (Cloudflare R2 cloud storage -> fallback local file -> seed default)
+  public static async load(forceRefresh: boolean = false): Promise<FinanceDatabase> {
+    if (this.cache && !forceRefresh) return this.cache;
 
     let dbData: FinanceDatabase | null = null;
 
-    // 1. Try reading from local file
-    if (fs.existsSync(LOCAL_DB_PATH)) {
-      try {
-        console.log("Reading financial database from local file cache...");
-        const fileContent = fs.readFileSync(LOCAL_DB_PATH, "utf-8");
-        dbData = JSON.parse(fileContent);
-      } catch (err) {
-        console.error("Error reading local finance database file:", err);
-      }
-    }
-
-    // 2. If local fails/missing, try R2
-    if (!dbData) {
+    // 1. Primary: Always pull latest live database from Cloudflare R2 cloud storage
+    if (bucketName) {
       dbData = await this.pullFromR2();
     }
 
-    // 3. If both fail, use seed data
+    // 2. Fallback: If R2 is offline or unavailable, try reading local file cache
     if (!dbData) {
-      console.log("No existing database found. Seeding default database...");
-      dbData = SEED_DATA;
-      // Write locally immediately
-      fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(dbData, null, 2), "utf-8");
-      // Push to R2 background
-      await this.pushToR2(dbData);
-    } else {
-      // If we read it locally but want to make sure it's saved locally
-      if (!fs.existsSync(LOCAL_DB_PATH)) {
-        fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(dbData, null, 2), "utf-8");
+      try {
+        if (fs.existsSync(LOCAL_DB_PATH)) {
+          console.log("Reading financial database from local file fallback...");
+          const fileContent = fs.readFileSync(LOCAL_DB_PATH, "utf-8");
+          dbData = JSON.parse(fileContent);
+        }
+      } catch (err) {
+        console.warn("Could not read local finance database file fallback:", err);
       }
+    }
+
+    // 3. Fallback: If both fail, use seed data and initialize R2
+    if (!dbData) {
+      console.log("No existing database found in R2 or local. Seeding default database...");
+      dbData = SEED_DATA;
+      await this.pushToR2(dbData);
     }
 
     this.cache = dbData;
     return this.cache;
   }
 
-  // Save database (memory -> local file -> push to R2)
+  // Save database (Cloudflare R2 cloud storage primary -> local file best-effort)
   public static async save(data: FinanceDatabase): Promise<void> {
     this.cache = data;
+
+    // 1. Primary: Push directly to Cloudflare R2 online database
     try {
-      console.log("Saving financial database locally...");
-      fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(data, null, 2), "utf-8");
-      // Sync cloud
       await this.pushToR2(data);
     } catch (err) {
-      console.error("Failed to save financial database:", err);
+      console.error("Failed to save financial database to Cloudflare R2:", err);
       throw err;
+    }
+
+    // 2. Best-effort: Save locally if filesystem allows
+    try {
+      const dir = path.dirname(LOCAL_DB_PATH);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(data, null, 2), "utf-8");
+    } catch (err) {
+      // Ignored for serverless / read-only production environments
     }
   }
 }

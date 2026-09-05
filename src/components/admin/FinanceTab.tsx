@@ -222,7 +222,10 @@ export default function FinanceTab() {
       ];
       
       const responses = await Promise.all(
-        endpoints.map(ep => fetch(`/api/finance/${ep}`).then(r => r.json()))
+        endpoints.map(ep => fetch(`/api/finance/${ep}`, { 
+          cache: "no-store", 
+          headers: { "Cache-Control": "no-cache" } 
+        }).then(r => r.ok ? r.json() : []).catch(() => []))
       );
 
       setBankAccounts(responses[0] || []);

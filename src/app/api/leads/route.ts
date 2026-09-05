@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -10,19 +13,23 @@ export async function GET() {
 
     if (error) throw error;
 
-    const mapped = data.map((lead: any) => ({
+    const mapped = (data || []).map((lead: any) => ({
       id: lead.id,
       name: lead.name,
       company: lead.company,
       email: lead.email,
       whatsapp: lead.whatsapp,
       projectType: lead.project_type,
-      value: Number(lead.value),
+      value: Number(lead.value || 0),
       stage: lead.stage,
       details: lead.details,
     }));
 
-    return NextResponse.json(mapped);
+    return NextResponse.json(mapped, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error: any) {
     console.error("Error reading leads from Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

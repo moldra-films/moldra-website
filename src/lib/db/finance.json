@@ -175,6 +175,8 @@
     }
   ],
   "equipmentPhotos": {
-    "1": []
+    "1": [
+      "https://pub-5c8ecaf928ac40f487ff1d7bf6b4b629.r2.dev/test.jpg"
+    ]
   }
 }

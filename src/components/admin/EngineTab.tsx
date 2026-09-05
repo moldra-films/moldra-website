@@ -45,6 +45,7 @@ interface CullingResult {
 interface ProjectSettings {
   adjustments: Record<string, any>;
   culling_results: CullingResult[];
+  has_exported?: boolean;
 }
 
 interface UploadingFile {
@@ -324,7 +325,7 @@ export default function EngineTab() {
           
           setSelectedPhoto(activePhoto);
           
-          const photoAdj = data.adjustments?.[activePhoto.filename] || {
+          const photoAdj = (activePhoto ? data.adjustments?.[activePhoto.filename] : null) || {
             exposure: 0.0,
             contrast: 0.0,
             temp: 0.0,

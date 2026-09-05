@@ -33,16 +33,14 @@ export default function Contact() {
   ]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("moldra_service_types");
-        if (stored) {
-          setServiceTypes(JSON.parse(stored));
+    fetch("/api/service-types", { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setServiceTypes(data);
         }
-      } catch (e) {
-        console.error(e);
-      }
-    }
+      })
+      .catch((e) => console.error("Error fetching service types in Contact:", e));
   }, []);
 
   const [formData, setFormData] = useState({
