@@ -41,37 +41,83 @@ body {
   background: #C8A96A;
 }
 
-/* Light mode theme style overrides */
+/* ==========================================================================
+   CLASSIC LIGHT MODE - HIGH CONTRAST & LUXURY DESIGN SYSTEM
+   ========================================================================== */
+
+/* 1. Root & App Layout */
 html.light body,
 html.light .bg-\[\#0B0B0B\],
 html.light .bg-dark-bg {
-  background-color: #F3F4F6 !important;
-  color: #111827 !important;
+  background-color: #F8FAFC !important; /* Slate-50 */
+  color: #0F172A !important;           /* Slate-900 */
 }
 
-html.light header,
+html.light main,
+html.light main.bg-black\/30 {
+  background-color: #F8FAFC !important;
+}
+
+/* 2. Headers, Sidebars & Main Panels */
+html.light header {
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light aside {
+  background-color: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0 !important;
+  box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 3. Cards & Surfaces */
 html.light .bg-dark-card,
 html.light .bg-\[\#1A1A1A\] {
   background-color: #FFFFFF !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
 }
 
+/* 4. Sub-cards, Wells & Inner Containers */
+html.light .bg-black\/20,
+html.light .bg-black\/25,
 html.light .bg-black\/30,
+html.light .bg-black\/35,
 html.light .bg-black\/40,
 html.light .bg-black\/50,
-html.light .bg-black\/80,
-html.light .bg-black\/20 {
-  background-color: #F9FAFB !important; /* gray-50 */
-  border-color: rgba(0, 0, 0, 0.08) !important;
+html.light .bg-black\/60,
+html.light .bg-black\/70 {
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
 }
 
-html.light .border-white\/5,
-html.light .border-white\/10,
-html.light .border-white\/15,
-html.light .divide-white\/5 {
-  border-color: rgba(0, 0, 0, 0.08) !important;
+/* 5. Modals & Dialogs (Preserve dark backdrop with clean white dialog) */
+html.light .fixed.inset-0.bg-black\/80,
+html.light .fixed.inset-0.bg-black\/85,
+html.light .fixed.inset-0.bg-black\/60,
+html.light .fixed.inset-0.bg-black\/90,
+html.light .fixed.inset-0.bg-black\/50,
+html.light .fixed.inset-0[class*="bg-black/"],
+html.light [class*="fixed inset-0"][class*="backdrop-blur"] {
+  background-color: rgba(15, 23, 42, 0.72) !important;
+  backdrop-filter: blur(8px) !important;
 }
 
+html.light .fixed .bg-dark-card,
+html.light [role="dialog"],
+html.light .fixed [class*="max-w-"] {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+}
+
+html.light .fixed .bg-dark-card .border-b,
+html.light .fixed .bg-dark-card [class*="border-b"] {
+  border-bottom-color: #E2E8F0 !important;
+}
+
+/* 6. Typography & Text Hierarchy */
 html.light .text-white,
 html.light h1,
 html.light h2,
@@ -79,176 +125,290 @@ html.light h3,
 html.light h4,
 html.light h5,
 html.light h6 {
-  color: #111827 !important;
+  color: #0F172A !important; /* Deep crisp slate-900 */
 }
 
-html.light .text-gray-300,
+html.light .text-gray-200,
+html.light .text-gray-300 {
+  color: #334155 !important; /* Slate-700 */
+}
+
 html.light .text-gray-400 {
-  color: #374151 !important; /* gray-700 */
+  color: #475569 !important; /* Slate-600 */
 }
 
 html.light .text-gray-500 {
-  color: #6B7280 !important; /* gray-500 */
+  color: #64748B !important; /* Slate-500 */
 }
 
-html.light input,
+html.light .text-gray-600 {
+  color: #475569 !important;
+}
+
+/* Brand Primary (Gold) High Contrast for White Background */
+html.light .text-primary {
+  color: #96753A !important; /* High-contrast rich bronze gold */
+}
+
+/* 7. Borders, Outlines & Dividers */
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .border-white\/20,
+html.light .border-white\/30,
+html.light .divide-white\/5,
+html.light .divide-white\/10 {
+  border-color: #E2E8F0 !important; /* Slate-200 */
+}
+
+/* 8. Sidebar Nav Specifics (Never override active tab text) */
+html.light aside nav a,
+html.light aside nav button {
+  color: #64748B !important;
+}
+
+html.light aside nav a:hover,
+html.light aside nav button:hover {
+  background-color: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+html.light aside nav .bg-primary,
+html.light aside nav [class*="bg-primary"] {
+  background-color: #C8A96A !important;
+}
+
+html.light aside nav .text-black,
+html.light aside nav .text-black * {
+  color: #000000 !important;
+}
+
+/* 9. Forms, Inputs, Selects & Textareas */
+html.light input:not([type="checkbox"]):not([type="radio"]),
 html.light select,
 html.light textarea {
   background-color: #FFFFFF !important;
-  border-color: rgba(0, 0, 0, 0.15) !important;
-  color: #111827 !important;
+  border: 1px solid #CBD5E1 !important; /* Slate-300 */
+  color: #0F172A !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94A3B8 !important; /* Slate-400 */
 }
 
 html.light input:focus,
 html.light select:focus,
 html.light textarea:focus {
-  border-color: #C8A96A !important;
+  border-color: #96753A !important;
+  outline: 2px solid rgba(200, 169, 106, 0.25) !important;
+  background-color: #FFFFFF !important;
+}
+
+html.light select option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+/* 10. Buttons & Interactive States */
+html.light .bg-white\/5 {
+  background-color: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #334155 !important;
 }
 
 html.light .hover\:bg-white\/5:hover,
 html.light .hover\:bg-white\/10:hover,
 html.light .hover\:bg-white\/15:hover {
-  background-color: rgba(0, 0, 0, 0.06) !important;
+  background-color: #E2E8F0 !important;
+  color: #0F172A !important;
 }
 
-html.light .hover\:text-white:hover {
-  color: #111827 !important;
+html.light .bg-primary {
+  background-color: #C8A96A !important;
 }
 
-/* Specific elements adjustments */
-html.light .bg-radial-gradient {
-  background-image: radial-gradient(circle, #E5E7EB 0%, #F3F4F6 100%) !important;
+html.light .hover\:bg-\[\#B39356\]:hover {
+  background-color: #B39356 !important;
 }
-
-html.light .bg-white\/5 {
-  background-color: rgba(0, 0, 0, 0.04) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-html.light .text-gray-600 {
-  color: #4B5563 !important;
-}
-
-html.light .bg-green-500\/10 {
-  background-color: rgba(16, 185, 129, 0.1) !important;
-}
-
-html.light .bg-blue-500\/10 {
-  background-color: rgba(59, 130, 246, 0.1) !important;
-}
-
-html.light .bg-yellow-500\/10 {
-  background-color: rgba(245, 158, 11, 0.1) !important;
-}
-
-html.light .bg-red-500\/10 {
-  background-color: rgba(239, 68, 68, 0.1) !important;
-}
-
-html.light .bg-purple-500\/10 {
-  background-color: rgba(139, 92, 246, 0.1) !important;
-}
-
-html.light .bg-pink-500\/10 {
-  background-color: rgba(236, 72, 153, 0.1) !important;
-}
-
-html.light .bg-orange-500\/10 {
-  background-color: rgba(249, 115, 22, 0.1) !important;
-}
-
-/* Fixed left sidebar for light mode */
-html.light aside,
-html.light .w-64.bg-\[\#0B0B0B\],
-html.light .bg-dark-card {
-  background-color: #FFFFFF !important;
-  border-right-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-html.light aside a,
-html.light aside button {
-  color: #374151 !important;
-}
-
-html.light aside a:hover,
-html.light aside button:hover {
-  background-color: rgba(0, 0, 0, 0.04) !important;
-  color: #111827 !important;
-}
-
-html.light aside .bg-primary\/10 {
-  background-color: rgba(200, 169, 106, 0.12) !important;
-}
-
-/* Accessibility contrast adjustments for Light Mode */
-html.light .text-primary {
-  color: #A08246 !important;
-}
-
-html.light .text-green-400 { color: #15803D !important; } /* green-700 */
-html.light .text-blue-400 { color: #1D4ED8 !important; }  /* blue-700 */
-html.light .text-yellow-400 { color: #A16207 !important; } /* yellow-700 */
-html.light .text-red-400 { color: #B91C1C !important; }   /* red-700 */
-html.light .text-purple-400 { color: #6D28D9 !important; } /* purple-700 */
-html.light .text-orange-400 { color: #C2410C !important; } /* orange-700 */
-html.light .text-pink-400 { color: #BE185D !important; }   /* pink-700 */
 
 html.light .text-black {
   color: #000000 !important;
 }
 
-/* Prevent general light mode text color overrides inside explicitly light paper layouts (e.g. Invoices) */
-html.light .text-black .text-white,
-html.light .bg-white .text-white {
-  color: #FFFFFF !important;
-}
-html.light .text-black .text-black,
-html.light .bg-white .text-black {
-  color: #000000 !important;
-}
-html.light .text-black .text-gray-500,
-html.light .bg-white .text-gray-500 {
-  color: #6B7280 !important;
-}
-html.light .text-black .text-gray-400,
-html.light .bg-white .text-gray-400 {
-  color: #4B5563 !important;
+/* 11. Tables & Ledgers */
+html.light table thead tr {
+  background-color: #F1F5F9 !important; /* Slate-100 */
+  border-bottom: 1px solid #E2E8F0 !important;
 }
 
-/* Services and Process sections card backgrounds in light mode */
+html.light table thead th {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+
+html.light table tbody tr {
+  border-bottom: 1px solid #F1F5F9 !important;
+}
+
+html.light table tbody tr:hover {
+  background-color: #F8FAFC !important;
+}
+
+html.light table td {
+  color: #1E293B !important;
+}
+
+/* 12. Colored Badges & Status Indicators (High Contrast) */
+html.light .text-green-400,
+html.light .text-emerald-400 {
+  color: #15803D !important; /* Green-700 */
+}
+html.light .bg-green-500\/5,
+html.light .bg-green-500\/10,
+html.light .bg-green-500\/20,
+html.light .bg-emerald-500\/10,
+html.light .bg-emerald-500\/20 {
+  background-color: #ECFDF5 !important; /* Emerald-50 */
+  border-color: #A7F3D0 !important;     /* Emerald-200 */
+  color: #15803D !important;
+}
+
+html.light .text-red-400,
+html.light .text-rose-400 {
+  color: #B91C1C !important; /* Red-700 */
+}
+html.light .bg-red-500\/5,
+html.light .bg-red-500\/10,
+html.light .bg-red-500\/20,
+html.light .bg-rose-500\/10 {
+  background-color: #FEF2F2 !important; /* Red-50 */
+  border-color: #FECACA !important;     /* Red-200 */
+  color: #B91C1C !important;
+}
+
+html.light .text-yellow-400,
+html.light .text-amber-400 {
+  color: #B45309 !important; /* Amber-700 */
+}
+html.light .bg-yellow-500\/5,
+html.light .bg-yellow-500\/10,
+html.light .bg-yellow-500\/20,
+html.light .bg-amber-500\/10 {
+  background-color: #FFFBEB !important; /* Amber-50 */
+  border-color: #FDE68A !important;     /* Amber-200 */
+  color: #B45309 !important;
+}
+
+html.light .text-blue-400 {
+  color: #1D4ED8 !important; /* Blue-700 */
+}
+html.light .bg-blue-500\/5,
+html.light .bg-blue-500\/10,
+html.light .bg-blue-500\/20 {
+  background-color: #EFF6FF !important; /* Blue-50 */
+  border-color: #BFDBFE !important;     /* Blue-200 */
+  color: #1D4ED8 !important;
+}
+
+html.light .text-purple-400 {
+  color: #6D28D9 !important; /* Purple-700 */
+}
+html.light .bg-purple-500\/5,
+html.light .bg-purple-500\/10,
+html.light .bg-purple-500\/20 {
+  background-color: #FAF5FF !important; /* Purple-50 */
+  border-color: #E9D5FF !important;     /* Purple-200 */
+  color: #6D28D9 !important;
+}
+
+html.light .text-orange-400 {
+  color: #C2410C !important; /* Orange-700 */
+}
+html.light .bg-orange-500\/5,
+html.light .bg-orange-500\/10 {
+  background-color: #FFF7ED !important; /* Orange-50 */
+  border-color: #FED7AA !important;     /* Orange-200 */
+  color: #C2410C !important;
+}
+
+html.light .text-pink-400 {
+  color: #BE185D !important; /* Pink-700 */
+}
+html.light .bg-pink-500\/5,
+html.light .bg-pink-500\/10 {
+  background-color: #FDF2F8 !important; /* Pink-50 */
+  border-color: #FBCFE8 !important;     /* Pink-200 */
+  color: #BE185D !important;
+}
+
+/* 13. Floating Tooltips (Keep dark & sharp) */
+html.light .group .opacity-0.group-hover\:opacity-100.bg-black,
+html.light .tooltip,
+html.light [role="tooltip"] {
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2) !important;
+}
+
+html.light .group .opacity-0.group-hover\:opacity-100.bg-black .text-primary {
+  color: #F59E0B !important;
+}
+
+/* 14. Scrollbars in Light Mode */
+html.light ::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* 15. Explicit Light Paper / Printable Invoices & Receipts */
+html.light .receipt-card,
+html.light #moldra-printable-receipt {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+/* 16. Services & Process Landing Sections */
 html.light .service-card,
 html.light .process-card {
-  background-color: #F9FAFB !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
 }
-
-/* Ensure services and process texts are fully readable in light mode */
 html.light .service-card h3,
 html.light .process-card h3 {
-  color: #111827 !important;
+  color: #0F172A !important;
 }
-
 html.light .service-card p,
 html.light .process-card p {
-  color: #4B5563 !important;
+  color: #475569 !important;
 }
-
 html.light .service-card:hover h3,
 html.light .process-card:hover h3 {
-  color: #A08246 !important; /* dark gold on hover */
+  color: #96753A !important;
 }
-
 html.light .service-card:hover p,
 html.light .process-card:hover p {
-  color: #374151 !important; /* remains dark gray on hover */
+  color: #1E293B !important;
 }
-
-/* Background step outline numbers visibility inside Process section in light mode */
 html.light .process-card span.absolute.text-8xl {
   -webkit-text-stroke: 1px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Ensure footer remains 100% dark (unaffected in any way) in light mode since background is dark */
+/* 17. Footer Protection (Stays 100% Dark) */
+html.light footer {
+  background-color: #0B0B0B !important;
+}
 html.light footer .text-white {
   color: #FFFFFF !important;
 }
