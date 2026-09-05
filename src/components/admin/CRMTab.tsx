@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAdmin, Lead, Client } from "@/context/AdminContext";
-import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall, Edit, Trash2, GripVertical } from "lucide-react";
+import { Plus, ArrowRight, CheckCircle2, User, Search, MessageSquare, PhoneCall, Edit, Trash2, GripVertical, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function CRMTab() {
@@ -104,9 +104,13 @@ export default function CRMTab() {
 
   const [showAddClient, setShowAddClient] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   const [newClient, setNewClient] = useState({
     name: "",
     company: "",
+    logoUrl: "",
     cnpj: "",
     email: "",
     whatsapp: "",
@@ -114,12 +118,57 @@ export default function CRMTab() {
     responsible: "Mikelly Maduro",
   });
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setUploadingLogo(true);
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: `clients/${Date.now()}-${file.name}`,
+            fileType: file.type,
+            folder: "clients",
+          }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Falha ao gerar link de upload.");
+        }
+
+        const { uploadUrl, fileUrl } = await res.json();
+
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type,
+          },
+          body: file,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Falha no upload direto para a nuvem R2.");
+        }
+
+        setNewClient((prev) => ({ ...prev, logoUrl: fileUrl }));
+      } catch (err: any) {
+        console.error("Error uploading client logo:", err);
+        alert(`Erro ao fazer upload da foto da marca: ${err.message}`);
+      } finally {
+        setUploadingLogo(false);
+      }
+    }
+  };
+
   const handleCreateClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingClient) {
       updateClient(editingClient.id, {
         name: newClient.name,
         company: newClient.company,
+        logoUrl: newClient.logoUrl,
         cnpj: newClient.cnpj,
         email: newClient.email,
         whatsapp: newClient.whatsapp,
@@ -131,6 +180,7 @@ export default function CRMTab() {
       addClient({
         name: newClient.name,
         company: newClient.company,
+        logoUrl: newClient.logoUrl,
         cnpj: newClient.cnpj || "00.000.000/0001-00",
         email: newClient.email,
         whatsapp: newClient.whatsapp,
@@ -141,6 +191,7 @@ export default function CRMTab() {
     setNewClient({
       name: "",
       company: "",
+      logoUrl: "",
       cnpj: "",
       email: "",
       whatsapp: "",
@@ -155,6 +206,7 @@ export default function CRMTab() {
     setNewClient({
       name: client.name,
       company: client.company,
+      logoUrl: client.logoUrl || "",
       cnpj: client.cnpj,
       email: client.email,
       whatsapp: client.whatsapp,
@@ -169,6 +221,7 @@ export default function CRMTab() {
     setNewClient({
       name: "",
       company: "",
+      logoUrl: "",
       cnpj: "",
       email: "",
       whatsapp: "",
@@ -534,8 +587,16 @@ export default function CRMTab() {
                   <tr key={client.id} className="hover:bg-white/[0.01] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                          <User className="w-4 h-4 text-primary" />
+                        <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                          {client.logoUrl ? (
+                            <img
+                              src={client.logoUrl}
+                              alt={client.company}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-4 h-4 text-primary" />
+                          )}
                         </div>
                         <div>
                           <span className="font-bold text-white font-display block">{client.company}</span>
@@ -606,6 +667,81 @@ export default function CRMTab() {
             </div>
 
             <form onSubmit={handleCreateClient} className="p-6 space-y-4">
+              {/* Brand Logo Upload */}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">
+                  Foto / Logotipo da Marca
+                </label>
+                
+                <div className="flex items-center gap-4">
+                  {/* Preview avatar */}
+                  <div className="relative w-14 h-14 rounded-2xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 group">
+                    {newClient.logoUrl ? (
+                      <>
+                        <img 
+                          src={newClient.logoUrl} 
+                          alt="Logo Preview" 
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewClient((prev) => ({ ...prev, logoUrl: "" }))}
+                          className="absolute inset-0 bg-black/70 text-red-400 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-xs"
+                          title="Remover foto"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <Upload className="w-5 h-5 text-gray-500" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        ref={logoInputRef}
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        disabled={uploadingLogo}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold text-gray-200 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {uploadingLogo ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5 text-primary" />
+                            <span>{newClient.logoUrl ? "Alterar Foto" : "Carregar Foto"}</span>
+                          </>
+                        )}
+                      </button>
+
+                      {newClient.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setNewClient((prev) => ({ ...prev, logoUrl: "" }))}
+                          className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-sans">
+                      PNG, JPG ou WEBP (Salvo na nuvem R2).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Empresa / Marca</label>
                 <input

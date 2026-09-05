@@ -19,6 +19,7 @@ export interface Client {
   id: number;
   name: string;
   company: string;
+  logoUrl?: string;
   cnpj: string;
   email: string;
   whatsapp: string;
