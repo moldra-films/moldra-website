@@ -1,11 +1,39 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { FinanceDb } from "@/lib/db/financeDb";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
   try {
+    // 1. Primary: load transactions from FinanceDb (R2 cloud storage)
+    try {
+      const financeDb = await FinanceDb.load(true);
+      if (financeDb.transactions && financeDb.transactions.length > 0) {
+        const mapped = financeDb.transactions.map((trans: any, index: number) => ({
+          id: trans.id,
+          type: trans.type === "Entrada" ? "Receita" : trans.type === "Saída" ? "Despesa" : trans.type,
+          rawType: trans.type,
+          category: trans.category || "Outros",
+          value: Number(trans.value) || 0,
+          date: trans.date,
+          description: trans.description,
+          status: trans.status === "Recebido" || trans.status === "Pago" ? "Pago" : "Pendente",
+          rawStatus: trans.status,
+          customer: trans.customerOrProvider || trans.customer || "Nenhum",
+        }));
+        return NextResponse.json(mapped, {
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          },
+        });
+      }
+    } catch (r2Err) {
+      console.warn("Could not load transactions from FinanceDb/R2, falling back to Supabase:", r2Err);
+    }
+
+    // 2. Fallback: load from Supabase
     const { data, error } = await supabase
       .from("transactions")
       .select("*")
@@ -16,11 +44,13 @@ export async function GET() {
     const mapped = (data || []).map((trans: any) => ({
       id: trans.id,
       type: trans.type,
+      rawType: trans.type,
       category: trans.category,
-      value: trans.value,
+      value: Number(trans.value) || 0,
       date: trans.date,
       description: trans.description,
       status: trans.status,
+      rawStatus: trans.status,
       customer: trans.customer,
     }));
 

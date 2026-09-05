@@ -7,21 +7,26 @@ import { motion } from "framer-motion";
 export default function DashboardTab() {
   const { projects, clients, transactions, leads, notifications } = useAdmin();
 
-  // Dynamic calculations
+  // Dynamic calculations supporting all financial transaction models
   const activeProjects = projects.filter((p) => p.status !== "Concluído");
   const deliveredProjectsCount = projects.filter((p) => p.status === "Concluído").length;
 
+  const isRevenue = (t: any) => t.type === "Receita" || t.type === "Entrada" || t.rawType === "Entrada";
+  const isExpense = (t: any) => t.type === "Despesa" || t.type === "Saída" || t.rawType === "Saída";
+  const isPaid = (t: any) => t.status === "Pago" || t.status === "Recebido" || t.rawStatus === "Recebido" || t.rawStatus === "Pago";
+  const isPending = (t: any) => t.status === "Pendente" || t.status === "A receber" || t.status === "A pagar" || t.status === "Agendado";
+
   const totalRevenue = transactions
-    .filter((t) => t.type === "Receita" && t.status === "Pago")
-    .reduce((sum, t) => sum + t.value, 0);
+    .filter((t) => isRevenue(t) && isPaid(t))
+    .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
 
   const accountsReceivable = transactions
-    .filter((t) => t.type === "Receita" && t.status === "Pendente")
-    .reduce((sum, t) => sum + t.value, 0);
+    .filter((t) => isRevenue(t) && isPending(t))
+    .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
 
   const accountsPayable = transactions
-    .filter((t) => t.type === "Despesa" && t.status === "Pendente")
-    .reduce((sum, t) => sum + t.value, 0);
+    .filter((t) => isExpense(t) && isPending(t))
+    .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
 
   const activeClientsCount = clients.length;
   const pendingLeadsCount = leads.length;
@@ -93,31 +98,43 @@ export default function DashboardTab() {
             </div>
 
             {/* Bars */}
-            {[
-              { month: "Jan", val: 32000, pct: "45%" },
-              { month: "Fev", val: 28000, pct: "39%" },
-              { month: "Mar", val: 45000, pct: "64%" },
-              { month: "Abr", val: 62000, pct: "88%" },
-              { month: "Mai", val: 49000, pct: "70%" },
-              { month: "Jun", val: 56000, pct: "80%" },
-              { month: "Jul", val: 71000, pct: "100%" },
-            ].map((d, index) => (
-              <div key={index} className="flex flex-col items-center gap-2 group relative z-10 w-1/12">
-                {/* Tooltip on hover */}
-                <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-white/10 px-2 py-1 rounded text-[10px] text-primary font-bold whitespace-nowrap z-20 shadow-lg">
-                  {formatCurrency(d.val)}
-                </div>
-                {/* Bar */}
-                <motion.div
-                  initial={{ scaleY: 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={{ duration: 0.8, ease: "easeOut", delay: index * 0.05 }}
-                  style={{ height: d.pct }}
-                  className="w-full bg-gradient-to-t from-primary/80 to-primary rounded-t-md origin-bottom group-hover:brightness-110 shadow-lg shadow-primary/10 transition-all duration-200"
-                />
-                <span className="text-[10px] text-gray-500 font-sans mt-2">{d.month}</span>
-              </div>
-            ))}
+            {(() => {
+              const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+              const currentMonthIdx = new Date().getMonth();
+              const displayCount = Math.max(currentMonthIdx + 1, 7);
+              const rawMonthlyValues = monthLabels.slice(0, displayCount).map((m, idx) => {
+                const val = transactions
+                  .filter((t) => {
+                    if (!isRevenue(t) || !isPaid(t)) return false;
+                    const d = new Date(t.date);
+                    return d.getMonth() === idx;
+                  })
+                  .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
+                return { month: m, val };
+              });
+
+              const maxVal = Math.max(...rawMonthlyValues.map(d => d.val), 1000);
+              return rawMonthlyValues.map((d, index) => {
+                const heightPct = d.val > 0 ? `${Math.max(Math.round((d.val / maxVal) * 100), 12)}%` : "6%";
+                return (
+                  <div key={index} className="flex flex-col items-center gap-2 group relative z-10 w-1/12">
+                    {/* Tooltip on hover */}
+                    <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-white/10 px-2 py-1 rounded text-[10px] text-primary font-bold whitespace-nowrap z-20 shadow-lg">
+                      {formatCurrency(d.val)}
+                    </div>
+                    {/* Bar */}
+                    <motion.div
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      transition={{ duration: 0.8, ease: "easeOut", delay: index * 0.05 }}
+                      style={{ height: heightPct }}
+                      className={`w-full ${d.val > 0 ? "bg-gradient-to-t from-primary/80 to-primary shadow-primary/10" : "bg-white/5"} rounded-t-md origin-bottom group-hover:brightness-110 shadow-lg transition-all duration-200`}
+                    />
+                    <span className="text-[10px] text-gray-500 font-sans mt-2">{d.month}</span>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
 
