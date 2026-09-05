@@ -139,6 +139,9 @@ export default function FinanceTab() {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showBillingModal, setShowBillingModal] = useState(false);
+  const [editingBilling, setEditingBilling] = useState<Billing | null>(null);
+  const [showPayableModal, setShowPayableModal] = useState(false);
+  const [editingPayable, setEditingPayable] = useState<Payable | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [openFinanceConnected, setOpenFinanceConnected] = useState(false);
   const [showOpenFinanceModal, setShowOpenFinanceModal] = useState(false);
@@ -215,6 +218,18 @@ export default function FinanceTab() {
     bankAccountId: "",
     paymentMethod: "Boleto",
     notes: "",
+  });
+
+  const [payableForm, setPayableForm] = useState({
+    id: "",
+    provider: "",
+    description: "",
+    category: "Serviços",
+    value: 0,
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+    bankAccountId: "",
+    recurrence: "Única" as Payable["recurrence"],
+    status: "Pendente" as Payable["status"],
   });
 
   // Load Data
@@ -688,55 +703,120 @@ export default function FinanceTab() {
     }
   };
 
-  // Billings (Receivables)
-  const handleSaveBilling = (e: React.FormEvent) => {
-    e.preventDefault();
-    const valueNum = Number(billingForm.value);
-    const newBill: Billing = {
-      id: `bill-${Date.now()}`,
-      client: billingForm.client,
-      service: billingForm.service,
-      value: valueNum,
-      billingDate: billingForm.billingDate,
-      dueDate: billingForm.dueDate,
-      status: "A receber",
-      bankAccountId: billingForm.bankAccountId,
-      paymentMethod: billingForm.paymentMethod,
-      notes: billingForm.notes
-    };
-
-    // Create a matching pending transaction
-    const matchingTx: Transaction = {
-      id: `tx-bill-${Date.now()}`,
-      description: `${billingForm.service} - ${billingForm.client}`,
-      type: "Entrada",
-      category: "Serviços",
-      customerOrProvider: billingForm.client,
-      bankAccountId: billingForm.bankAccountId,
-      paymentMethod: billingForm.paymentMethod,
-      value: valueNum,
-      date: billingForm.billingDate,
-      dueDate: billingForm.dueDate,
-      status: "Pendente",
-      origin: "Manual",
-      receiptUrl: null,
-      notes: billingForm.notes,
-      billingId: newBill.id
-    };
-
-    saveEntity("billings", [...billings, newBill]);
-    saveEntity("transactions", [...transactions, matchingTx]);
-    setShowBillingModal(false);
+  // Billings (Receivables) CRUD
+  const openNewBilling = () => {
+    setEditingBilling(null);
     setBillingForm({
       client: "",
       service: "",
       value: 0,
       billingDate: new Date().toISOString().split("T")[0],
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      bankAccountId: "",
+      bankAccountId: bankAccounts[0]?.id || "",
       paymentMethod: "Boleto",
       notes: "",
     });
+    setShowBillingModal(true);
+  };
+
+  const openEditBilling = (bill: Billing) => {
+    setEditingBilling(bill);
+    setBillingForm({
+      client: bill.client,
+      service: bill.service,
+      value: bill.value,
+      billingDate: bill.billingDate,
+      dueDate: bill.dueDate,
+      bankAccountId: bill.bankAccountId,
+      paymentMethod: bill.paymentMethod,
+      notes: bill.notes || "",
+    });
+    setShowBillingModal(true);
+  };
+
+  const handleSaveBilling = (e: React.FormEvent) => {
+    e.preventDefault();
+    const valueNum = Number(billingForm.value);
+
+    if (editingBilling) {
+      const updatedBillings = billings.map(b => b.id === editingBilling.id ? {
+        ...b,
+        client: billingForm.client,
+        service: billingForm.service,
+        value: valueNum,
+        billingDate: billingForm.billingDate,
+        dueDate: billingForm.dueDate,
+        bankAccountId: billingForm.bankAccountId,
+        paymentMethod: billingForm.paymentMethod,
+        notes: billingForm.notes
+      } : b);
+
+      const updatedTxs = transactions.map(t => {
+        if (t.billingId === editingBilling.id) {
+          return {
+            ...t,
+            description: `${billingForm.service} - ${billingForm.client}`,
+            customerOrProvider: billingForm.client,
+            bankAccountId: billingForm.bankAccountId,
+            paymentMethod: billingForm.paymentMethod,
+            value: valueNum,
+            date: billingForm.billingDate,
+            dueDate: billingForm.dueDate,
+            notes: billingForm.notes
+          };
+        }
+        return t;
+      });
+
+      saveEntity("billings", updatedBillings);
+      saveEntity("transactions", updatedTxs);
+    } else {
+      const newBill: Billing = {
+        id: `bill-${Date.now()}`,
+        client: billingForm.client,
+        service: billingForm.service,
+        value: valueNum,
+        billingDate: billingForm.billingDate,
+        dueDate: billingForm.dueDate,
+        status: "A receber",
+        bankAccountId: billingForm.bankAccountId,
+        paymentMethod: billingForm.paymentMethod,
+        notes: billingForm.notes
+      };
+
+      // Create a matching pending transaction
+      const matchingTx: Transaction = {
+        id: `tx-bill-${Date.now()}`,
+        description: `${billingForm.service} - ${billingForm.client}`,
+        type: "Entrada",
+        category: "Serviços",
+        customerOrProvider: billingForm.client,
+        bankAccountId: billingForm.bankAccountId,
+        paymentMethod: billingForm.paymentMethod,
+        value: valueNum,
+        date: billingForm.billingDate,
+        dueDate: billingForm.dueDate,
+        status: "Pendente",
+        origin: "Manual",
+        receiptUrl: null,
+        notes: billingForm.notes,
+        billingId: newBill.id
+      };
+
+      saveEntity("billings", [...billings, newBill]);
+      saveEntity("transactions", [...transactions, matchingTx]);
+    }
+
+    setShowBillingModal(false);
+    setEditingBilling(null);
+  };
+
+  const handleDeleteBilling = (bill: Billing) => {
+    if (!confirm(`Deseja realmente excluir a cobrança "${bill.service}" de ${bill.client}?`)) return;
+    const updatedBillings = billings.filter(b => b.id !== bill.id);
+    const updatedTxs = transactions.filter(t => t.billingId !== bill.id);
+    saveEntity("billings", updatedBillings);
+    saveEntity("transactions", updatedTxs);
   };
 
   const handleClearanceBilling = (bill: Billing) => {
@@ -753,6 +833,126 @@ export default function FinanceTab() {
     });
 
     saveEntity("billings", updatedBillings);
+    saveEntity("transactions", updatedTxs);
+  };
+
+  // Payables (Contas a Pagar) CRUD
+  const openNewPayable = () => {
+    setEditingPayable(null);
+    setPayableForm({
+      id: "",
+      provider: "",
+      description: "",
+      category: "Serviços",
+      value: 0,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      bankAccountId: bankAccounts[0]?.id || "",
+      recurrence: "Única",
+      status: "Pendente",
+    });
+    setShowPayableModal(true);
+  };
+
+  const openEditPayable = (pay: Payable) => {
+    setEditingPayable(pay);
+    setPayableForm({
+      id: pay.id,
+      provider: pay.provider,
+      description: pay.description,
+      category: pay.category || "Serviços",
+      value: pay.value,
+      dueDate: pay.dueDate,
+      bankAccountId: pay.bankAccountId,
+      recurrence: pay.recurrence || "Única",
+      status: pay.status,
+    });
+    setShowPayableModal(true);
+  };
+
+  const handleSavePayable = (e: React.FormEvent) => {
+    e.preventDefault();
+    const valueNum = Number(payableForm.value);
+
+    if (editingPayable) {
+      const updatedPayables = payables.map(p => p.id === editingPayable.id ? {
+        ...p,
+        provider: payableForm.provider,
+        description: payableForm.description,
+        category: payableForm.category,
+        value: valueNum,
+        dueDate: payableForm.dueDate,
+        bankAccountId: payableForm.bankAccountId,
+        recurrence: payableForm.recurrence,
+        status: payableForm.status
+      } : p);
+
+      const updatedTxs = transactions.map(t => {
+        if (t.payableId === editingPayable.id) {
+          return {
+            ...t,
+            description: payableForm.description,
+            customerOrProvider: payableForm.provider,
+            category: payableForm.category,
+            bankAccountId: payableForm.bankAccountId,
+            value: valueNum,
+            dueDate: payableForm.dueDate,
+            status: payableForm.status === "Pago" ? "Pago" as const : "Pendente" as const
+          };
+        }
+        return t;
+      });
+
+      saveEntity("payables", updatedPayables);
+      saveEntity("transactions", updatedTxs);
+    } else {
+      const newPay: Payable = {
+        id: `pay-${Date.now()}`,
+        provider: payableForm.provider,
+        description: payableForm.description,
+        category: payableForm.category,
+        value: valueNum,
+        dueDate: payableForm.dueDate,
+        bankAccountId: payableForm.bankAccountId,
+        status: payableForm.status,
+        recurrence: payableForm.recurrence,
+        receiptUrl: null
+      };
+
+      const matchingTx: Transaction = {
+        id: `tx-pay-${Date.now()}`,
+        description: payableForm.description,
+        type: "Saída",
+        category: payableForm.category,
+        customerOrProvider: payableForm.provider,
+        bankAccountId: payableForm.bankAccountId,
+        paymentMethod: "Transferência",
+        value: valueNum,
+        date: new Date().toISOString().split("T")[0],
+        dueDate: payableForm.dueDate,
+        status: payableForm.status === "Pago" ? "Pago" : "Pendente",
+        origin: "Manual",
+        receiptUrl: null,
+        notes: `Compromisso a pagar: ${payableForm.recurrence}`,
+        payableId: newPay.id
+      };
+
+      if (payableForm.status === "Pago") {
+        updateAccountBalance(payableForm.bankAccountId, valueNum, "sub");
+      }
+
+      saveEntity("payables", [...payables, newPay]);
+      saveEntity("transactions", [...transactions, matchingTx]);
+    }
+
+    setShowPayableModal(false);
+    setEditingPayable(null);
+  };
+
+  const handleDeletePayable = (pay: Payable) => {
+    if (!confirm(`Deseja realmente excluir a conta a pagar "${pay.description}" de ${pay.provider}?`)) return;
+    const updatedPayables = payables.filter(p => p.id !== pay.id);
+    const updatedTxs = transactions.filter(t => t.payableId !== pay.id);
+    saveEntity("payables", updatedPayables);
     saveEntity("transactions", updatedTxs);
   };
 
@@ -2557,44 +2757,77 @@ Moldra Films • Manaus/AM`;
                   <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-4">
                     <div className="flex justify-between items-center border-b border-white/5 pb-3">
                       <div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-white">Contas a Receber / Cobranças</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                          Contas a Receber / Cobranças
+                          <span className="px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded text-[9px] font-mono">
+                            {billings.length}
+                          </span>
+                        </h3>
                         <p className="text-[9px] text-gray-500 font-sans mt-0.5">Acompanhe as propostas faturadas aos clientes até a compensação.</p>
                       </div>
 
                       <button
-                        onClick={() => setShowBillingModal(true)}
+                        onClick={openNewBilling}
                         className="px-3 py-1.5 bg-primary hover:bg-[#B39356] text-black font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
                       >
                         <Plus className="w-3 h-3" /> Faturar Serviço
                       </button>
                     </div>
 
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                      {billings.map(bill => (
-                        <div key={bill.id} className="p-4 bg-black/25 border border-white/5 rounded-xl flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">{bill.service}</span>
-                            <span className="text-[10px] text-gray-500 block mt-0.5">{bill.client} | Venc: {new Date(bill.dueDate).toLocaleDateString()}</span>
-                            <span className="text-[9px] text-gray-400 block mt-2">Banco de compensação: {bankAccounts.find(b => b.id === bill.bankAccountId)?.name}</span>
-                          </div>
-                          <div className="text-right flex flex-col items-end gap-2">
-                            <span className="text-xs font-bold block text-green-400 font-mono">R$ {bill.value.toLocaleString()}</span>
-                            
-                            {bill.status === "A receber" ? (
-                              <button
-                                onClick={() => handleClearanceBilling(bill)}
-                                className="px-2.5 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer"
-                              >
-                                Dar Baixa
-                              </button>
-                            ) : (
-                              <span className="px-2 py-0.5 bg-green-500/5 text-green-400 border border-green-500/15 text-[8px] font-bold rounded-lg uppercase">
-                                Recebido
-                              </span>
-                            )}
-                          </div>
+                    <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+                      {billings.length === 0 ? (
+                        <div className="p-8 text-center bg-black/20 border border-white/5 rounded-xl text-gray-500 text-xs">
+                          Nenhuma cobrança registrada.
                         </div>
-                      ))}
+                      ) : (
+                        billings.map(bill => (
+                          <div key={bill.id} className="p-4 bg-black/25 hover:bg-black/35 border border-white/5 rounded-xl flex items-center justify-between gap-3 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-bold text-white block truncate">{bill.service}</span>
+                              <span className="text-[10px] text-gray-400 block mt-0.5">
+                                {bill.client} | Venc: {new Date(bill.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                              <span className="text-[9px] text-gray-500 block mt-1">
+                                Banco: {bankAccounts.find(b => b.id === bill.bankAccountId)?.name || "Não definido"} • Forma: {bill.paymentMethod}
+                              </span>
+                            </div>
+                            <div className="text-right flex flex-col items-end gap-2 shrink-0">
+                              <span className="text-xs font-bold block text-green-400 font-mono">
+                                R$ {bill.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                              
+                              <div className="flex items-center gap-1.5">
+                                {bill.status === "A receber" ? (
+                                  <button
+                                    onClick={() => handleClearanceBilling(bill)}
+                                    className="px-2.5 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer transition-colors"
+                                  >
+                                    Dar Baixa
+                                  </button>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 text-[8px] font-bold rounded-lg uppercase">
+                                    Recebido
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => openEditBilling(bill)}
+                                  className="p-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar Cobrança"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBilling(bill)}
+                                  className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg cursor-pointer transition-colors"
+                                  title="Excluir Cobrança"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2602,10 +2835,23 @@ Moldra Films • Manaus/AM`;
                 {/* Right panel: Contas a Pagar (Payables) */}
                 <div className="lg:col-span-6 space-y-6">
                   <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-4">
-                    <div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-white border-b border-white/5 pb-3">
-                        Contas a Pagar / Compromissos de Saída
-                      </h3>
+                    <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                          Contas a Pagar / Compromissos de Saída
+                          <span className="px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded text-[9px] font-mono">
+                            {payables.length}
+                          </span>
+                        </h3>
+                        <p className="text-[9px] text-gray-500 font-sans mt-0.5">Gerencie os compromissos, fornecedores e liquidações financeiras.</p>
+                      </div>
+
+                      <button
+                        onClick={openNewPayable}
+                        className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Novo Compromisso
+                      </button>
                     </div>
 
                     {/* Vencidas */}
@@ -2615,19 +2861,39 @@ Moldra Films • Manaus/AM`;
                         <span className="text-[10px] text-gray-500 block italic pl-2">Nenhum débito vencido pendente.</span>
                       ) : (
                         payables.filter(p => p.status === "Pendente" && new Date(p.dueDate) < new Date()).map(p => (
-                          <div key={p.id} className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl flex items-center justify-between">
-                            <div>
-                              <span className="text-xs font-bold text-white block">{p.description}</span>
-                              <span className="text-[9px] text-gray-500 block mt-0.5">{p.provider} | Venc: {new Date(p.dueDate).toLocaleDateString()}</span>
+                          <div key={p.id} className="p-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 rounded-xl flex items-center justify-between gap-3 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-bold text-white block truncate">{p.description}</span>
+                              <span className="text-[9px] text-gray-400 block mt-0.5">
+                                {p.provider} | Venc: {new Date(p.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')} • {p.category}
+                              </span>
                             </div>
-                            <div className="text-right flex flex-col items-end gap-1.5">
-                              <span className="text-xs font-bold text-red-400 font-mono">R$ {p.value.toLocaleString()}</span>
-                              <button
-                                onClick={() => handleClearancePayable(p)}
-                                className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer"
-                              >
-                                Pagar
-                              </button>
+                            <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="text-xs font-bold text-red-400 font-mono">
+                                R$ {p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleClearancePayable(p)}
+                                  className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer transition-colors"
+                                >
+                                  Pagar
+                                </button>
+                                <button
+                                  onClick={() => openEditPayable(p)}
+                                  className="p-1 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar Conta a Pagar"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePayable(p)}
+                                  className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg cursor-pointer transition-colors"
+                                  title="Excluir Conta a Pagar"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -2641,23 +2907,51 @@ Moldra Films • Manaus/AM`;
                         const diffTime = new Date(p.dueDate).getTime() - new Date().getTime();
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         return p.status === "Pendente" && diffDays >= 0 && diffDays <= 7;
-                      }).map(p => (
-                        <div key={p.id} className="p-3 bg-black/25 border border-white/5 rounded-xl flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">{p.description}</span>
-                            <span className="text-[9px] text-gray-500 block mt-0.5">{p.provider} | Venc: {new Date(p.dueDate).toLocaleDateString()}</span>
+                      }).length === 0 ? (
+                        <span className="text-[10px] text-gray-500 block italic pl-2">Nenhum compromisso nos próximos 7 dias.</span>
+                      ) : (
+                        payables.filter(p => {
+                          const diffTime = new Date(p.dueDate).getTime() - new Date().getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return p.status === "Pendente" && diffDays >= 0 && diffDays <= 7;
+                        }).map(p => (
+                          <div key={p.id} className="p-3 bg-black/25 hover:bg-black/35 border border-white/5 rounded-xl flex items-center justify-between gap-3 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-bold text-white block truncate">{p.description}</span>
+                              <span className="text-[9px] text-gray-400 block mt-0.5">
+                                {p.provider} | Venc: {new Date(p.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')} • {p.category}
+                              </span>
+                            </div>
+                            <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="text-xs font-bold text-white font-mono">
+                                R$ {p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleClearancePayable(p)}
+                                  className="px-2.5 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer transition-colors"
+                                >
+                                  Pagar
+                                </button>
+                                <button
+                                  onClick={() => openEditPayable(p)}
+                                  className="p-1 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar Conta a Pagar"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePayable(p)}
+                                  className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg cursor-pointer transition-colors"
+                                  title="Excluir Conta a Pagar"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right flex flex-col items-end gap-1.5">
-                            <span className="text-xs font-bold text-white font-mono">R$ {p.value.toLocaleString()}</span>
-                            <button
-                              onClick={() => handleClearancePayable(p)}
-                              className="px-2.5 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer"
-                            >
-                              Pagar
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
 
                     {/* Outros Pendentes */}
@@ -2667,40 +2961,94 @@ Moldra Films • Manaus/AM`;
                         const diffTime = new Date(p.dueDate).getTime() - new Date().getTime();
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         return p.status === "Pendente" && diffDays > 7 && diffDays <= 30;
-                      }).map(p => (
-                        <div key={p.id} className="p-3 bg-black/25 border border-white/5 rounded-xl flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">{p.description}</span>
-                            <span className="text-[9px] text-gray-500 block mt-0.5">{p.provider} | Venc: {new Date(p.dueDate).toLocaleDateString()}</span>
+                      }).length === 0 ? (
+                        <span className="text-[10px] text-gray-500 block italic pl-2">Nenhum compromisso pendente neste intervalo.</span>
+                      ) : (
+                        payables.filter(p => {
+                          const diffTime = new Date(p.dueDate).getTime() - new Date().getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return p.status === "Pendente" && diffDays > 7 && diffDays <= 30;
+                        }).map(p => (
+                          <div key={p.id} className="p-3 bg-black/25 hover:bg-black/35 border border-white/5 rounded-xl flex items-center justify-between gap-3 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-bold text-white block truncate">{p.description}</span>
+                              <span className="text-[9px] text-gray-400 block mt-0.5">
+                                {p.provider} | Venc: {new Date(p.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')} • {p.category}
+                              </span>
+                            </div>
+                            <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="text-xs font-bold text-white font-mono">
+                                R$ {p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => handleClearancePayable(p)}
+                                  className="px-2.5 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer transition-colors"
+                                >
+                                  Pagar
+                                </button>
+                                <button
+                                  onClick={() => openEditPayable(p)}
+                                  className="p-1 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar Conta a Pagar"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePayable(p)}
+                                  className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg cursor-pointer transition-colors"
+                                  title="Excluir Conta a Pagar"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right flex flex-col items-end gap-1.5">
-                            <span className="text-xs font-bold text-white font-mono">R$ {p.value.toLocaleString()}</span>
-                            <button
-                              onClick={() => handleClearancePayable(p)}
-                              className="px-2.5 py-1 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-bold rounded-lg uppercase cursor-pointer"
-                            >
-                              Pagar
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
 
                     {/* Pagas */}
                     <div className="space-y-3 pt-2">
                       <span className="text-[9px] text-green-400 uppercase font-bold tracking-widest block border-l-2 border-green-500 pl-2">Pagas no Período</span>
-                      {payables.filter(p => p.status === "Pago").map(p => (
-                        <div key={p.id} className="p-3 bg-green-500/5 border border-green-500/10 rounded-xl flex items-center justify-between">
-                          <div>
-                            <span className="text-xs font-bold text-white block">{p.description}</span>
-                            <span className="text-[9px] text-gray-500 block mt-0.5">{p.provider} | Paga em: {new Date(p.dueDate).toLocaleDateString()}</span>
+                      {payables.filter(p => p.status === "Pago").length === 0 ? (
+                        <span className="text-[10px] text-gray-500 block italic pl-2">Nenhuma conta paga no período.</span>
+                      ) : (
+                        payables.filter(p => p.status === "Pago").map(p => (
+                          <div key={p.id} className="p-3 bg-green-500/5 hover:bg-green-500/10 border border-green-500/10 rounded-xl flex items-center justify-between gap-3 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-bold text-white block truncate">{p.description}</span>
+                              <span className="text-[9px] text-gray-400 block mt-0.5">
+                                {p.provider} | Paga em: {new Date(p.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')} • {p.category}
+                              </span>
+                            </div>
+                            <div className="text-right flex items-center gap-3 shrink-0">
+                              <div>
+                                <span className="text-xs font-bold text-green-400 font-mono block">
+                                  R$ {p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-[8px] text-green-400 uppercase font-bold block mt-0.5">Liquidado</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 border-l border-white/5 pl-2">
+                                <button
+                                  onClick={() => openEditPayable(p)}
+                                  className="p-1 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg cursor-pointer transition-colors"
+                                  title="Editar Conta a Pagar"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePayable(p)}
+                                  className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg cursor-pointer transition-colors"
+                                  title="Excluir Conta a Pagar"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <span className="text-xs font-bold text-green-400 font-mono">R$ {p.value.toLocaleString()}</span>
-                            <span className="text-[8px] text-green-400 uppercase font-bold block mt-1">Liquidado</span>
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3949,6 +4297,7 @@ Moldra Films • Manaus/AM`;
       )}
 
       {/* Modal: Billing (Faturar Cliente) */}
+      {/* Modal: Create / Edit Billing */}
       {showBillingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <motion.div 
@@ -3958,9 +4307,15 @@ Moldra Films • Manaus/AM`;
           >
             <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
               <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-primary" /> Gerar Nova Cobrança de Cliente
+                <FileText className="w-4 h-4 text-primary" /> {editingBilling ? "Editar Cobrança de Cliente" : "Gerar Nova Cobrança de Cliente"}
               </h3>
-              <button onClick={() => setShowBillingModal(false)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer">
+              <button 
+                onClick={() => {
+                  setShowBillingModal(false);
+                  setEditingBilling(null);
+                }} 
+                className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -4115,7 +4470,151 @@ Moldra Films • Manaus/AM`;
                 type="submit"
                 className="w-full py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
-                Gerar Proposta Cobrança
+                {editingBilling ? "Salvar Alterações" : "Gerar Proposta Cobrança"}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal: Create / Edit Payable */}
+      {showPayableModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            className="w-full max-w-lg bg-dark-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl"
+          >
+            <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-red-400" /> {editingPayable ? "Editar Conta a Pagar" : "Cadastrar Conta a Pagar"}
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowPayableModal(false);
+                  setEditingPayable(null);
+                }} 
+                className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePayable} className="p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Fornecedor / Favorecido</label>
+                  <input
+                    type="text"
+                    required
+                    value={payableForm.provider}
+                    onChange={(e) => setPayableForm({ ...payableForm, provider: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
+                    placeholder="Ex: Locadora de Lentes"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Descrição do Compromisso</label>
+                  <input
+                    type="text"
+                    required
+                    value={payableForm.description}
+                    onChange={(e) => setPayableForm({ ...payableForm, description: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
+                    placeholder="Ex: Diária de Câmera RED"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Categoria</label>
+                  <select
+                    value={payableForm.category}
+                    onChange={(e) => setPayableForm({ ...payableForm, category: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer font-sans"
+                  >
+                    <option value="Equipamentos">Equipamentos</option>
+                    <option value="Produção">Produção</option>
+                    <option value="Serviços">Serviços / Terceiros</option>
+                    <option value="Impostos">Impostos & Tributos</option>
+                    <option value="Salários">Salários / Pró-labore</option>
+                    <option value="Aluguel">Aluguel / Studio</option>
+                    <option value="Marketing">Marketing / Ads</option>
+                    <option value="Software">Softwares & Assinaturas</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Valor (R$)</label>
+                  <input
+                    type="number"
+                    required
+                    value={payableForm.value || ""}
+                    onChange={(e) => setPayableForm({ ...payableForm, value: Number(e.target.value) })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans font-mono"
+                    placeholder="3500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Data de Vencimento</label>
+                  <input
+                    type="date"
+                    required
+                    value={payableForm.dueDate}
+                    onChange={(e) => setPayableForm({ ...payableForm, dueDate: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Recorrência</label>
+                  <select
+                    value={payableForm.recurrence}
+                    onChange={(e) => setPayableForm({ ...payableForm, recurrence: e.target.value as Payable["recurrence"] })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer font-sans"
+                  >
+                    <option value="Única">Única (Pontual)</option>
+                    <option value="Mensal">Mensal (Recorrente)</option>
+                    <option value="Anual">Anual</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Conta para Débito</label>
+                  <select
+                    value={payableForm.bankAccountId}
+                    onChange={(e) => setPayableForm({ ...payableForm, bankAccountId: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer font-sans"
+                  >
+                    <option value="">Selecione uma conta...</option>
+                    {bankAccounts.map(b => (
+                      <option key={b.id} value={b.id}>{b.name} ({b.bank})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Status</label>
+                  <select
+                    value={payableForm.status}
+                    onChange={(e) => setPayableForm({ ...payableForm, status: e.target.value as Payable["status"] })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer font-sans"
+                  >
+                    <option value="Pendente">Pendente</option>
+                    <option value="Pago">Pago (Liquidado)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                {editingPayable ? "Salvar Alterações" : "Salvar Conta a Pagar"}
               </button>
             </form>
           </motion.div>
