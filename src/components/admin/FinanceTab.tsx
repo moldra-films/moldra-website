@@ -2936,14 +2936,71 @@ Moldra Films • Recife/PE`;
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">
                     {txForm.type === "Entrada" ? "Cliente" : "Fornecedor"}
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={txForm.customerOrProvider}
-                    onChange={(e) => setTxForm({ ...txForm, customerOrProvider: e.target.value })}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
-                    placeholder="Ex: Innova Corp / João Freelancer"
-                  />
+                  {txForm.type === "Entrada" ? (
+                    <div className="space-y-1.5">
+                      <select
+                        required
+                        value={
+                          clients.some(
+                            (c) =>
+                              c.name === txForm.customerOrProvider ||
+                              (c.company && c.company === txForm.customerOrProvider)
+                          )
+                            ? txForm.customerOrProvider
+                            : txForm.customerOrProvider === ""
+                            ? ""
+                            : "__custom__"
+                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "__custom__") {
+                            setTxForm({ ...txForm, customerOrProvider: "" });
+                          } else {
+                            setTxForm({ ...txForm, customerOrProvider: val });
+                          }
+                        }}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans cursor-pointer"
+                      >
+                        <option value="" disabled>Selecione um cliente cadastrado...</option>
+                        {clients.map((c) => {
+                          const label = c.company ? `${c.name} (${c.company})` : c.name;
+                          return (
+                            <option key={c.id} value={c.name} className="bg-[#121212] text-white">
+                              {label}
+                            </option>
+                          );
+                        })}
+                        <option value="__custom__" className="bg-[#121212] text-primary font-bold">
+                          + Outro / Digitar manualmente...
+                        </option>
+                      </select>
+
+                      {/* Manual input if custom selected or value not in predefined list */}
+                      {(!clients.some(
+                        (c) =>
+                          c.name === txForm.customerOrProvider ||
+                          (c.company && c.company === txForm.customerOrProvider)
+                      ) && txForm.customerOrProvider !== "") && (
+                        <input
+                          type="text"
+                          required
+                          value={txForm.customerOrProvider}
+                          onChange={(e) => setTxForm({ ...txForm, customerOrProvider: e.target.value })}
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
+                          placeholder="Digite o nome do cliente..."
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      value={txForm.customerOrProvider}
+                      onChange={(e) => setTxForm({ ...txForm, customerOrProvider: e.target.value })}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
+                      placeholder="Ex: João Freelancer / Rental Cine"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Valor (R$)</label>
@@ -3458,14 +3515,60 @@ Moldra Films • Recife/PE`;
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Cliente Destinatário</label>
-                  <input
-                    type="text"
-                    required
-                    value={billingForm.client}
-                    onChange={(e) => setBillingForm({ ...billingForm, client: e.target.value })}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans"
-                    placeholder="Ex: Innova Corp, Bradesco"
-                  />
+                  <div className="space-y-1.5">
+                    <select
+                      required
+                      value={
+                        clients.some(
+                          (c) =>
+                            c.name === billingForm.client ||
+                            (c.company && c.company === billingForm.client)
+                        )
+                          ? billingForm.client
+                          : billingForm.client === ""
+                          ? ""
+                          : "__custom__"
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "__custom__") {
+                          setBillingForm({ ...billingForm, client: "" });
+                        } else {
+                          setBillingForm({ ...billingForm, client: val });
+                        }
+                      }}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans cursor-pointer"
+                    >
+                      <option value="" disabled>Selecione um cliente cadastrado...</option>
+                      {clients.map((c) => {
+                        const label = c.company ? `${c.name} (${c.company})` : c.name;
+                        return (
+                          <option key={c.id} value={c.name} className="bg-[#121212] text-white">
+                            {label}
+                          </option>
+                        );
+                      })}
+                      <option value="__custom__" className="bg-[#121212] text-primary font-bold">
+                        + Outro / Digitar manualmente...
+                      </option>
+                    </select>
+
+                    {/* Manual input if custom selected or value not in predefined list */}
+                    {(!clients.some(
+                      (c) =>
+                        c.name === billingForm.client ||
+                        (c.company && c.company === billingForm.client)
+                    ) && billingForm.client !== "") && (
+                      <input
+                        type="text"
+                        required
+                        value={billingForm.client}
+                        onChange={(e) => setBillingForm({ ...billingForm, client: e.target.value })}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-sans animate-fade-in"
+                        placeholder="Digite o nome do cliente..."
+                      />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[9px] uppercase font-bold text-gray-400 mb-1.5">Serviço / Produto</label>
