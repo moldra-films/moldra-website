@@ -1591,21 +1591,26 @@ Moldra Films • Recife/PE`;
 
                 {/* Sub Metrics (Receivables & Payables & Overdues) */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="p-5 rounded-2xl bg-[#121212]/50 border border-white/5 flex items-center justify-between">
+                  {/* Valores a Receber (Fundo Verde) */}
+                  <div className="p-5 rounded-2xl bg-green-500/5 border border-green-500/15 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-gray-400 uppercase font-bold">Valores a Receber (Previsto)</span>
-                      <span className="block text-xl font-bold mt-1 text-white font-mono">R$ {totals.aReceber.toLocaleString()}</span>
+                      <span className="text-[10px] text-green-400 uppercase font-bold">Valores a Receber (Previsto)</span>
+                      <span className="block text-xl font-bold mt-1 text-green-400 font-mono">R$ {totals.aReceber.toLocaleString()}</span>
                     </div>
                     <span className="px-2.5 py-1 bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold rounded-lg uppercase">Cobranças Ativas</span>
                   </div>
-                  <div className="p-5 rounded-2xl bg-[#121212]/50 border border-white/5 flex items-center justify-between">
+
+                  {/* Valores a Pagar (Fundo Laranja) */}
+                  <div className="p-5 rounded-2xl bg-orange-500/5 border border-orange-500/15 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] text-gray-400 uppercase font-bold">Valores a Pagar (Previsto)</span>
-                      <span className="block text-xl font-bold mt-1 text-white font-mono">R$ {totals.aPagar.toLocaleString()}</span>
+                      <span className="text-[10px] text-orange-400 uppercase font-bold">Valores a Pagar (Previsto)</span>
+                      <span className="block text-xl font-bold mt-1 text-orange-400 font-mono">R$ {totals.aPagar.toLocaleString()}</span>
                     </div>
-                    <span className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold rounded-lg uppercase">Compromissos</span>
+                    <span className="px-2.5 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold rounded-lg uppercase">Compromissos</span>
                   </div>
-                  <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/10 flex items-center justify-between">
+
+                  {/* Contas Vencidas (Fundo Vermelho) */}
+                  <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/15 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] text-red-400 uppercase font-bold">Contas Vencidas</span>
                       <span className="block text-xl font-bold mt-1 text-red-400 font-mono">R$ {totals.vencidosTotal.toLocaleString()}</span>
