@@ -312,7 +312,7 @@ const SEED_DATA: FinanceDatabase = {
       payerOrReceiver: "Innova Corp",
       status: "Conciliada",
       suggestedTransactionId: "tx-1",
-      pixKey: "CNPJ 44.123.456/0001-00"
+      pixKey: "CNPJ 65.201.797/0001-30"
     },
     {
       id: "imp-2",
