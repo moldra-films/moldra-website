@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FinanceDb, FinanceDatabase } from "@/lib/db/financeDb";
 import { AuditLog, Transaction } from "@/types/finance";
+import { supabase } from "@/lib/supabaseClient";
 
 function mapEntityToKey(entity: string): keyof FinanceDatabase | null {
   switch (entity) {
@@ -31,6 +32,64 @@ export async function GET(
 
     if (!key) {
       return NextResponse.json({ error: `Unknown entity: ${entity}` }, { status: 400 });
+    }
+
+    // When transactions are requested, merge Supabase transactions seamlessly
+    if (entity === "transactions") {
+      let supaTxs: any[] = [];
+      try {
+        const { data } = await supabase
+          .from("transactions")
+          .select("*")
+          .order("id", { ascending: true });
+        if (Array.isArray(data)) supaTxs = data;
+      } catch (err) {
+        console.warn("Could not fetch Supabase transactions in finance route:", err);
+      }
+
+      const defaultBankId = db.bankAccounts?.[0]?.id || "nubank-1";
+
+      const supaMapped: Transaction[] = supaTxs.map((st: any) => {
+        const isEntry = st.type === "Receita" || st.type === "Entrada";
+        return {
+          id: `supa-${st.id}`,
+          description: st.description || "Transação",
+          category: st.category || (isEntry ? "Serviços" : "Outros"),
+          customerOrProvider: st.customer || st.customerOrProvider || "Nenhum",
+          bankAccountId: defaultBankId,
+          paymentMethod: "Pix",
+          value: Number(st.value) || 0,
+          type: isEntry ? "Entrada" : "Saída",
+          date: st.date || new Date().toISOString().split("T")[0],
+          dueDate: st.date || new Date().toISOString().split("T")[0],
+          status: st.status === "Pago" || st.status === "Recebido" ? (isEntry ? "Recebido" : "Pago") : "Pendente",
+          origin: "API",
+          receiptUrl: null,
+          notes: "Transação sincronizada do banco de dados",
+        };
+      });
+
+      // Merge avoiding duplicates
+      const combined = [...(db.transactions || [])];
+      for (const st of supaMapped) {
+        const exists = combined.some(
+          (t) =>
+            t.id === st.id ||
+            t.id === String(st.id).replace("supa-", "") ||
+            (t.description.trim().toLowerCase() === st.description.trim().toLowerCase() &&
+              Math.abs(t.value - st.value) < 0.01 &&
+              t.date === st.date)
+        );
+        if (!exists) {
+          combined.push(st);
+        }
+      }
+
+      return NextResponse.json(combined, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      });
     }
 
     return NextResponse.json(db[key], {

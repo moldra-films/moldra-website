@@ -7,11 +7,37 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // 1. Primary: load transactions from FinanceDb (R2 cloud storage)
+    // 1. Fetch from Supabase
+    let supaMapped: any[] = [];
+    try {
+      const { data } = await supabase
+        .from("transactions")
+        .select("*")
+        .order("id", { ascending: true });
+      if (Array.isArray(data)) {
+        supaMapped = data.map((trans: any) => ({
+          id: trans.id,
+          type: trans.type,
+          rawType: trans.type,
+          category: trans.category,
+          value: Number(trans.value) || 0,
+          date: trans.date,
+          description: trans.description,
+          status: trans.status,
+          rawStatus: trans.status,
+          customer: trans.customer,
+        }));
+      }
+    } catch (supaErr) {
+      console.warn("Could not load from Supabase:", supaErr);
+    }
+
+    // 2. Fetch from FinanceDb
+    let r2Mapped: any[] = [];
     try {
       const financeDb = await FinanceDb.load(true);
       if (financeDb.transactions && financeDb.transactions.length > 0) {
-        const mapped = financeDb.transactions.map((trans: any, index: number) => ({
+        r2Mapped = financeDb.transactions.map((trans: any) => ({
           id: trans.id,
           type: trans.type === "Entrada" ? "Receita" : trans.type === "Saída" ? "Despesa" : trans.type,
           rawType: trans.type,
@@ -23,44 +49,33 @@ export async function GET() {
           rawStatus: trans.status,
           customer: trans.customerOrProvider || trans.customer || "Nenhum",
         }));
-        return NextResponse.json(mapped, {
-          headers: {
-            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          },
-        });
       }
     } catch (r2Err) {
-      console.warn("Could not load transactions from FinanceDb/R2, falling back to Supabase:", r2Err);
+      console.warn("Could not load from FinanceDb:", r2Err);
     }
 
-    // 2. Fallback: load from Supabase
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .order("id", { ascending: true });
+    // Combine avoiding duplicates
+    const combined = [...supaMapped];
+    for (const r of r2Mapped) {
+      const exists = combined.some(
+        (s) =>
+          String(s.id) === String(r.id) ||
+          (s.description?.trim().toLowerCase() === r.description?.trim().toLowerCase() &&
+            Math.abs(s.value - r.value) < 0.01 &&
+            s.date === r.date)
+      );
+      if (!exists) {
+        combined.push(r);
+      }
+    }
 
-    if (error) throw error;
-
-    const mapped = (data || []).map((trans: any) => ({
-      id: trans.id,
-      type: trans.type,
-      rawType: trans.type,
-      category: trans.category,
-      value: Number(trans.value) || 0,
-      date: trans.date,
-      description: trans.description,
-      status: trans.status,
-      rawStatus: trans.status,
-      customer: trans.customer,
-    }));
-
-    return NextResponse.json(mapped, {
+    return NextResponse.json(combined, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
     });
   } catch (error: any) {
-    console.error("Error reading transactions from Supabase:", error);
+    console.error("Error reading transactions:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
