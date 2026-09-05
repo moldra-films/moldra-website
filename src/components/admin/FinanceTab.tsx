@@ -1266,7 +1266,7 @@ export default function FinanceTab() {
             <div>
               <div class="brand-title">MOLDRA FILMS</div>
               <div class="brand-subtitle">Produção Cinematográfica & Audiovisual</div>
-              <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">CNPJ: 44.123.456/0001-00 • Recife/PE</div>
+              <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">CNPJ: 44.123.456/0001-00 • Manaus/AM</div>
             </div>
             <div class="receipt-badge">
               <div class="title">Recibo de Quitação</div>
@@ -1306,7 +1306,7 @@ export default function FinanceTab() {
 
           <div class="footer">
             <div class="date-location">
-              Recife - PE, ${formattedDate}
+              Manaus - AM, ${formattedDate}
             </div>
             <div class="signature-block">
               <div class="signature-line"></div>
@@ -1346,7 +1346,7 @@ export default function FinanceTab() {
 *Data:* ${receiptTx.date}
 *Status:* ${receiptTx.status}
 ━━━━━━━━━━━━━━━━━━━━
-Moldra Films • Recife/PE`;
+Moldra Films • Manaus/AM`;
 
     navigator.clipboard.writeText(text);
     setCopiedReceipt(true);
@@ -4223,7 +4223,7 @@ Moldra Films • Recife/PE`;
                   <div>
                     <h2 className="text-xl font-extrabold tracking-widest text-white uppercase">MOLDRA FILMS</h2>
                     <p className="text-[11px] text-gray-400 tracking-wider uppercase font-sans mt-0.5">Produção Cinematográfica & Audiovisual</p>
-                    <p className="text-[10px] text-gray-500 font-sans mt-1">CNPJ: 44.123.456/0001-00 • Recife / PE</p>
+                    <p className="text-[10px] text-gray-500 font-sans mt-1">CNPJ: 44.123.456/0001-00 • Manaus / AM</p>
                   </div>
                   <div className="sm:text-right">
                     <span className="inline-block px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold uppercase tracking-wider">
@@ -4280,7 +4280,7 @@ Moldra Films • Recife/PE`;
                 {/* Footer Signature */}
                 <div className="pt-4 flex flex-col sm:flex-row justify-between items-end gap-6 text-xs">
                   <div className="text-[11px] text-gray-400">
-                    Recife - PE, {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    Manaus - AM, {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </div>
                   <div className="text-center w-full sm:w-60 border-t border-white/20 pt-2">
                     <p className="font-bold text-white uppercase text-[11px]">Moldra Films Ltda</p>
