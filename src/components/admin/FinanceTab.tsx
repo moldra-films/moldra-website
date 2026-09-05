@@ -144,6 +144,9 @@ export default function FinanceTab() {
   const [showOpenFinanceModal, setShowOpenFinanceModal] = useState(false);
   const [uploadingTxId, setUploadingTxId] = useState<string | null>(null);
   const [statementImported, setStatementImported] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptTx, setReceiptTx] = useState<Transaction | null>(null);
+  const [copiedReceipt, setCopiedReceipt] = useState(false);
 
   // Statement sub-tabs (Cash Flow, DRE, Balance Sheet, Category Chart)
   const [statementSubView, setStatementSubView] = useState<"flow" | "dre" | "balance" | "categories">("flow");
@@ -964,6 +967,280 @@ export default function FinanceTab() {
     });
   };
 
+  // Receipt Generation Handlers
+  const handleOpenReceiptModal = (tx: Transaction) => {
+    setReceiptTx(tx);
+    setShowReceiptModal(true);
+    setCopiedReceipt(false);
+  };
+
+  const handlePrintReceipt = () => {
+    if (!receiptTx) return;
+
+    const printWindow = window.open("", "_blank", "width=850,height=900");
+    if (!printWindow) {
+      alert("Por favor, habilite popups para imprimir o recibo.");
+      return;
+    }
+
+    const receiptNum = (receiptTx.id || "").replace(/[^0-9]/g, "").slice(-6) || Date.now().toString().slice(-6);
+    const formattedVal = Number(receiptTx.value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formattedDate = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Recibo - Moldra Films - #REC-${receiptNum}</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+          * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #111827;
+            padding: 40px;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          .receipt-card {
+            border: 2px solid #E5E7EB;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 750px;
+            margin: 0 auto;
+            position: relative;
+            background: #ffffff;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #C5A880;
+            padding-bottom: 20px;
+            margin-bottom: 28px;
+          }
+          .brand-title {
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #0f172a;
+            text-transform: uppercase;
+          }
+          .brand-subtitle {
+            font-size: 12px;
+            color: #64748B;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .receipt-badge {
+            text-align: right;
+          }
+          .receipt-badge .title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #059669;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .receipt-badge .number {
+            font-size: 12px;
+            color: #64748B;
+            font-family: monospace;
+            margin-top: 2px;
+          }
+          .value-box {
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            border-radius: 12px;
+            padding: 18px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+          }
+          .value-label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #166534;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .value-amount {
+            font-size: 28px;
+            font-weight: 900;
+            color: #15803D;
+            font-family: monospace;
+          }
+          .body-text {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #334155;
+            margin-bottom: 30px;
+            text-align: justify;
+          }
+          .body-text strong {
+            color: #0F172A;
+          }
+          .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 36px;
+          }
+          .detail-item {
+            font-size: 13px;
+          }
+          .detail-label {
+            color: #64748B;
+            text-transform: uppercase;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+          }
+          .detail-val {
+            font-weight: 600;
+            color: #1E293B;
+            margin-top: 3px;
+          }
+          .footer {
+            margin-top: 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+          .date-location {
+            font-size: 13px;
+            color: #475569;
+          }
+          .signature-block {
+            text-align: center;
+            width: 280px;
+          }
+          .signature-line {
+            border-top: 1px solid #1E293B;
+            margin-bottom: 8px;
+          }
+          .signature-name {
+            font-size: 12px;
+            font-weight: 800;
+            color: #0F172A;
+            text-transform: uppercase;
+          }
+          .signature-role {
+            font-size: 10px;
+            color: #64748B;
+            text-transform: uppercase;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt-card">
+          <div class="header">
+            <div>
+              <div class="brand-title">MOLDRA FILMS</div>
+              <div class="brand-subtitle">Produção Cinematográfica & Audiovisual</div>
+              <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">CNPJ: 44.123.456/0001-00 • Recife/PE</div>
+            </div>
+            <div class="receipt-badge">
+              <div class="title">Recibo de Quitação</div>
+              <div class="number">Nº REC-${receiptNum}</div>
+            </div>
+          </div>
+
+          <div class="value-box">
+            <span class="value-label">Valor Recebido</span>
+            <span class="value-amount">R$ ${formattedVal}</span>
+          </div>
+
+          <div class="body-text">
+            Recebemos de <strong>${receiptTx.customerOrProvider || 'Cliente'}</strong> a quantia de <strong>R$ ${formattedVal}</strong>, correspondente ao pagamento e quitação referente a <strong>${receiptTx.description}</strong>.
+            <br><br>
+            Para maior clareza e comprovação do pagamento dos serviços prestados, firmamos o presente recibo dando plena, geral e irrevogável quitação pela quantia recebida.
+          </div>
+
+          <div class="details-grid">
+            <div class="detail-item">
+              <div class="detail-label">Categoria</div>
+              <div class="detail-val">${receiptTx.category} ${receiptTx.subcategory ? '• ' + receiptTx.subcategory : ''}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Forma de Pagamento</div>
+              <div class="detail-val">${receiptTx.paymentMethod || 'Pix'}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Data da Transação</div>
+              <div class="detail-val">${receiptTx.date}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Status da Operação</div>
+              <div class="detail-val" style="color: #059669; font-weight: 700;">${receiptTx.status}</div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="date-location">
+              Recife - PE, ${formattedDate}
+            </div>
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <div class="signature-name">Moldra Films Ltda</div>
+              <div class="signature-role">Departamento Financeiro</div>
+            </div>
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
+  };
+
+  const handleCopyReceiptText = () => {
+    if (!receiptTx) return;
+    const receiptNum = (receiptTx.id || "").replace(/[^0-9]/g, "").slice(-6) || Date.now().toString().slice(-6);
+    const formattedVal = Number(receiptTx.value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const text = `*RECIBO DE PAGAMENTO - MOLDRA FILMS*
+━━━━━━━━━━━━━━━━━━━━
+*Nº Recibo:* REC-${receiptNum}
+*Valor:* R$ ${formattedVal}
+*Recebemos de:* ${receiptTx.customerOrProvider || 'Cliente'}
+*Referente a:* ${receiptTx.description}
+*Categoria:* ${receiptTx.category}${receiptTx.subcategory ? ` (${receiptTx.subcategory})` : ''}
+*Forma de Pagamento:* ${receiptTx.paymentMethod || 'Pix'}
+*Data:* ${receiptTx.date}
+*Status:* ${receiptTx.status}
+━━━━━━━━━━━━━━━━━━━━
+Moldra Films • Recife/PE`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedReceipt(true);
+    setTimeout(() => setCopiedReceipt(false), 3000);
+  };
+
   // Bank accounts add / edit / delete
   const handleSaveAccount = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1660,6 +1937,15 @@ export default function FinanceTab() {
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
+                                {tx.type === "Entrada" && (
+                                  <button
+                                    onClick={() => handleOpenReceiptModal(tx)}
+                                    className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg cursor-pointer transition-colors"
+                                    title="Gerar Recibo de Entrada"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleDuplicateTransaction(tx)}
                                   className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 text-gray-300 rounded-lg cursor-pointer transition-colors"
@@ -3332,6 +3618,136 @@ export default function FinanceTab() {
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {/* Modal: Receipt Generation for Entradas */}
+      {showReceiptModal && receiptTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            className="w-full max-w-2xl bg-dark-card border border-emerald-500/20 rounded-2xl overflow-hidden shadow-2xl"
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-emerald-500/20 bg-emerald-950/20 flex justify-between items-center">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-400" /> Recibo de Quitação de Entrada
+              </h3>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handlePrintReceipt}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  title="Imprimir Recibo em PDF"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Imprimir / PDF
+                </button>
+                <button 
+                  onClick={handleCopyReceiptText}
+                  className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                  title="Copiar texto do recibo para WhatsApp"
+                >
+                  {copiedReceipt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedReceipt ? "Copiado!" : "Copiar Texto"}
+                </button>
+                <button onClick={() => setShowReceiptModal(false)} className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer ml-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Receipt Preview Body */}
+            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              <div className="bg-black/50 border border-white/10 rounded-2xl p-6 sm:p-8 space-y-6 shadow-inner relative">
+                {/* Header with Branding */}
+                <div className="flex flex-col sm:flex-row justify-between sm:items-start border-b border-primary/30 pb-4 gap-4">
+                  <div>
+                    <h2 className="text-xl font-extrabold tracking-widest text-white uppercase">MOLDRA FILMS</h2>
+                    <p className="text-[11px] text-gray-400 tracking-wider uppercase font-sans mt-0.5">Produção Cinematográfica & Audiovisual</p>
+                    <p className="text-[10px] text-gray-500 font-sans mt-1">CNPJ: 44.123.456/0001-00 • Recife / PE</p>
+                  </div>
+                  <div className="sm:text-right">
+                    <span className="inline-block px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold uppercase tracking-wider">
+                      Recibo de Quitação
+                    </span>
+                    <p className="text-[10px] text-gray-400 font-mono mt-1">
+                      Nº REC-{(receiptTx.id || "").replace(/[^0-9]/g, '').slice(-6) || Date.now().toString().slice(-6)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Amount Highlight Box */}
+                <div className="p-4 bg-emerald-950/30 border border-emerald-500/30 rounded-xl flex justify-between items-center">
+                  <span className="text-xs uppercase font-bold text-emerald-400 tracking-wider">Valor Recebido</span>
+                  <span className="text-2xl font-black text-emerald-400 font-mono">
+                    R$ {Number(receiptTx.value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                {/* Formal Statement Body */}
+                <div className="text-xs leading-relaxed text-gray-300 font-sans space-y-3">
+                  <p>
+                    Recebemos de <strong className="text-white font-semibold">{receiptTx.customerOrProvider || 'Cliente'}</strong> a quantia de{" "}
+                    <strong className="text-emerald-400 font-bold font-mono">
+                      R$ {Number(receiptTx.value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                    , correspondente ao pagamento e quitação referente a <strong className="text-white font-semibold">{receiptTx.description}</strong>.
+                  </p>
+                  <p className="text-gray-400 text-[11px]">
+                    Para maior clareza e comprovação do pagamento efetuado, firmamos o presente recibo dando plena, geral e irrevogável quitação pela quantia recebida.
+                  </p>
+                </div>
+
+                {/* Transaction Metadata Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-black/30 border border-white/5 rounded-xl text-xs">
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-gray-500">Categoria</span>
+                    <span className="font-semibold text-white mt-0.5 block">{receiptTx.category}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-gray-500">Forma Pagamento</span>
+                    <span className="font-semibold text-white mt-0.5 block">{receiptTx.paymentMethod || 'Pix'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-gray-500">Data Transação</span>
+                    <span className="font-semibold text-white mt-0.5 block font-mono">{receiptTx.date}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-gray-500">Status</span>
+                    <span className="font-bold text-emerald-400 mt-0.5 block uppercase text-[10px]">{receiptTx.status}</span>
+                  </div>
+                </div>
+
+                {/* Footer Signature */}
+                <div className="pt-4 flex flex-col sm:flex-row justify-between items-end gap-6 text-xs">
+                  <div className="text-[11px] text-gray-400">
+                    Recife - PE, {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </div>
+                  <div className="text-center w-full sm:w-60 border-t border-white/20 pt-2">
+                    <p className="font-bold text-white uppercase text-[11px]">Moldra Films Ltda</p>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-wider">Departamento Financeiro</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Quick Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReceiptModal(false)}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs uppercase font-bold transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintReceipt}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs uppercase font-bold transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-950/40"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir Recibo
+                </button>
               </div>
             </div>
           </motion.div>
