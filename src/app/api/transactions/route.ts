@@ -51,16 +51,27 @@ export async function POST(request: Request) {
 
       // 2. Insert new transactions
       if (payload.length > 0) {
-        const insertRows = payload.map((trans: any) => ({
-          id: trans.id,
-          type: trans.type,
-          category: trans.category,
-          value: trans.value,
-          date: trans.date,
-          description: trans.description,
-          status: trans.status,
-          customer: trans.customer,
-        }));
+        const insertRows = payload.map((trans: any, index: number) => {
+          let numId = typeof trans.id === "number" ? trans.id : parseInt(String(trans.id).replace(/\D/g, ""), 10);
+          if (isNaN(numId) || !numId) {
+            numId = index + 1;
+          }
+          // Cap to standard postgres 4-byte or 8-byte int limit
+          if (numId > 2147483647) {
+            numId = numId % 2000000000 + 1;
+          }
+
+          return {
+            id: numId,
+            type: trans.type === "Entrada" ? "Receita" : trans.type === "Saída" ? "Despesa" : trans.type,
+            category: trans.category || "Outros",
+            value: Number(trans.value) || 0,
+            date: trans.date || new Date().toISOString().split("T")[0],
+            description: trans.description || "Sem descrição",
+            status: trans.status === "Recebido" || trans.status === "Pago" ? "Pago" : "Pendente",
+            customer: trans.customerOrProvider || trans.customer || "Nenhum",
+          };
+        });
 
         const { error: insertError } = await supabase
           .from("transactions")
@@ -70,7 +81,7 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ success: true });
     } else {
-      // Append single transaction (Client purchase or manual ledger quick entry)
+      // Append single transaction
       const { data: maxIdData, error: maxIdError } = await supabase
         .from("transactions")
         .select("id")
@@ -83,13 +94,13 @@ export async function POST(request: Request) {
 
       const insertRow = {
         id: nextId,
-        type: payload.type,
-        category: payload.category,
-        value: payload.value,
-        date: payload.date,
-        description: payload.description,
-        status: payload.status,
-        customer: payload.customer,
+        type: payload.type === "Entrada" ? "Receita" : payload.type === "Saída" ? "Despesa" : payload.type,
+        category: payload.category || "Outros",
+        value: Number(payload.value) || 0,
+        date: payload.date || new Date().toISOString().split("T")[0],
+        description: payload.description || "Sem descrição",
+        status: payload.status === "Recebido" || payload.status === "Pago" ? "Pago" : "Pendente",
+        customer: payload.customerOrProvider || payload.customer || "Nenhum",
       };
 
       const { error: insertError } = await supabase

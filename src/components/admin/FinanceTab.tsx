@@ -157,7 +157,7 @@ export default function FinanceTab() {
     category: "Serviços",
     subcategory: "",
     customerOrProvider: "",
-    bankAccountId: "",
+    bankAccountId: "nubank-1",
     fromBankAccountId: "",
     toBankAccountId: "",
     paymentMethod: "Pix",
@@ -257,6 +257,16 @@ export default function FinanceTab() {
 
   // Save changes to backend
   const saveEntity = async (entity: string, data: any) => {
+    // Optimistically update React state immediately for snappy UI
+    if (entity === "transactions") setTransactions(data);
+    if (entity === "bank-accounts") setBankAccounts(data);
+    if (entity === "categories") setCategories(data);
+    if (entity === "billings") setBillings(data);
+    if (entity === "payables") setPayables(data);
+    if (entity === "goals") setGoals(data);
+    if (entity === "assets") setAssets(data);
+    if (entity === "imported-transactions") setImportedTransactions(data);
+
     try {
       const res = await fetch(`/api/finance/${entity}`, {
         method: "POST",
@@ -277,7 +287,7 @@ export default function FinanceTab() {
         }).catch(e => console.error("Failed to sync to Supabase transactions table:", e));
       }
       
-      loadData();
+      await loadData();
     } catch (err) {
       console.error(`Failed to save ${entity}:`, err);
     }
@@ -942,7 +952,7 @@ export default function FinanceTab() {
       category: "Serviços",
       subcategory: "",
       customerOrProvider: "",
-      bankAccountId: "",
+      bankAccountId: bankAccounts[0]?.id || "nubank-1",
       fromBankAccountId: "",
       toBankAccountId: "",
       paymentMethod: "Pix",

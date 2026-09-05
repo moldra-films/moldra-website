@@ -61,7 +61,7 @@ export async function POST(
       return NextResponse.json({ error: "Payload must be an array" }, { status: 400 });
     }
 
-    const db = await FinanceDb.load();
+    const db = await FinanceDb.load(true);
     const user = request.headers.get("x-user-name") || "Natália Camurça";
 
     // Dynamic Audit Engine for Transactions
