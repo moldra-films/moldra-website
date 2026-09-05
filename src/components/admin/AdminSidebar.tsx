@@ -44,6 +44,8 @@ const financeSubItems = [
 export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose }: AdminSidebarProps) {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string>("");
   const { activeFinanceSubTab, setActiveFinanceSubTab } = useAdmin();
   const [isFinanceOpen, setIsFinanceOpen] = useState(activeTab === "finance");
 
@@ -53,15 +55,42 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
     }
   }, [activeTab]);
 
+  const loadUserProfile = async (email?: string) => {
+    try {
+      const activeEmail = email || userEmail;
+      if (!activeEmail) return;
+      const res = await fetch("/api/admin-accounts");
+      const accounts = await res.json();
+      if (Array.isArray(accounts)) {
+        const found = accounts.find(
+          (acc: any) => acc.email?.toLowerCase() === activeEmail.toLowerCase()
+        );
+        if (found) {
+          if (found.name) setUserName(found.name);
+          if (found.avatarUrl) setUserAvatarUrl(found.avatarUrl);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch user profile in sidebar:", err);
+    }
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (data?.user?.email) {
         setUserEmail(data.user.email);
+        loadUserProfile(data.user.email);
       }
     };
     fetchUser();
-  }, []);
+
+    const handleUserUpdated = () => {
+      loadUserProfile();
+    };
+    window.addEventListener("moldra-user-updated", handleUserUpdated);
+    return () => window.removeEventListener("moldra-user-updated", handleUserUpdated);
+  }, [userEmail]);
 
   const handleLogout = () => {
     document.cookie = "moldra-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
@@ -72,6 +101,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
   };
 
   const getDisplayName = (email: string) => {
+    if (userName) return userName;
     if (!email) return "Natália Camurça"; // Default fallback
     const lower = email.toLowerCase();
     if (lower.includes("mikelly")) return "Mikelly Maduro";
@@ -81,7 +111,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
   };
 
   const getInitials = (name: string) => {
-    const parts = name.split(" ");
+    const parts = name.trim().split(" ");
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
@@ -234,14 +264,22 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
       {/* Footer Area: User Profile Indicator */}
       <div className="p-4 border-t border-white/5 bg-[#121212]/30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs font-display">
-            {initials}
-          </div>
-          <div>
+          {userAvatarUrl ? (
+            <img
+              src={userAvatarUrl}
+              alt={displayName}
+              className="w-9 h-9 rounded-xl object-cover border border-primary/30 shadow-sm shrink-0"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs font-display shrink-0">
+              {initials}
+            </div>
+          )}
+          <div className="min-w-0">
             <span className="text-xs font-bold text-white block truncate max-w-[120px]" title={displayName}>
               {displayName}
             </span>
-            <span className="text-[10px] text-gray-500 block uppercase font-sans">
+            <span className="text-[10px] text-gray-500 block uppercase font-sans truncate max-w-[120px]">
               {userEmail.toLowerCase().includes("admin") || userEmail.toLowerCase().includes("moldra") ? "Administrador" : "Equipe"}
             </span>
           </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Bell, Search, X, Check, MessageSquare, AlertCircle, Info, Sun, Moon, Menu } from "lucide-react";
 import { useAdmin } from "@/context/AdminContext";
+import { supabase } from "@/lib/supabaseClient";
 
 interface AdminHeaderProps {
   title: string;
@@ -13,6 +14,9 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
   const { notifications, markAllNotificationsRead } = useAdmin();
   const [showNotifications, setShowNotifications] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [userName, setUserName] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string>("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -27,6 +31,43 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
     }
   }, []);
 
+  const loadUserProfile = async (email?: string) => {
+    try {
+      const activeEmail = email || userEmail;
+      if (!activeEmail) return;
+      const res = await fetch("/api/admin-accounts");
+      const accounts = await res.json();
+      if (Array.isArray(accounts)) {
+        const found = accounts.find(
+          (acc: any) => acc.email?.toLowerCase() === activeEmail.toLowerCase()
+        );
+        if (found) {
+          if (found.name) setUserName(found.name);
+          if (found.avatarUrl) setUserAvatarUrl(found.avatarUrl);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch user profile in header:", err);
+    }
+  };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.email) {
+        setUserEmail(data.user.email);
+        loadUserProfile(data.user.email);
+      }
+    };
+    fetchUser();
+
+    const handleUserUpdated = () => {
+      loadUserProfile();
+    };
+    window.addEventListener("moldra-user-updated", handleUserUpdated);
+    return () => window.removeEventListener("moldra-user-updated", handleUserUpdated);
+  }, [userEmail]);
+
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -37,6 +78,27 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
       document.documentElement.classList.remove("light");
     }
   };
+
+  const getDisplayName = (email: string) => {
+    if (userName) return userName;
+    if (!email) return "Natália Camurça";
+    const lower = email.toLowerCase();
+    if (lower.includes("mikelly")) return "Mikelly Maduro";
+    if (lower.includes("natalia")) return "Natália Camurça";
+    if (lower.includes("admin")) return "Administrador";
+    return email.split("@")[0];
+  };
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const displayName = getDisplayName(userEmail);
+  const initials = getInitials(displayName);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -70,7 +132,7 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
       </div>
 
       {/* Utilities */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4 sm:gap-6">
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
@@ -79,13 +141,14 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
         >
           {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
-        {/* Search Input Mock */}
-        <div className="relative hidden md:block">
+
+        {/* Search Input */}
+        <div className="relative hidden lg:block">
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
           <input
             type="text"
             placeholder="Pesquisar projetos, clientes..."
-            className="w-64 bg-white/5 border border-white/5 rounded-full pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all font-sans font-light"
+            className="w-60 bg-white/5 border border-white/5 rounded-full pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all font-sans font-light"
           />
         </div>
 
@@ -159,6 +222,29 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
               </div>
             </>
           )}
+        </div>
+
+        {/* Header Profile Mini Badge */}
+        <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-white/5">
+          {userAvatarUrl ? (
+            <img
+              src={userAvatarUrl}
+              alt={displayName}
+              className="w-8 h-8 rounded-full object-cover border border-primary/30 shadow-sm"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-[11px] font-display">
+              {initials}
+            </div>
+          )}
+          <div className="text-left hidden md:block">
+            <span className="text-xs font-bold text-white block leading-tight truncate max-w-[110px]">
+              {displayName}
+            </span>
+            <span className="text-[9px] text-primary block uppercase font-bold tracking-wider">
+              Online
+            </span>
+          </div>
         </div>
       </div>
     </header>
