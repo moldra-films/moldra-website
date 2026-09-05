@@ -44,6 +44,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload, must be an array" }, { status: 400 });
     }
 
+    // Safety guard: never wipe table on empty array
+    if (body.length === 0) {
+      return NextResponse.json({ success: true, message: "Ignored empty payload for safety" });
+    }
+
     // 1. Delete all current rows
     const { error: deleteError } = await supabase
       .from("tasks")

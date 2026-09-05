@@ -70,6 +70,11 @@ export async function POST(request: Request) {
     const payload = await request.json();
 
     if (Array.isArray(payload)) {
+      // Safety guard: never wipe table on empty array
+      if (payload.length === 0) {
+        return NextResponse.json({ success: true, message: "Ignored empty payload for safety" });
+      }
+
       // Overwrite database (Admin sync)
       // 1. Delete all current rows
       const { error: deleteError } = await supabase

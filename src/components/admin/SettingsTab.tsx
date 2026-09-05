@@ -19,7 +19,10 @@ import {
   Check, 
   Loader2, 
   X,
-  Sparkles
+  Sparkles,
+  Download,
+  RotateCcw,
+  FileArchive
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAdmin } from "@/context/AdminContext";
@@ -77,6 +80,127 @@ export default function SettingsTab() {
 
   const newAvatarInputRef = useRef<HTMLInputElement>(null);
   const myAvatarInputRef = useRef<HTMLInputElement>(null);
+  const restoreFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Backup & Recovery states
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMsg, setBackupMsg] = useState("");
+  const [cloudBackups, setCloudBackups] = useState<any[]>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+
+  const loadCloudBackups = async () => {
+    try {
+      setLoadingBackups(true);
+      const res = await fetch("/api/backup/list");
+      if (res.ok) {
+        const data = await res.json();
+        setCloudBackups(data.backups || []);
+      }
+    } catch (e) {
+      console.error("Error loading cloud backups:", e);
+    } finally {
+      setLoadingBackups(false);
+    }
+  };
+
+  const handleDownloadBackup = () => {
+    window.open("/api/backup?download=true", "_blank");
+  };
+
+  const handleCreateSnapshot = async () => {
+    setBackupLoading(true);
+    setBackupMsg("");
+    try {
+      const res = await fetch("/api/backup", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setBackupMsg(`Ponto de restauração salvo com sucesso! (${data.date})`);
+        loadCloudBackups();
+      } else {
+        setBackupMsg(`Erro ao salvar ponto de restauração: ${data.error}`);
+      }
+    } catch (err: any) {
+      setBackupMsg(`Erro de conexão: ${err.message}`);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleFileRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        confirmModal({
+          title: "Restaurar Backup Completo",
+          message: `Deseja realmente restaurar os dados do arquivo "${file.name}"? Todos os registros atuais serão substituídos pelos dados deste arquivo (um snapshot de segurança atual será gerado antes).`,
+          confirmText: "Restaurar Agora",
+          variant: "warning",
+          onConfirm: async () => {
+            setBackupLoading(true);
+            try {
+              const res = await fetch("/api/backup/restore", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(json),
+              });
+              const resData = await res.json();
+              if (res.ok) {
+                alert("Backup restaurado com sucesso! O painel será recarregado.");
+                window.location.reload();
+              } else {
+                alert(`Erro ao restaurar: ${resData.error || "Erro desconhecido"}`);
+              }
+            } catch (err: any) {
+              alert(`Falha na restauração: ${err.message}`);
+            } finally {
+              setBackupLoading(false);
+            }
+          },
+        });
+      } catch (err) {
+        alert("O arquivo selecionado não é um arquivo JSON de backup válido.");
+      }
+    };
+    reader.readAsText(file);
+    if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
+  };
+
+  const handleRestoreFromCloud = async (url: string, fileName: string) => {
+    confirmModal({
+      title: "Restaurar Ponto da Nuvem",
+      message: `Deseja restaurar o backup "${fileName}"? Os dados atuais serão revertidos para este ponto no tempo (um backup de segurança atual será criado automaticamente antes).`,
+      confirmText: "Confirmar Restauração",
+      variant: "warning",
+      onConfirm: async () => {
+        setBackupLoading(true);
+        try {
+          const resJson = await fetch(url);
+          const data = await resJson.json();
+
+          const restoreRes = await fetch("/api/backup/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          if (restoreRes.ok) {
+            alert("Ponto de restauração aplicado com sucesso! O painel será recarregado.");
+            window.location.reload();
+          } else {
+            const err = await restoreRes.json();
+            alert(`Erro ao restaurar: ${err.error}`);
+          }
+        } catch (e: any) {
+          alert(`Falha ao carregar backup da nuvem: ${e.message}`);
+        } finally {
+          setBackupLoading(false);
+        }
+      },
+    });
+  };
 
   const fetchAccounts = async () => {
     try {
@@ -92,6 +216,7 @@ export default function SettingsTab() {
 
   useEffect(() => {
     fetchAccounts();
+    loadCloudBackups();
 
     const fetchUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -962,6 +1087,165 @@ export default function SettingsTab() {
               Adicionar Categoria
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* 7. Central de Seguranca e Backups */}
+      <div className="space-y-6 pt-6 border-t border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-green-400" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Central de Segurança & Backups do Banco de Dados</h3>
+              <span className="px-2 py-0.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-full text-[9px] font-bold uppercase">
+                Blindagem Ativa
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 font-sans mt-1">
+              Baixe uma cópia completa dos seus dados para seu computador, crie pontos de restauração no Cloudflare R2 ou restaure cadastros anteriores a qualquer momento.
+            </p>
+          </div>
+
+          <button
+            onClick={loadCloudBackups}
+            disabled={loadingBackups}
+            className="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl text-xs transition-colors cursor-pointer self-start sm:self-auto flex items-center gap-1.5"
+            title="Atualizar lista de backups"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${loadingBackups ? "animate-spin" : ""}`} />
+            <span className="text-[10px] uppercase font-bold">Atualizar</span>
+          </button>
+        </div>
+
+        {backupMsg && (
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-xs text-primary font-medium flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0" />
+            {backupMsg}
+          </div>
+        )}
+
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Baixar Backup Local */}
+          <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-3 flex flex-col justify-between hover:border-primary/30 transition-all">
+            <div className="space-y-1.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Download className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">Download do Backup (JSON)</h4>
+              <p className="text-[11px] text-gray-400 font-sans leading-relaxed">
+                Baixa um arquivo com todos os dados: Leads, Clientes, Projetos, Tarefas, Equipamentos, Financeiro e Configurações.
+              </p>
+            </div>
+            <button
+              onClick={handleDownloadBackup}
+              className="w-full py-2.5 bg-primary hover:bg-[#B39356] text-black font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2 shadow shadow-primary/20"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Baixar Cópia Agora
+            </button>
+          </div>
+
+          {/* Card 2: Salvar Ponto na Nuvem (R2) */}
+          <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-3 flex flex-col justify-between hover:border-blue-500/30 transition-all">
+            <div className="space-y-1.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                <HardDrive className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">Criar Ponto na Nuvem</h4>
+              <p className="text-[11px] text-gray-400 font-sans leading-relaxed">
+                Salva um snapshot congelado instantâneo no cofre do Cloudflare R2 com data e hora para recuperação imediata.
+              </p>
+            </div>
+            <button
+              onClick={handleCreateSnapshot}
+              disabled={backupLoading}
+              className="w-full py-2.5 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-400 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2"
+            >
+              {backupLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {backupLoading ? "Gravando Snapshot..." : "Salvar Ponto na Nuvem"}
+            </button>
+          </div>
+
+          {/* Card 3: Restaurar a Partir de Arquivo */}
+          <div className="p-5 rounded-2xl bg-dark-card border border-white/5 space-y-3 flex flex-col justify-between hover:border-yellow-500/30 transition-all">
+            <div className="space-y-1.5">
+              <div className="w-8 h-8 rounded-lg bg-yellow-500/10 text-yellow-400 flex items-center justify-center">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">Restaurar do Arquivo</h4>
+              <p className="text-[11px] text-gray-400 font-sans leading-relaxed">
+                Selecione qualquer arquivo .json baixado anteriormente para restaurar todas as tabelas e cadastros no sistema.
+              </p>
+            </div>
+            <input
+              type="file"
+              ref={restoreFileInputRef}
+              accept=".json"
+              onChange={handleFileRestore}
+              className="hidden"
+            />
+            <button
+              onClick={() => restoreFileInputRef.current?.click()}
+              disabled={backupLoading}
+              className="w-full py-2.5 bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/30 text-yellow-400 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Upload & Restaurar
+            </button>
+          </div>
+        </div>
+
+        {/* Cloud Snapshots History */}
+        <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <FileArchive className="w-4 h-4 text-primary" />
+              Pontos de Restauração Salvos na Nuvem (R2 Vault)
+              <span className="px-1.5 py-0.5 bg-white/5 text-gray-400 rounded text-[9px] font-mono">
+                {cloudBackups.length}
+              </span>
+            </h4>
+            <span className="text-[10px] text-gray-500 font-sans">
+              Histórico seguro mantido na infraestrutura Cloudflare
+            </span>
+          </div>
+
+          <div className="divide-y divide-white/5 max-h-[300px] overflow-y-auto pr-1">
+            {cloudBackups.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-500">
+                Nenhum snapshot salvo na nuvem ainda. Clique em "Salvar Ponto na Nuvem" acima para criar o primeiro.
+              </div>
+            ) : (
+              cloudBackups.map((b, i) => (
+                <div key={i} className="py-3 px-2 flex items-center justify-between gap-4 hover:bg-white/5 rounded-xl transition-colors">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-white block truncate">{b.fileName}</span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                      Gravado em: {b.formattedDate} • Tamanho: {b.sizeKb} KB
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={b.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg text-[10px] font-bold uppercase transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Download className="w-3 h-3" /> Baixar
+                    </a>
+                    <button
+                      onClick={() => handleRestoreFromCloud(b.url, b.fileName)}
+                      disabled={backupLoading}
+                      className="px-2.5 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 rounded-lg text-[10px] font-bold uppercase transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Restaurar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

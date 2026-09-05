@@ -353,9 +353,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Save to Database when state changes and loaded is complete
+  // Save to Database when state changes and loaded is complete (never send empty arrays)
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && leads.length > 0 && typeof window !== "undefined") {
       fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -365,7 +365,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [leads, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && clients.length > 0 && typeof window !== "undefined") {
       fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -375,7 +375,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [clients, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && projects.length > 0 && typeof window !== "undefined") {
       fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -385,7 +385,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [projects, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && tasks.length > 0 && typeof window !== "undefined") {
       fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -395,7 +395,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [tasks, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && transactions.length > 0 && typeof window !== "undefined") {
       fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -405,7 +405,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [transactions, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && equipments.length > 0 && typeof window !== "undefined") {
       fetch("/api/equipments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -415,7 +415,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [equipments, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && locations.length > 0 && typeof window !== "undefined") {
       fetch("/api/locations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -425,7 +425,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [locations, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && contracts.length > 0 && typeof window !== "undefined") {
       fetch("/api/contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -435,7 +435,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [contracts, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && notifications.length > 0 && typeof window !== "undefined") {
       fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -445,7 +445,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [notifications, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && serviceTypes.length > 0 && typeof window !== "undefined") {
       fetch("/api/service-types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -455,7 +455,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [serviceTypes, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
+    if (isLoaded && eventMedias.length > 0 && typeof window !== "undefined") {
       fetch("/api/event-media", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
