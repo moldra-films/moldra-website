@@ -18,7 +18,7 @@ export default function About() {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="container mx-auto px-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           {/* Left Column: Cinematic Image */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -27,7 +27,7 @@ export default function About() {
             transition={{ duration: 1.2, ease: "easeOut" }}
             className="lg:col-span-5 relative"
           >
-            <div className="relative aspect-square w-full rounded-2xl overflow-hidden border border-white/10 group">
+            <div className="relative aspect-[4/3] md:aspect-[16/10] lg:aspect-square max-w-lg lg:max-w-none mx-auto w-full rounded-2xl overflow-hidden border border-white/10 group">
               <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-transparent to-transparent z-10" />
               <Image
                 src="/about_cinematic.png"

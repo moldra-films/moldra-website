@@ -425,7 +425,8 @@ export default function CRMTab() {
       )}
 
       {/* Kanban Board Grid with Drag & Drop */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="overflow-x-auto pb-4 -mx-2 px-2">
+        <div className="grid grid-cols-1 md:grid-cols-5 min-w-[960px] lg:min-w-0 gap-6">
         {pipelineStages.map((stageObj) => {
           const stageLeads = leads.filter((lead) => lead.stage === stageObj.stage);
           const isOver = dragOverStage === stageObj.stage;
@@ -542,6 +543,7 @@ export default function CRMTab() {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Clients Directory */}

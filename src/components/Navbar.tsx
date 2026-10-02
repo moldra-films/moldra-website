@@ -84,7 +84,7 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-8">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -105,7 +105,7 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
             {/* Direct CTA */}
             <button
               onClick={() => onScrollToSection("contato")}
-              className="px-6 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-full text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-lg shadow-primary/10 transform hover:scale-105"
+              className="px-5 py-2 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-full text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-lg shadow-primary/10 transform hover:scale-105 shrink-0"
             >
               Orçamento
             </button>
@@ -113,7 +113,7 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
             {/* Portal do Cliente link */}
             <a
               href="/login"
-              className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-primary border border-primary/25 hover:border-primary/50 font-semibold rounded-full text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer text-center"
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-primary border border-primary/25 hover:border-primary/50 font-semibold rounded-full text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer text-center shrink-0"
             >
               Portal do Cliente
             </a>
@@ -121,24 +121,34 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 text-gray-300 hover:text-primary transition-all duration-300 cursor-pointer flex items-center justify-center"
+              className="p-2 text-gray-300 hover:text-primary transition-all duration-300 cursor-pointer flex items-center justify-center shrink-0"
               title={theme === "dark" ? "Ativar Modo Clássico (Claro)" : "Ativar Modo Escuro"}
             >
               {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </nav>
 
-          {/* Mobile Menu Toggle button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 text-gray-300 hover:text-white rounded-lg focus:outline-none cursor-pointer"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile & Tablet (iPad) Menu Toggle button */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-gray-300 hover:text-primary transition-all duration-300 cursor-pointer flex items-center justify-center"
+              title={theme === "dark" ? "Ativar Modo Clássico (Claro)" : "Ativar Modo Escuro"}
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 text-gray-300 hover:text-white rounded-lg focus:outline-none cursor-pointer"
+              aria-label="Abrir menu"
+            >
+              {isOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Mobile Navigation Drawer */}
+      {/* Mobile & Tablet Navigation Drawer */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -146,9 +156,9 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black z-30 pt-24 px-6 md:hidden flex flex-col justify-between pb-12"
+            className="fixed inset-0 bg-black/95 backdrop-blur-xl z-30 pt-28 px-8 sm:px-12 md:px-16 lg:hidden flex flex-col justify-between pb-12 overflow-y-auto"
           >
-            <nav className="flex flex-col gap-6">
+            <nav className="flex flex-col gap-6 max-w-lg mx-auto w-full">
               {navItems.map((item) => (
                 <button
                   key={item.id}
@@ -156,7 +166,7 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
                     setIsOpen(false);
                     onScrollToSection(item.id);
                   }}
-                  className="text-2xl font-bold tracking-wide text-left text-gray-300 hover:text-primary transition-colors duration-300 cursor-pointer font-display border-b border-white/5 pb-4"
+                  className="text-2xl md:text-3xl font-bold tracking-wide text-left text-gray-300 hover:text-primary transition-colors duration-300 cursor-pointer font-display border-b border-white/5 pb-4"
                 >
                   {item.label}
                 </button>
@@ -165,16 +175,16 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
               <Link
                 href="/eventos"
                 onClick={() => setIsOpen(false)}
-                className="text-2xl font-bold tracking-wide text-left text-gray-300 hover:text-primary transition-colors duration-300 cursor-pointer font-display border-b border-white/5 pb-4"
+                className="text-2xl md:text-3xl font-bold tracking-wide text-left text-gray-300 hover:text-primary transition-colors duration-300 cursor-pointer font-display border-b border-white/5 pb-4"
               >
                 Eventos
               </Link>
             </nav>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 max-w-lg mx-auto w-full mt-8">
               <a
                 href="/login"
-                className="w-full py-4 bg-white/5 hover:bg-white/10 border border-primary/20 text-primary font-semibold rounded-xl text-center transition-colors cursor-pointer block"
+                className="w-full py-4 bg-white/5 hover:bg-white/10 border border-primary/20 text-primary font-semibold rounded-xl text-center transition-colors cursor-pointer block text-base"
               >
                 Portal do Cliente
               </a>
@@ -183,7 +193,7 @@ export default function Navbar({ onScrollToSection }: NavbarProps) {
                   setIsOpen(false);
                   onScrollToSection("contato");
                 }}
-                className="w-full py-4 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-center transition-colors cursor-pointer"
+                className="w-full py-4 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-center transition-colors cursor-pointer text-base shadow-lg shadow-primary/10"
               >
                 Solicitar Orçamento
               </button>

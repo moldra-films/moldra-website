@@ -274,7 +274,8 @@ export default function TasksTab() {
       </AnimatePresence>
 
       {/* Board Columns with Drag & Drop */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="overflow-x-auto pb-4 -mx-2 px-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 min-w-[850px] lg:min-w-0 gap-6">
         {columns.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.status);
           const isOver = dragOverStatus === col.status;
@@ -422,6 +423,7 @@ export default function TasksTab() {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

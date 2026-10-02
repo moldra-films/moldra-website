@@ -62,7 +62,7 @@ export default function Features() {
       <div className="absolute top-1/3 right-0 -translate-y-1/2 w-[350px] h-[350px] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="container mx-auto px-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
           {/* Sticky Left Box */}
           <div className="lg:col-span-4 lg:sticky lg:top-24 self-start">
             <span className="text-primary uppercase tracking-[0.25em] text-xs font-semibold mb-3 block">
@@ -83,13 +83,13 @@ export default function Features() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
-            className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-8"
+            className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8"
           >
             {highlights.map((item, index) => (
               <motion.div
                 key={index}
                 variants={itemVariants}
-                className="p-8 rounded-2xl bg-dark-card border border-white/5 flex flex-col justify-start hover:border-white/10 transition-colors duration-300 group"
+                className="p-6 sm:p-7 md:p-8 rounded-2xl bg-dark-card border border-white/5 flex flex-col justify-start hover:border-white/10 transition-colors duration-300 group"
               >
                 <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:bg-primary/10 group-hover:border-primary/30 transition-all duration-300">
                   <item.icon className="w-5 h-5 text-primary group-hover:scale-110 transition-transform duration-300" />

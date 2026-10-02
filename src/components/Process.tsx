@@ -59,10 +59,10 @@ export default function Process() {
           {/* Central Line for Desktop */}
           <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-primary/80 via-primary/30 to-transparent" />
 
-          {/* Left Line for Mobile */}
-          <div className="lg:hidden absolute left-4 top-0 bottom-0 w-[1px] bg-gradient-to-b from-primary/80 via-primary/30 to-transparent" />
+          {/* Left Line for Mobile & Tablet */}
+          <div className="lg:hidden absolute left-4 sm:left-6 md:left-8 top-0 bottom-0 w-[1px] bg-gradient-to-b from-primary/80 via-primary/30 to-transparent" />
 
-          <div className="space-y-16">
+          <div className="space-y-12 md:space-y-16">
             {steps.map((step, index) => {
               const isEven = index % 2 === 0;
               return (
@@ -78,8 +78,8 @@ export default function Process() {
                     <step.icon className="w-5 h-5 text-primary" />
                   </div>
 
-                  {/* Mobile Node */}
-                  <div className="lg:hidden absolute left-0 w-8 h-8 rounded-full bg-dark-bg border-2 border-primary flex items-center justify-center z-20 shadow-md">
+                  {/* Mobile & Tablet Node */}
+                  <div className="lg:hidden absolute left-0 sm:left-2 md:left-4 w-8 h-8 md:w-9 md:h-9 rounded-full bg-dark-bg border-2 border-primary flex items-center justify-center z-20 shadow-md">
                     <step.icon className="w-4 h-4 text-primary" />
                   </div>
 
@@ -89,11 +89,11 @@ export default function Process() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-100px" }}
                     transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
-                    className={`w-full lg:w-[calc(50%-32px)] pl-12 lg:pl-0 ${
+                    className={`w-full lg:w-[calc(50%-32px)] pl-12 sm:pl-16 md:pl-20 lg:pl-0 ${
                       isEven ? "lg:pr-12 lg:text-right" : "lg:pl-12 lg:text-left"
                     }`}
                   >
-                    <div className="p-8 rounded-2xl bg-[#0B0B0B]/70 border border-white/5 hover:border-white/10 transition-colors duration-300 relative overflow-hidden group process-card">
+                    <div className="p-6 sm:p-7 md:p-8 rounded-2xl bg-[#0B0B0B]/70 border border-white/5 hover:border-white/10 transition-colors duration-300 relative overflow-hidden group process-card">
                       {/* Step Number in Background */}
                       <span
                         className={`absolute text-8xl font-black font-display opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-500 ${

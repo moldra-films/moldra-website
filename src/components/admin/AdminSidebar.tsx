@@ -137,14 +137,14 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
 
   return (
     <>
-      {/* Mobile Backdrop Overlay */}
+      {/* Mobile & Tablet Backdrop Overlay */}
       {isOpen && (
         <div 
           onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-fade-in"
         />
       )}
-      <aside className={`fixed md:sticky top-0 left-0 z-50 w-64 bg-[#0B0B0B] border-r border-white/5 flex flex-col justify-between shrink-0 h-screen transition-transform duration-300 md:translate-x-0 ${
+      <aside className={`fixed lg:sticky top-0 left-0 z-50 w-64 bg-[#0B0B0B] border-r border-white/5 flex flex-col justify-between shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${
         isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
       }`}>
         {/* Upper Area: Logo & Menu */}
@@ -166,7 +166,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, onClose 
             {onClose && (
               <button
                 onClick={onClose}
-                className="md:hidden p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white cursor-pointer"
+                className="lg:hidden p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white cursor-pointer"
                 title="Fechar Menu"
               >
                 <X className="w-4.5 h-4.5" />

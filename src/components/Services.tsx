@@ -63,7 +63,7 @@ export default function Services() {
 
       <div className="container mx-auto px-6 relative z-10">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-20">
+        <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16 lg:mb-20">
           <motion.span
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -86,7 +86,7 @@ export default function Services() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="text-gray-400 font-sans font-light mt-4 text-lg"
+            className="text-gray-400 font-sans font-light mt-4 text-base md:text-lg"
           >
             Do desenvolvimento do roteiro à entrega final, oferecemos soluções completas para destacar sua marca no mercado.
           </motion.p>
@@ -98,14 +98,14 @@ export default function Services() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
         >
           {servicesList.map((service, index) => (
             <motion.div
               key={index}
               variants={cardVariants}
               whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className="relative p-8 rounded-2xl bg-[#0B0B0B]/60 border border-white/5 hover:border-primary/30 transition-all duration-300 group overflow-hidden service-card"
+              className="relative p-6 sm:p-7 md:p-8 rounded-2xl bg-[#0B0B0B]/60 border border-white/5 hover:border-primary/30 transition-all duration-300 group overflow-hidden service-card"
             >
               {/* Card Hover Radial Gradient Background */}
               <div className="absolute inset-0 bg-radial-gradient from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

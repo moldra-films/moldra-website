@@ -122,7 +122,7 @@ export default function AdminHeader({ title, onMenuClick }: AdminHeaderProps) {
         {onMenuClick && (
           <button
             onClick={onMenuClick}
-            className="md:hidden p-2 rounded-xl bg-white/5 border border-white/5 text-gray-300 hover:text-white cursor-pointer shrink-0"
+            className="lg:hidden p-2 rounded-xl bg-white/5 border border-white/5 text-gray-300 hover:text-white cursor-pointer shrink-0"
             title="Abrir Menu"
           >
             <Menu className="w-5 h-5" />

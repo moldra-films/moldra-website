@@ -101,7 +101,7 @@ export default function Contact() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
           {/* Left Column: Contact Channels Info */}
           <div className="lg:col-span-5 flex flex-col justify-between">
             <div className="space-y-8">
@@ -172,14 +172,14 @@ export default function Contact() {
               </div>
             </div>
             
-            <div className="mt-12 text-xs text-gray-500 font-sans hidden lg:block">
+            <div className="mt-8 text-xs text-gray-500 font-sans block text-center lg:text-left">
               Ao enviar este formulário, você concorda com nossos termos de privacidade e compartilhamento de dados básicos.
             </div>
           </div>
 
           {/* Right Column: Contact Form */}
           <div className="lg:col-span-7">
-            <div className="p-8 md:p-10 rounded-3xl bg-dark-card border border-white/5 relative overflow-hidden">
+            <div className="p-6 sm:p-8 md:p-10 rounded-3xl bg-dark-card border border-white/5 relative overflow-hidden">
               <AnimatePresence mode="wait">
                 {!isSubmitted ? (
                   <motion.form
@@ -204,7 +204,7 @@ export default function Contact() {
                           onChange={handleChange}
                           required
                           placeholder="Seu nome completo"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-base md:text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
                         />
                       </div>
 
@@ -220,7 +220,7 @@ export default function Contact() {
                           value={formData.empresa}
                           onChange={handleChange}
                           placeholder="Nome da sua empresa"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-base md:text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
                         />
                       </div>
                     </div>
@@ -239,7 +239,7 @@ export default function Contact() {
                           onChange={handleChange}
                           required
                           placeholder="contato@empresa.com"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-base md:text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
                         />
                       </div>
 
@@ -256,7 +256,7 @@ export default function Contact() {
                           onChange={handleChange}
                           required
                           placeholder="(92) 98540-0639"
-                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-base md:text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 font-sans font-light"
                         />
                       </div>
                     </div>
@@ -271,7 +271,7 @@ export default function Contact() {
                         name="tipoProjeto"
                         value={formData.tipoProjeto}
                         onChange={handleChange}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 cursor-pointer font-sans font-light"
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-base md:text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 cursor-pointer font-sans font-light"
                       >
                         {serviceTypes.map((type) => (
                           <option key={type} value={type} className="bg-dark-card text-white">{type}</option>
@@ -293,7 +293,7 @@ export default function Contact() {
                         required
                         rows={4}
                         placeholder="Escreva brevemente os detalhes do seu projeto..."
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 resize-none font-sans font-light"
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-base md:text-sm text-white focus:outline-none focus:border-primary transition-all duration-300 resize-none font-sans font-light"
                       />
                     </div>
 

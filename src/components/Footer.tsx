@@ -63,9 +63,9 @@ export default function Footer({ onScrollToSection }: FooterProps) {
     <footer className="bg-black text-white py-16 border-t border-white/5 relative">
       <div className="container mx-auto px-6">
         {/* Top footer area */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-12">
           {/* Logo & Info */}
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2 lg:col-span-2">
             <div className="flex items-center gap-2 mb-6 cursor-pointer" onClick={handleScrollTop}>
               <Image
                 src="/logo.png"

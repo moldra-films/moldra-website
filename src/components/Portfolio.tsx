@@ -86,7 +86,7 @@ export default function Portfolio() {
     <section id="portfolio" className="relative py-24 bg-dark-bg text-white">
       <div className="container mx-auto px-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 md:mb-16 gap-6 md:gap-8">
           <div>
             <span className="text-primary uppercase tracking-[0.25em] text-xs font-semibold mb-3 block">
               Nosso Trabalho
@@ -115,7 +115,7 @@ export default function Portfolio() {
         </div>
 
         {/* Gallery Grid */}
-        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           <AnimatePresence mode="popLayout">
             {filteredProjects.map((project) => (
               <motion.div
@@ -179,7 +179,7 @@ export default function Portfolio() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 md:p-10 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 sm:p-6 md:p-8 lg:p-10 backdrop-blur-md"
             onClick={() => setSelectedProject(null)}
           >
             {/* Modal Body Container */}
@@ -188,7 +188,7 @@ export default function Portfolio() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full max-w-5xl bg-dark-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col"
+              className="relative w-full max-w-4xl lg:max-w-5xl bg-dark-card rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Top Close Bar */}

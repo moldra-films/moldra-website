@@ -80,13 +80,13 @@ export default function Testimonials() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className="p-8 md:p-12 rounded-3xl bg-dark-card border border-white/5 relative flex flex-col md:flex-row items-center gap-8 md:gap-12"
+              className="p-6 sm:p-8 md:p-10 lg:p-12 rounded-3xl bg-dark-card border border-white/5 relative flex flex-col md:flex-row items-center gap-6 sm:gap-8 md:gap-10"
             >
               {/* Quote Icon Background */}
               <Quote className="absolute right-8 bottom-8 w-24 h-24 text-white/[0.02] pointer-events-none" />
 
               {/* Author Image */}
-              <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-primary/20 shrink-0">
+              <div className="relative w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-full overflow-hidden border-2 border-primary/20 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={testimonials[currentIndex].avatar}
