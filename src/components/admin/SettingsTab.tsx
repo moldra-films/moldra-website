@@ -103,8 +103,26 @@ export default function SettingsTab() {
     }
   };
 
-  const handleDownloadBackup = () => {
-    window.open("/api/backup?download=true", "_blank");
+  const handleDownloadBackup = async () => {
+    // A plain browser navigation cannot send the login token, so download via fetch.
+    try {
+      const res = await fetch("/api/backup?download=true");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = /filename="?([^";]+)"?/.exec(disposition);
+      const fileName = match?.[1] || `moldra-backup-${Date.now()}.json`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err: any) {
+      setBackupMsg(`Erro ao baixar backup: ${err.message}`);
+    }
   };
 
   const handleCreateSnapshot = async () => {
