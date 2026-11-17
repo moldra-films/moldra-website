@@ -2,12 +2,12 @@
 
 import React, { useState } from "react";
 import { useAdmin, EventMedia, EventPhoto } from "@/context/AdminContext";
-import { Camera, Plus, Calendar, DollarSign, Trash2, UploadCloud, X, CheckCircle2, Image as ImageIcon, Eye } from "lucide-react";
+import { Camera, Plus, Calendar, DollarSign, Trash2, UploadCloud, X, CheckCircle2, Image as ImageIcon, Eye, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 export default function EventMediaTab() {
-  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, transactions, confirmModal } = useAdmin();
+  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, updateEventMedia, transactions, confirmModal } = useAdmin();
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   // Filter transactions for photo sales
@@ -20,6 +20,41 @@ export default function EventMediaTab() {
     pricePerPhoto: 15,
     packagePrice: 199,
   });
+
+  // Edit Event Form state
+  const [editingEvent, setEditingEvent] = useState<EventMedia | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    date: "",
+    pricePerPhoto: 15,
+    packagePrice: 199,
+  });
+
+  const handleOpenEdit = (event: EventMedia, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingEvent(event);
+    setEditForm({
+      name: event.name,
+      date: event.date,
+      pricePerPhoto: event.pricePerPhoto,
+      packagePrice: event.packagePrice,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEvent || !editForm.name || !editForm.date) return;
+    updateEventMedia(editingEvent.id, {
+      name: editForm.name,
+      date: editForm.date,
+      pricePerPhoto: Number(editForm.pricePerPhoto),
+      packagePrice: Number(editForm.packagePrice),
+    });
+    setShowEditModal(false);
+    setEditingEvent(null);
+  };
 
   // Upload States
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -222,25 +257,35 @@ export default function EventMediaTab() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        confirmModal({
-                          title: "Excluir Galeria de Evento",
-                          message: `Tem certeza que deseja remover o evento "${event.name}" e todas as suas fotos?`,
-                          confirmText: "Excluir Evento",
-                          variant: "danger",
-                          onConfirm: () => {
-                            deleteEventMedia(event.id);
-                            if (selectedEventId === event.id) setSelectedEventId(null);
-                          },
-                        });
-                      }}
-                      className="p-1.5 bg-white/5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-lg border border-white/5 transition-colors cursor-pointer"
-                      title="Deletar Evento"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => handleOpenEdit(event, e)}
+                        className="p-1.5 bg-white/5 hover:bg-primary/20 text-gray-400 hover:text-primary rounded-lg border border-white/5 transition-colors cursor-pointer"
+                        title="Editar Informações do Evento"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          confirmModal({
+                            title: "Excluir Galeria de Evento",
+                            message: `Tem certeza que deseja remover o evento "${event.name}" e todas as suas fotos?`,
+                            confirmText: "Excluir Evento",
+                            variant: "danger",
+                            onConfirm: () => {
+                              deleteEventMedia(event.id);
+                              if (selectedEventId === event.id) setSelectedEventId(null);
+                            },
+                          });
+                        }}
+                        className="p-1.5 bg-white/5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-lg border border-white/5 transition-colors cursor-pointer"
+                        title="Deletar Evento"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-white/5 text-[11px] text-gray-400">
@@ -269,14 +314,22 @@ export default function EventMediaTab() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-white">
                     Editar Galeria: {selectedEvent.name}
                   </h3>
-                  <a
-                    href={`/eventos/${selectedEvent.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 bg-white/5 hover:bg-primary/20 text-xs font-semibold rounded-lg border border-white/5 hover:border-primary/20 text-gray-400 hover:text-white flex items-center gap-1.5 transition-all"
-                  >
-                    <Eye className="w-3.5 h-3.5" /> Ver Loja Pública
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenEdit(selectedEvent)}
+                      className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-xs font-semibold rounded-lg border border-primary/20 text-primary hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Editar Informações
+                    </button>
+                    <a
+                      href={`/eventos/${selectedEvent.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 bg-white/5 hover:bg-primary/20 text-xs font-semibold rounded-lg border border-white/5 hover:border-primary/20 text-gray-400 hover:text-white flex items-center gap-1.5 transition-all"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Ver Loja Pública
+                    </a>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -606,6 +659,123 @@ export default function EventMediaTab() {
                 >
                   Cadastrar Evento
                 </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Event Modal */}
+      <AnimatePresence>
+        {showEditModal && editingEvent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowEditModal(false);
+                setEditingEvent(null);
+              }}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-md bg-dark-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative z-10"
+            >
+              <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-primary" /> Editar Evento Fotográfico
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingEvent(null);
+                  }}
+                  className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Nome do Evento</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                    placeholder="Nome do Evento"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Data do Evento</label>
+                  <input
+                    type="date"
+                    required
+                    value={editForm.date}
+                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Valor por Foto</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={editForm.pricePerPhoto}
+                        onChange={(e) => setEditForm({ ...editForm, pricePerPhoto: Number(e.target.value) })}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">Valor do Pacote</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={editForm.packagePrice}
+                        onChange={(e) => setEditForm({ ...editForm, packagePrice: Number(e.target.value) })}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingEvent(null);
+                    }}
+                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Salvar Alterações
+                  </button>
+                </div>
               </form>
             </motion.div>
           </div>

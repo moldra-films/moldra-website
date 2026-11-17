@@ -75,13 +75,6 @@ export async function POST(request: Request) {
       }
       amount = photoIds.length * pricePerPhoto;
       count = photoIds.length;
-      // Same rule shown in the cart: never charge more than the full package.
-      if (packagePrice > 0 && amount >= packagePrice) {
-        mode = "package";
-        photoIds = [];
-        amount = packagePrice;
-        count = photos.length;
-      }
     }
 
     amount = Math.round(amount * 100) / 100;

@@ -175,12 +175,14 @@ function EventGalleryContent() {
   // Pricing calculations
   const totalIndividualCount = selectedPhotos.length;
   const priceIndividual = totalIndividualCount * event.pricePerPhoto;
-  const isPackageCheaper = priceIndividual >= event.packagePrice;
+  const isPackageAdvantageous = totalIndividualCount > 0 && event.packagePrice > 0 && priceIndividual >= event.packagePrice;
   
-  // Final checkout variables
-  const finalPrice = buyAllPackage || isPackageCheaper ? event.packagePrice : priceIndividual;
-  const checkoutItemsCount = buyAllPackage || isPackageCheaper ? event.photos.length : totalIndividualCount;
-  const activePurchaseMode = buyAllPackage || isPackageCheaper ? "Pacote Completo" : "Individual";
+  // Final checkout variables:
+  // If buyAllPackage is chosen, charge the package price;
+  // otherwise, the individual price increases with each photo selected!
+  const finalPrice = buyAllPackage ? event.packagePrice : priceIndividual;
+  const checkoutItemsCount = buyAllPackage ? event.photos.length : totalIndividualCount;
+  const activePurchaseMode = buyAllPackage ? "Pacote Completo" : "Fotos Individuais";
 
   const handleCheckout = async () => {
     if (checkoutItemsCount === 0) return;
@@ -193,8 +195,8 @@ function EventGalleryContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           eventId: event.id,
-          mode: buyAllPackage || isPackageCheaper ? "package" : "individual",
-          photoIds: selectedPhotos,
+          mode: buyAllPackage ? "package" : "individual",
+          photoIds: buyAllPackage ? [] : selectedPhotos,
         }),
       });
 
@@ -411,38 +413,82 @@ function EventGalleryContent() {
                   onClick={() => setBuyAllPackage(!buyAllPackage)}
                   className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer flex items-center justify-between ${
                     buyAllPackage
-                      ? "bg-primary/5 border-primary"
-                      : "bg-black/30 border-white/5 hover:border-white/10"
+                      ? "bg-primary/10 border-primary ring-2 ring-primary/20"
+                      : "bg-black/30 border-white/5 hover:border-white/20"
                   }`}
                 >
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-primary tracking-wider">Oportunidade</span>
-                    <h4 className="text-xs font-bold text-white font-display">Pacote de Fotos Completo</h4>
-                    <p className="text-[9px] text-gray-400 font-light">Todas as {event.photos.length} fotos do evento</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-primary tracking-wider">Pacote Promocional</span>
+                      {buyAllPackage && (
+                        <span className="px-1.5 py-0.5 bg-primary text-black text-[9px] font-bold rounded uppercase">Ativo</span>
+                      )}
+                    </div>
+                    <h4 className="text-xs font-bold text-white font-display">Álbum Completo (Todas as Fotos)</h4>
+                    <p className="text-[10px] text-gray-400 font-light">Acesso a todas as {event.photos.length} fotos do evento</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-bold text-white block">R$ {event.packagePrice},00</span>
-                    <span className="text-[9px] text-gray-500 block">Lote Completo</span>
+                    <span className="text-base font-bold text-white block">R$ {event.packagePrice},00</span>
+                    <span className="text-[9px] text-primary font-medium block">
+                      {buyAllPackage ? "Pacote selecionado ✓" : "Selecionar pacote"}
+                    </span>
                   </div>
                 </div>
 
                 {/* Selected Count Indicator */}
-                {!buyAllPackage && (
+                {!buyAllPackage ? (
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between text-gray-400 font-light">
                       <span>Fotos Selecionadas:</span>
                       <span className="text-white font-semibold font-mono">{totalIndividualCount} un</span>
                     </div>
                     <div className="flex justify-between text-gray-400 font-light">
-                      <span>Valor Unitário:</span>
+                      <span>Valor por Foto:</span>
                       <span className="text-white font-semibold font-mono">R$ {event.pricePerPhoto},00</span>
                     </div>
+                    <div className="flex justify-between text-gray-400 font-light pt-1 border-t border-white/5">
+                      <span>Subtotal Avulso:</span>
+                      <span className="text-white font-bold font-mono">R$ {priceIndividual},00</span>
+                    </div>
 
-                    {isPackageCheaper && (
-                      <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-[10px] text-primary font-sans leading-normal">
-                        <strong>Dica de Economia:</strong> A compra avulsa destas fotos supera o preço do pacote. O valor foi fixado no preço promocional de <strong>R$ {event.packagePrice},00</strong>.
+                    {isPackageAdvantageous && (
+                      <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/25 space-y-2 mt-2">
+                        <div className="text-[11px] text-primary leading-relaxed">
+                          💡 <strong>Você selecionou {totalIndividualCount} fotos (R$ {priceIndividual},00).</strong>
+                          <p className="text-[10px] text-gray-300 mt-0.5">
+                            O total das fotos avulsas ultrapassou o valor do pacote. Você pode optar pelo <strong>Álbum Completo com todas as {event.photos.length} fotos</strong> por apenas <strong>R$ {event.packagePrice},00</strong>!
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setBuyAllPackage(true)}
+                          className="w-full py-2 bg-primary hover:bg-[#B39356] text-black font-bold text-[10px] uppercase tracking-wider rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-primary/20"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Pagar Pacote Completo (R$ {event.packagePrice},00)
+                        </button>
                       </div>
                     )}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1.5">
+                    <div className="flex justify-between text-gray-300">
+                      <span>Modalidade:</span>
+                      <span className="text-primary font-bold">Álbum Completo</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 text-[11px]">
+                      <span>Total de fotos inclusas:</span>
+                      <span className="text-white font-mono">{event.photos.length} fotos</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 pt-1">
+                      Todas as {event.photos.length} fotos serão liberadas em alta resolução após a confirmação do pagamento.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setBuyAllPackage(false)}
+                      className="text-[10px] text-primary hover:underline pt-1 cursor-pointer block"
+                    >
+                      ← Mudar para seleção de fotos avulsas
+                    </button>
                   </div>
                 )}
 
