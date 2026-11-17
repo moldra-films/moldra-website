@@ -129,13 +129,33 @@ export async function syncPayment(
   if (error) throw error;
 
   if (claimed && claimed.length > 0) {
-    const payer = payment?.payer;
-    const fullName = [payer?.first_name, payer?.last_name].filter(Boolean).join(" ");
-    const payerEmail = payer?.email || "";
-    const customerName = fullName ? `${fullName} (${payerEmail})` : payerEmail || undefined;
+    const metadata = payment?.metadata || {};
+    const payer = payment?.payer || {};
+
+    const cartName = String(metadata.customer_name || "").trim();
+    const cartPhone = String(metadata.customer_phone || "").trim();
+    const mpName = [payer.first_name, payer.last_name].filter(Boolean).join(" ").trim();
+    const mpEmail = payer.email ? String(payer.email).trim() : "";
+    const mpDoc = payer.identification?.number ? `CPF: ${payer.identification.number}` : "";
+    const mpPhone = payer.phone?.number ? String(payer.phone.number) : "";
+
+    const finalName = cartName || mpName || "Cliente";
+    const finalPhone = cartPhone || mpPhone;
+
+    const parts = [
+      finalName,
+      finalPhone ? `Whats: ${finalPhone}` : null,
+      mpEmail ? mpEmail : null,
+      mpDoc ? mpDoc : null,
+    ].filter(Boolean);
+
+    const customerSummary = parts.join(" • ");
     const paymentMethod = payment?.payment_method_id ? String(payment.payment_method_id).toUpperCase() : undefined;
 
-    await recordSale(claimed[0] as PhotoOrder, paymentId, { customerName, paymentMethod });
+    await recordSale(claimed[0] as PhotoOrder, paymentId, {
+      customerName: customerSummary,
+      paymentMethod,
+    });
   }
   return { orderId, mpStatus: "approved", paid: true };
 }

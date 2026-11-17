@@ -31,6 +31,8 @@ export async function POST(request: Request) {
       ? Array.from(new Set(body.photoIds.filter((id: unknown) => typeof id === "string")))
       : [];
     const couponCode = String(body?.couponCode || "").trim().toUpperCase();
+    const customerName = String(body?.customerName || "").trim();
+    const customerPhone = String(body?.customerPhone || "").trim();
 
     if (!Number.isFinite(eventId)) {
       return NextResponse.json({ error: "eventId is required." }, { status: 400 });
@@ -113,7 +115,9 @@ export async function POST(request: Request) {
       }
 
       await recordSale(order, `CUPOM_${appliedCoupon?.code || "100"}`, {
-        customerName: `Beneficiário Cupom ${appliedCoupon?.code || "100"}`,
+        customerName: customerName
+          ? `${customerName}${customerPhone ? ` • Whats: ${customerPhone}` : ""}`
+          : `Beneficiário Cupom ${appliedCoupon?.code || "100"}`,
         couponCode: appliedCoupon?.code || "100",
         isFree: true,
       });
@@ -149,32 +153,50 @@ export async function POST(request: Request) {
     const returnUrl = (status: string) =>
       `${origin}/eventos/${eventId}?payment=${status}&order=${order.id}`;
 
+    const mpPayload: any = {
+      items: [
+        {
+          id: order.id,
+          title:
+            mode === "package"
+              ? `Pacote Completo de Fotos - ${event.name}${appliedCoupon ? ` (Cupom ${appliedCoupon.code})` : ""}`
+              : `${count} foto(s) - ${event.name}${appliedCoupon ? ` (Cupom ${appliedCoupon.code})` : ""}`,
+          quantity: 1,
+          unit_price: finalAmount,
+          currency_id: "BRL",
+        },
+      ],
+      external_reference: order.id,
+      metadata: {
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        event_id: eventId,
+      },
+      back_urls: {
+        success: returnUrl("success"),
+        failure: returnUrl("failure"),
+        pending: returnUrl("pending"),
+      },
+      auto_return: "approved",
+      notification_url: `${origin}/api/checkout/webhook`,
+      statement_descriptor: "MOLDRA FILMS",
+    };
+
+    if (customerName) {
+      mpPayload.payer = {
+        name: customerName,
+      };
+      if (customerPhone) {
+        mpPayload.payer.phone = {
+          number: customerPhone.replace(/\D/g, ""),
+        };
+      }
+    }
+
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({
-        items: [
-          {
-            id: order.id,
-            title:
-              mode === "package"
-                ? `Pacote Completo de Fotos - ${event.name}${appliedCoupon ? ` (Cupom ${appliedCoupon.code})` : ""}`
-                : `${count} foto(s) - ${event.name}${appliedCoupon ? ` (Cupom ${appliedCoupon.code})` : ""}`,
-            quantity: 1,
-            unit_price: finalAmount,
-            currency_id: "BRL",
-          },
-        ],
-        external_reference: order.id,
-        back_urls: {
-          success: returnUrl("success"),
-          failure: returnUrl("failure"),
-          pending: returnUrl("pending"),
-        },
-        auto_return: "approved",
-        notification_url: `${origin}/api/checkout/webhook`,
-        statement_descriptor: "MOLDRA FILMS",
-      }),
+      body: JSON.stringify(mpPayload),
     });
 
     if (!mpResponse.ok) {

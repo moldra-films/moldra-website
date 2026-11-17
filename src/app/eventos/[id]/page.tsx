@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAdmin, EventPhoto } from "@/context/AdminContext";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy, Tag, Gift, Percent } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy, Tag, Gift, Percent, User, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 function EventGalleryContent() {
@@ -30,6 +30,20 @@ function EventGalleryContent() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState("");
+
+  // Customer Identification (No login / password required)
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+
+  // Pre-load saved name & phone if available on this device
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedName = localStorage.getItem("moldra_buyer_name");
+      const savedPhone = localStorage.getItem("moldra_buyer_phone");
+      if (savedName) setBuyerName(savedName);
+      if (savedPhone) setBuyerPhone(savedPhone);
+    }
+  }, []);
 
   // Coupon States
   const [couponInput, setCouponInput] = useState("");
@@ -237,6 +251,21 @@ function EventGalleryContent() {
 
   const handleCheckout = async () => {
     if (checkoutItemsCount === 0) return;
+
+    if (!buyerName.trim()) {
+      alert("Por favor, informe seu nome para identificação do pedido.");
+      return;
+    }
+    if (!buyerPhone.trim()) {
+      alert("Por favor, informe seu WhatsApp para identificação do pedido.");
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("moldra_buyer_name", buyerName.trim());
+      localStorage.setItem("moldra_buyer_phone", buyerPhone.trim());
+    }
+
     setCheckoutLoading(true);
 
     try {
@@ -249,6 +278,8 @@ function EventGalleryContent() {
           mode: buyAllPackage ? "package" : "individual",
           photoIds: buyAllPackage ? [] : selectedPhotos,
           couponCode: appliedCoupon?.code,
+          customerName: buyerName.trim(),
+          customerPhone: buyerPhone.trim(),
         }),
       });
 
@@ -550,6 +581,47 @@ function EventGalleryContent() {
                     </button>
                   </div>
                 )}
+
+                {/* Customer Identification (No login / password needed) */}
+                <div className="pt-4 border-t border-white/5 space-y-3">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-gray-300 tracking-wider flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-primary" /> Identificação do Pedido
+                    </span>
+                    <p className="text-[10px] text-gray-500 font-sans">
+                      Sem necessidade de senha ou cadastro. Apenas para identificação do pedido e envio.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Seu Nome Completo *</label>
+                      <input
+                        type="text"
+                        required
+                        value={buyerName}
+                        onChange={(e) => setBuyerName(e.target.value)}
+                        placeholder="Ex: João da Silva"
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary placeholder:text-gray-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-gray-400 mb-1">Seu WhatsApp *</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                        <input
+                          type="tel"
+                          required
+                          value={buyerPhone}
+                          onChange={(e) => setBuyerPhone(e.target.value)}
+                          placeholder="Ex: (11) 99999-9999"
+                          className="w-full bg-black/40 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-primary placeholder:text-gray-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Coupon Code Section */}
                 <div className="pt-4 border-t border-white/5 space-y-2">
