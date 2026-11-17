@@ -30,7 +30,11 @@ async function nextId(table: string): Promise<number> {
 }
 
 /** Writes the financial transaction and the admin notification for a paid order. */
-async function recordSale(order: PhotoOrder, paymentId: string) {
+export async function recordSale(
+  order: PhotoOrder,
+  paymentId: string,
+  extra?: { customerName?: string; paymentMethod?: string; couponCode?: string; isFree?: boolean }
+) {
   const { data: event } = await supabase
     .from("event_medias")
     .select("name, photos")
@@ -42,6 +46,10 @@ async function recordSale(order: PhotoOrder, paymentId: string) {
       ? Array.isArray(event?.photos) ? event!.photos.length : 0
       : Array.isArray(order.photo_ids) ? order.photo_ids.length : 0;
   const value = Number(order.amount);
+  const customer = extra?.customerName || `Cliente - Evento ${eventName}`;
+  const method = extra?.couponCode
+    ? `Cupom ${extra.couponCode}${extra.isFree ? " (100% OFF)" : ""}`
+    : extra?.paymentMethod || "Mercado Pago";
 
   try {
     await supabase.from("transactions").insert({
@@ -50,9 +58,9 @@ async function recordSale(order: PhotoOrder, paymentId: string) {
       category: "Galeria de Fotos",
       value,
       date: new Date().toISOString().split("T")[0],
-      description: `Compra de fotos via Mercado Pago - Evento ${eventName} (${count} fotos) #${paymentId}`,
+      description: `Compra de fotos (${method}) - ${customer} - Evento ${eventName} (${count} fotos) #${paymentId}`,
       status: "Pago",
-      customer: `Cliente - Evento ${eventName}`,
+      customer,
     });
   } catch (err) {
     console.error("Could not record sale transaction:", err);
@@ -61,8 +69,10 @@ async function recordSale(order: PhotoOrder, paymentId: string) {
   try {
     await supabase.from("notifications").insert({
       id: await nextId("notifications"),
-      title: "Compra Aprovada via Mercado Pago",
-      description: `Faturamento de R$ ${value.toLocaleString("pt-BR")} confirmado para o evento '${eventName}'.`,
+      title: extra?.isFree ? `Fotos Liberadas via Cupom (${extra.couponCode})` : "Compra Aprovada via Mercado Pago",
+      description: extra?.isFree
+        ? `${customer} liberou ${count} fotos gratuitamente via cupom no evento '${eventName}'.`
+        : `Faturamento de R$ ${value.toLocaleString("pt-BR")} confirmado para o evento '${eventName}' (${customer}).`,
       time: "Agora mesmo",
       unread: true,
       type: "payment",
@@ -119,7 +129,13 @@ export async function syncPayment(
   if (error) throw error;
 
   if (claimed && claimed.length > 0) {
-    await recordSale(claimed[0] as PhotoOrder, paymentId);
+    const payer = payment?.payer;
+    const fullName = [payer?.first_name, payer?.last_name].filter(Boolean).join(" ");
+    const payerEmail = payer?.email || "";
+    const customerName = fullName ? `${fullName} (${payerEmail})` : payerEmail || undefined;
+    const paymentMethod = payment?.payment_method_id ? String(payment.payment_method_id).toUpperCase() : undefined;
+
+    await recordSale(claimed[0] as PhotoOrder, paymentId, { customerName, paymentMethod });
   }
   return { orderId, mpStatus: "approved", paid: true };
 }

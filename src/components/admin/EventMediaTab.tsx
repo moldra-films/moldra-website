@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAdmin, EventMedia, EventPhoto } from "@/context/AdminContext";
-import { Camera, Plus, Calendar, DollarSign, Trash2, UploadCloud, X, CheckCircle2, Image as ImageIcon, Eye, Pencil } from "lucide-react";
+import { Camera, Plus, Calendar, DollarSign, Trash2, UploadCloud, X, CheckCircle2, Image as ImageIcon, Eye, Pencil, Tag, Gift } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
@@ -54,6 +54,67 @@ export default function EventMediaTab() {
     });
     setShowEditModal(false);
     setEditingEvent(null);
+  };
+
+  // Coupons Management State
+  const [showCouponsModal, setShowCouponsModal] = useState(false);
+  const [couponsList, setCouponsList] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [couponMsg, setCouponMsg] = useState("");
+  const [newCoupon, setNewCoupon] = useState({
+    code: "",
+    discountType: "percentage" as "percentage" | "fixed",
+    discountValue: 100,
+    description: "",
+  });
+
+  const loadCoupons = async () => {
+    setLoadingCoupons(true);
+    setCouponMsg("");
+    try {
+      const res = await fetch("/api/coupons");
+      if (res.ok) {
+        const data = await res.json();
+        setCouponsList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Error loading coupons:", err);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCoupon.code.trim()) return;
+    try {
+      const res = await fetch("/api/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCoupon),
+      });
+      if (res.ok) {
+        setCouponMsg("Cupom criado com sucesso!");
+        setNewCoupon({ code: "", discountType: "percentage", discountValue: 100, description: "" });
+        loadCoupons();
+      } else {
+        const err = await res.json();
+        setCouponMsg(err.error || "Erro ao criar cupom.");
+      }
+    } catch {
+      setCouponMsg("Erro ao criar cupom.");
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    try {
+      const res = await fetch(`/api/coupons?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        loadCoupons();
+      }
+    } catch (err) {
+      console.error("Error deleting coupon:", err);
+    }
   };
 
   // Upload States
@@ -219,13 +280,26 @@ export default function EventMediaTab() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-5 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Evento
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              loadCoupons();
+              setShowCouponsModal(true);
+            }}
+            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5 border border-white/10 hover:border-primary/30"
+          >
+            <Tag className="w-4 h-4 text-primary" />
+            Cupons de Desconto
+          </button>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-5 py-2.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Evento
+          </button>
+        </div>
       </div>
 
       {/* Main Grid: Event List & Details */}
@@ -777,6 +851,166 @@ export default function EventMediaTab() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Coupons Management Modal */}
+      <AnimatePresence>
+        {showCouponsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCouponsModal(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-2xl bg-dark-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative z-10 max-h-[90vh] flex flex-col"
+            >
+              <div className="px-6 py-4 border-b border-white/5 bg-black/40 flex justify-between items-center">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-primary" /> Gerenciar Cupons de Desconto
+                </h3>
+                <button
+                  onClick={() => setShowCouponsModal(false)}
+                  className="p-1 hover:bg-white/5 rounded text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                {/* Create Coupon Form */}
+                <form onSubmit={handleCreateCoupon} className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Criar Novo Cupom</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Código</label>
+                      <input
+                        type="text"
+                        required
+                        value={newCoupon.code}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                        placeholder="Ex: VIP100"
+                        className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white uppercase font-mono focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tipo</label>
+                      <select
+                        value={newCoupon.discountType}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, discountType: e.target.value as any })}
+                        className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                      >
+                        <option value="percentage">Porcentagem (%)</option>
+                        <option value="fixed">Valor Fixo (R$)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+                        {newCoupon.discountType === "percentage" ? "Desconto (%)" : "Desconto (R$)"}
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        max={newCoupon.discountType === "percentage" ? 100 : undefined}
+                        value={newCoupon.discountValue}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, discountValue: Number(e.target.value) })}
+                        className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Descrição</label>
+                      <input
+                        type="text"
+                        value={newCoupon.description}
+                        onChange={(e) => setNewCoupon({ ...newCoupon, description: e.target.value })}
+                        placeholder="Cortesia especial"
+                        className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-1">
+                    {couponMsg ? (
+                      <span className="text-[11px] text-primary">{couponMsg}</span>
+                    ) : <span />}
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-primary hover:bg-[#B39356] text-black font-bold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                    >
+                      Cadastrar Cupom
+                    </button>
+                  </div>
+                </form>
+
+                {/* Coupons List */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Cupons Ativos ({couponsList.length})
+                  </h4>
+
+                  {loadingCoupons ? (
+                    <div className="text-center py-6 text-xs text-gray-500">Carregando cupons...</div>
+                  ) : couponsList.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-gray-500 border border-dashed border-white/10 rounded-xl">
+                      Nenhum cupom cadastrado.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {couponsList.map((c) => (
+                        <div
+                          key={c.id}
+                          className="p-3.5 rounded-xl bg-black/30 border border-white/5 flex items-center justify-between gap-4"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="px-2.5 py-1 rounded bg-primary/10 border border-primary/20 text-primary font-mono font-bold text-xs">
+                              {c.code}
+                            </span>
+                            <div>
+                              <span className="text-xs font-semibold text-white block">
+                                {c.discountType === "percentage" ? `${c.discountValue}% de Desconto` : `R$ ${c.discountValue},00 de Desconto`}
+                                {c.discountValue === 100 && c.discountType === "percentage" && (
+                                  <span className="ml-2 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase">
+                                    100% Grátis
+                                  </span>
+                                )}
+                              </span>
+                              {c.description && (
+                                <span className="text-[10px] text-gray-400 block">{c.description}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] text-gray-500 font-mono">
+                              Usos: {c.usedCount || 0}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteCoupon(c.id)}
+                              className="p-1.5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                              title="Excluir Cupom"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

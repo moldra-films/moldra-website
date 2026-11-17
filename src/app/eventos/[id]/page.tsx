@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAdmin, EventPhoto } from "@/context/AdminContext";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy, Tag, Gift, Percent } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 function EventGalleryContent() {
@@ -30,6 +30,17 @@ function EventGalleryContent() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState("");
+
+  // Coupon States
+  const [couponInput, setCouponInput] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountType: "percentage" | "fixed";
+    discountValue: number;
+    description?: string;
+  } | null>(null);
 
   // Anti-Right-Click protection
   useEffect(() => {
@@ -177,12 +188,52 @@ function EventGalleryContent() {
   const priceIndividual = totalIndividualCount * event.pricePerPhoto;
   const isPackageAdvantageous = totalIndividualCount > 0 && event.packagePrice > 0 && priceIndividual >= event.packagePrice;
   
-  // Final checkout variables:
-  // If buyAllPackage is chosen, charge the package price;
-  // otherwise, the individual price increases with each photo selected!
-  const finalPrice = buyAllPackage ? event.packagePrice : priceIndividual;
+  const basePrice = buyAllPackage ? event.packagePrice : priceIndividual;
+
+  // Calculate discount from applied coupon
+  let discountAmount = 0;
+  if (appliedCoupon && basePrice > 0) {
+    if (appliedCoupon.discountType === "percentage") {
+      discountAmount = Math.round((basePrice * (appliedCoupon.discountValue / 100)) * 100) / 100;
+    } else {
+      discountAmount = Math.min(basePrice, appliedCoupon.discountValue);
+    }
+  }
+  const finalPrice = Math.max(0, Math.round((basePrice - discountAmount) * 100) / 100);
+  const isFree = (appliedCoupon?.discountValue === 100 || finalPrice === 0) && basePrice > 0;
   const checkoutItemsCount = buyAllPackage ? event.photos.length : totalIndividualCount;
   const activePurchaseMode = buyAllPackage ? "Pacote Completo" : "Fotos Individuais";
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError("");
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponInput.trim(), amount: basePrice }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setAppliedCoupon(null);
+        setCouponError(data.error || "Cupom inválido ou expirado.");
+      } else {
+        setAppliedCoupon(data.coupon);
+        setCouponError("");
+      }
+    } catch {
+      setCouponError("Erro ao validar cupom.");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+  };
 
   const handleCheckout = async () => {
     if (checkoutItemsCount === 0) return;
@@ -197,6 +248,7 @@ function EventGalleryContent() {
           eventId: event.id,
           mode: buyAllPackage ? "package" : "individual",
           photoIds: buyAllPackage ? [] : selectedPhotos,
+          couponCode: appliedCoupon?.code,
         }),
       });
 
@@ -210,6 +262,13 @@ function EventGalleryContent() {
       // Remember the order so access can be restored on this device after paying.
       if (data.orderId && typeof window !== "undefined") {
         localStorage.setItem(`moldra_order_${event.id}`, data.orderId);
+      }
+
+      // If 100% free via coupon, immediately deliver without Mercado Pago!
+      if (data.free) {
+        await verifyOrder(data.orderId);
+        setPurchaseSuccess(true);
+        return;
       }
 
       if (data.initPoint) {
@@ -492,14 +551,97 @@ function EventGalleryContent() {
                   </div>
                 )}
 
-                {/* Pricing totals */}
-                <div className="pt-4 border-t border-white/5 flex justify-between items-baseline">
-                  <span className="text-xs text-gray-400">Total Geral:</span>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold font-display text-primary">R$ {finalPrice},00</span>
-                    <span className="block text-[9px] text-gray-500 font-sans uppercase tracking-wider mt-0.5">
-                      Faturamento via {activePurchaseMode} ({checkoutItemsCount} fotos)
+                {/* Coupon Code Section */}
+                <div className="pt-4 border-t border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-primary" /> Cupom de Desconto
                     </span>
+                    {appliedCoupon && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-[9px] text-red-400 hover:text-red-300 underline cursor-pointer"
+                      >
+                        Remover cupom
+                      </button>
+                    )}
+                  </div>
+
+                  {!appliedCoupon ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(e.target.value.toUpperCase());
+                          if (couponError) setCouponError("");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleApplyCoupon();
+                          }
+                        }}
+                        placeholder="Ex: VIP100"
+                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono uppercase tracking-wider focus:outline-none focus:border-primary placeholder:text-gray-600 placeholder:normal-case"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={!couponInput.trim() || validatingCoupon}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40"
+                      >
+                        {validatingCoupon ? "..." : "Aplicar"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 text-emerald-400">
+                        <Tag className="w-3.5 h-3.5" />
+                        <span className="font-mono font-bold">{appliedCoupon.code}</span>
+                        <span className="text-[10px] text-gray-300">
+                          ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}% OFF` : `R$ ${appliedCoupon.discountValue} OFF`})
+                        </span>
+                      </div>
+                      <span className="text-emerald-400 font-bold text-xs">
+                        -R$ {discountAmount.toFixed(2).replace(".", ",")}
+                      </span>
+                    </div>
+                  )}
+
+                  {couponError && (
+                    <p className="text-[10px] text-red-400">{couponError}</p>
+                  )}
+                </div>
+
+                {/* Pricing totals */}
+                <div className="pt-4 border-t border-white/5 space-y-1.5">
+                  {appliedCoupon && (
+                    <>
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Subtotal:</span>
+                        <span className="font-mono">R$ {basePrice},00</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-emerald-400 font-semibold">
+                        <span>Desconto ({appliedCoupon.code}):</span>
+                        <span className="font-mono">-R$ {discountAmount.toFixed(2).replace(".", ",")}</span>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-xs text-gray-400">Total a Pagar:</span>
+                    <div className="text-right">
+                      {isFree ? (
+                        <span className="text-2xl font-bold font-display text-emerald-400">GRÁTIS (R$ 0,00)</span>
+                      ) : (
+                        <span className="text-2xl font-bold font-display text-primary">R$ {finalPrice},00</span>
+                      )}
+                      <span className="block text-[9px] text-gray-500 font-sans uppercase tracking-wider mt-0.5">
+                        Faturamento via {activePurchaseMode} ({checkoutItemsCount} fotos)
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -507,10 +649,23 @@ function EventGalleryContent() {
                 <button
                   onClick={handleCheckout}
                   disabled={checkoutItemsCount === 0 || checkoutLoading}
-                  className="w-full py-3.5 bg-primary hover:bg-[#B39356] text-black font-semibold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className={`w-full py-3.5 font-semibold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${
+                    isFree
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20"
+                      : "bg-primary hover:bg-[#B39356] text-black shadow-primary/20"
+                  }`}
                 >
-                  <ShoppingCart className="w-4 h-4 shrink-0" />
-                  {checkoutLoading ? "Processando..." : `Pagar via Mercado Pago`}
+                  {isFree ? (
+                    <>
+                      <Gift className="w-4 h-4 shrink-0" />
+                      {checkoutLoading ? "Liberando fotos..." : "Liberar Fotos Gratuitamente"}
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-4 h-4 shrink-0" />
+                      {checkoutLoading ? "Processando..." : `Pagar R$ ${finalPrice},00 via Mercado Pago`}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

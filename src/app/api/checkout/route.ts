@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseServer";
-import { mercadoPagoToken } from "@/lib/photoOrders";
+import { mercadoPagoToken, recordSale } from "@/lib/photoOrders";
+import { findCoupon, calculateDiscount, incrementCouponUsage } from "@/lib/coupons";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ function safeOrigin(request: Request): string {
  * The price is ALWAYS computed here from the database - the browser only says
  * which event and which photos, never how much to charge.
  *
- * Body: { eventId: number, mode: "package" | "individual", photoIds?: string[] }
+ * Body: { eventId: number, mode: "package" | "individual", photoIds?: string[], couponCode?: string }
  */
 export async function POST(request: Request) {
   try {
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const requestedIds: string[] = Array.isArray(body?.photoIds)
       ? Array.from(new Set(body.photoIds.filter((id: unknown) => typeof id === "string")))
       : [];
+    const couponCode = String(body?.couponCode || "").trim().toUpperCase();
 
     if (!Number.isFinite(eventId)) {
       return NextResponse.json({ error: "eventId is required." }, { status: 400 });
@@ -38,14 +40,6 @@ export async function POST(request: Request) {
     }
     if (requestedIds.length > MAX_INDIVIDUAL_PHOTOS) {
       return NextResponse.json({ error: "Too many photos selected." }, { status: 400 });
-    }
-
-    const accessToken = mercadoPagoToken();
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Mercado Pago Access Token is not configured on the server." },
-        { status: 501 }
-      );
     }
 
     const { data: event, error: eventError } = await supabase
@@ -82,12 +76,74 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This event has no valid price configured." }, { status: 400 });
     }
 
+    // Check discount coupon if provided
+    let appliedCoupon = null;
+    let finalAmount = amount;
+    let isFree = false;
+
+    if (couponCode) {
+      appliedCoupon = await findCoupon(couponCode);
+      if (appliedCoupon) {
+        const discountCalc = calculateDiscount(appliedCoupon, amount);
+        finalAmount = discountCalc.finalAmount;
+        isFree = discountCalc.isFree;
+      }
+    }
+
+    // CASE 1: 100% Free order (via coupon)! Instant liberation, bypass Mercado Pago.
+    if (isFree || finalAmount === 0) {
+      const { data: order, error: orderError } = await supabase
+        .from("photo_orders")
+        .insert({
+          event_id: eventId,
+          mode,
+          photo_ids: photoIds,
+          amount: amount > 0 ? amount : 1.0,
+          status: "paid",
+          payment_id: `CUPOM_${appliedCoupon?.code || "100"}`,
+          paid_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+      if (orderError || !order) throw orderError || new Error("Could not create free order");
+
+      if (appliedCoupon) {
+        await incrementCouponUsage(appliedCoupon.code);
+      }
+
+      await recordSale(order, `CUPOM_${appliedCoupon?.code || "100"}`, {
+        customerName: `Beneficiário Cupom ${appliedCoupon?.code || "100"}`,
+        couponCode: appliedCoupon?.code || "100",
+        isFree: true,
+      });
+
+      return NextResponse.json({
+        free: true,
+        orderId: order.id,
+        message: "Fotos liberadas com sucesso via cupom de 100%!",
+      });
+    }
+
+    // CASE 2: Paid order via Mercado Pago (with or without partial coupon discount)
+    const accessToken = mercadoPagoToken();
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: "Mercado Pago Access Token is not configured on the server." },
+        { status: 501 }
+      );
+    }
+
     const { data: order, error: orderError } = await supabase
       .from("photo_orders")
-      .insert({ event_id: eventId, mode, photo_ids: photoIds, amount, status: "pending" })
+      .insert({ event_id: eventId, mode, photo_ids: photoIds, amount: finalAmount, status: "pending" })
       .select("id")
       .single();
     if (orderError || !order) throw orderError || new Error("Could not create order");
+
+    if (appliedCoupon) {
+      await incrementCouponUsage(appliedCoupon.code);
+    }
 
     const origin = safeOrigin(request);
     const returnUrl = (status: string) =>
@@ -102,10 +158,10 @@ export async function POST(request: Request) {
             id: order.id,
             title:
               mode === "package"
-                ? `Pacote Completo de Fotos - ${event.name}`
-                : `${count} foto(s) - ${event.name}`,
+                ? `Pacote Completo de Fotos - ${event.name}${appliedCoupon ? ` (Cupom ${appliedCoupon.code})` : ""}`
+                : `${count} foto(s) - ${event.name}${appliedCoupon ? ` (Cupom ${appliedCoupon.code})` : ""}`,
             quantity: 1,
-            unit_price: amount,
+            unit_price: finalAmount,
             currency_id: "BRL",
           },
         ],
