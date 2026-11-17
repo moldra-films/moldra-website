@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { FinanceDb } from "@/lib/db/financeDb";
 import { r2, bucketName } from "@/lib/r2Client";
@@ -8,6 +9,8 @@ import { collectFullBackupData } from "../route";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const payload = await request.json();
 

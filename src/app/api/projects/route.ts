@@ -1,10 +1,30 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { getAuth, unauthorized, type AuthContext } from "@/lib/apiAuth";
+
+// A project belongs to a client user if its clientName matches the user's e-mail,
+// the company on their profile, or the company of their client record.
+async function ownedProjectFilter(auth: AuthContext) {
+  const names = new Set<string>([auth.email]);
+  const company = auth.metadata?.company;
+  if (typeof company === "string" && company.trim()) names.add(company.trim().toLowerCase());
+  try {
+    const { data } = await supabase.from("clients").select("email, company");
+    for (const c of data || []) {
+      if (String(c.email || "").toLowerCase() === auth.email && c.company) {
+        names.add(String(c.company).trim().toLowerCase());
+      }
+    }
+  } catch {}
+  return (clientName: unknown) => names.has(String(clientName || "").trim().toLowerCase());
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await getAuth(request);
+  if (!auth) return unauthorized();
   try {
     const { data, error } = await supabase
       .from("projects")
@@ -32,7 +52,13 @@ export async function GET() {
       version: proj.version || "v1",
     }));
 
-    return NextResponse.json(mapped, {
+    let visible = mapped;
+    if (!auth.isAdmin) {
+      const owns = await ownedProjectFilter(auth);
+      visible = mapped.filter((p: any) => owns(p.clientName));
+    }
+
+    return NextResponse.json(visible, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
@@ -44,11 +70,37 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await getAuth(request);
+  if (!auth) return unauthorized();
   try {
     const body = await request.json();
 
     if (!Array.isArray(body)) {
       return NextResponse.json({ error: "Invalid payload, must be an array" }, { status: 400 });
+    }
+
+    // Client users (client portal) may only comment on / approve their own
+    // projects. Never replace the table on their behalf.
+    if (!auth.isAdmin) {
+      const owns = await ownedProjectFilter(auth);
+      let updated = 0;
+      for (const proj of body) {
+        if (!proj || typeof proj.id !== "number") continue;
+        const { data: existing } = await supabase
+          .from("projects")
+          .select("id, client_name")
+          .eq("id", proj.id)
+          .maybeSingle();
+        if (!existing || !owns(existing.client_name)) continue;
+        const patch: Record<string, unknown> = {};
+        if (Array.isArray(proj.comments)) patch.comments = proj.comments;
+        if (typeof proj.status === "string") patch.status = proj.status;
+        if (Object.keys(patch).length === 0) continue;
+        const { error: updateError } = await supabase.from("projects").update(patch).eq("id", proj.id);
+        if (updateError) throw updateError;
+        updated++;
+      }
+      return NextResponse.json({ success: true, updated });
     }
 
     // Safety guard: never wipe table on empty array

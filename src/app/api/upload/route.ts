@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2, bucketName, publicUrl } from "@/lib/r2Client";
 
 export async function DELETE(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { fileUrl } = await request.json();
 
@@ -42,6 +45,8 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { fileName, fileType, folder } = await request.json();
 

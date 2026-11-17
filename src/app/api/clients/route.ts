@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { getAuth, unauthorized } from "@/lib/apiAuth";
+import { guardAdmin } from "@/lib/apiAuth";
 import { supabase } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await getAuth(request);
+  if (!auth) return unauthorized();
   try {
     const { data, error } = await supabase
       .from("clients")
@@ -39,7 +43,12 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(mapped, {
+    // Non-admin users only ever see their own client record.
+    const visible = auth.isAdmin
+      ? mapped
+      : mapped.filter((c: any) => String(c.email || "").toLowerCase() === auth.email);
+
+    return NextResponse.json(visible, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
@@ -51,6 +60,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
 

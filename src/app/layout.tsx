@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { AdminProvider } from "@/context/AdminContext";
+import AuthFetch from "@/components/AuthFetch";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -50,6 +51,7 @@ export default function RootLayout({
       className={`${inter.variable} ${poppins.variable} scroll-smooth h-full`}
     >
       <body className="min-h-full font-sans bg-dark-bg text-white antialiased">
+        <AuthFetch />
         <AdminProvider>
           {children}
         </AdminProvider>

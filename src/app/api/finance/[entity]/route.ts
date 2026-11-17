@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { FinanceDb, FinanceDatabase } from "@/lib/db/financeDb";
 import { AuditLog, Transaction } from "@/types/finance";
 import { supabase } from "@/lib/supabaseClient";
@@ -25,6 +26,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ entity: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { entity } = await params;
     const db = await FinanceDb.load(true);
@@ -107,6 +110,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ entity: string }> }
 ) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { entity } = await params;
     const key = mapEntityToKey(entity);

@@ -1,5 +1,23 @@
 import { NextResponse } from "next/server";
 
+function isAllowedImageUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith(".r2.dev") || host.endsWith(".r2.cloudflarestorage.com")) return true;
+    const configured = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+    if (configured) {
+      try {
+        return host === new URL(configured).hostname.toLowerCase();
+      } catch {}
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get("url");
@@ -8,8 +26,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
   }
 
+  if (!isAllowedImageUrl(url)) {
+    return NextResponse.json({ error: "URL not allowed" }, { status: 400 });
+  }
+
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { redirect: "error" });
     if (!res.ok) {
       return NextResponse.json(
         { error: `Failed to fetch image from cloud: ${res.statusText}` },

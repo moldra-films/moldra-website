@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   const clientId = process.env.PLUGGY_CLIENT_ID;
   const clientSecret = process.env.PLUGGY_CLIENT_SECRET;
 

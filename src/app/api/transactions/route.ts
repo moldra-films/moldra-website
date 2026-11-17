@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 import { FinanceDb } from "@/lib/db/financeDb";
+import { guardAdmin } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     // 1. Fetch from Supabase
     let supaMapped: any[] = [];
@@ -85,6 +88,10 @@ export async function POST(request: Request) {
     const payload = await request.json();
 
     if (Array.isArray(payload)) {
+      // Full-table replacement is an admin-only operation.
+      const denied = await guardAdmin(request);
+      if (denied) return denied;
+
       // Safety guard: never wipe table on empty array
       if (payload.length === 0) {
         return NextResponse.json({ success: true, message: "Ignored empty payload for safety" });

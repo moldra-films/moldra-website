@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { supabase } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const body = await request.json();
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { FinanceDb } from "@/lib/db/financeDb";
 import { r2, bucketName } from "@/lib/r2Client";
@@ -83,6 +84,8 @@ export async function collectFullBackupData() {
 
 // GET: Download complete backup as JSON
 export async function GET(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const url = new URL(request.url);
     const download = url.searchParams.get("download") === "true";
@@ -113,6 +116,8 @@ export async function GET(request: Request) {
 
 // POST: Save snapshot to Cloudflare R2 backup vault
 export async function POST(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const backup = await collectFullBackupData();
     const dateStamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);

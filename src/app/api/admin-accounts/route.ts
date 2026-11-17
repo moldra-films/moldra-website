@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { getAuth, unauthorized, forbidden } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await getAuth(request);
+  if (!auth) return unauthorized();
   try {
     const { data, error } = await supabase.from("profiles").select("*");
     if (error) throw error;
@@ -30,7 +33,7 @@ export async function GET() {
         avatarUrl: profile.avatar_url || "",
         createdAt: profile.created_at
       }));
-      return NextResponse.json(mapped, {
+      return NextResponse.json(auth.isAdmin ? mapped : mapped.filter((a: any) => String(a.email).toLowerCase() === auth.email), {
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         },
@@ -60,13 +63,17 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(mapped, {
+    // Non-admin users may only see their own account record.
+    const visible = auth.isAdmin ? mapped : mapped.filter((a: any) => String(a.email).toLowerCase() === auth.email);
+
+    return NextResponse.json(visible, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
       },
     });
   } catch (err: any) {
     console.warn("Failed to read from Supabase 'profiles' table. Falling back to default admin.", err.message);
+    if (!auth.isAdmin) return forbidden();
     // Graceful fallback to avoid admin panel lockout prior to SQL schema run
     return NextResponse.json([
       { id: "default-1", email: "admin@moldrafilms.com.br", name: "Administrador", role: "admin", avatarUrl: "", createdAt: new Date().toISOString() },
@@ -77,10 +84,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await getAuth(request);
+  if (!auth) return unauthorized();
   try {
     const body = await request.json();
 
     if (Array.isArray(body)) {
+      // Replacing the whole account list is an admin-only operation.
+      if (!auth.isAdmin) return forbidden();
       // Full list replacement (from Settings tab)
       // 1. Delete all current rows
       await supabase.from("profiles").delete().neq("id", "placeholder_matching_none");
@@ -111,7 +122,21 @@ export async function POST(request: Request) {
         if (fallbackError) throw fallbackError;
       }
     } else if (body && typeof body === "object") {
-      // Single row insertion (from Sign-Up or Google login)
+      // Single row insertion (from Sign-Up or Google login).
+      // Non-admins can only register THEMSELVES as a plain client, and can
+      // never overwrite an existing account (prevents privilege escalation).
+      if (!auth.isAdmin) {
+        if (String(body.email || "").toLowerCase() !== auth.email) return forbidden();
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("email", auth.email.replace(/[\\%_]/g, (c) => `\\${c}`))
+          .limit(1);
+        if (existing && existing.length > 0) {
+          return NextResponse.json({ success: true, message: "Account already registered" });
+        }
+        body.role = "client";
+      }
       const insertRow = {
         id: body.id,
         email: body.email,

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { FinanceDb } from "@/lib/db/financeDb";
 import { BankAccount, Transaction, AuditLog } from "@/types/finance";
 
 export async function POST(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const { itemId } = await request.json();
 

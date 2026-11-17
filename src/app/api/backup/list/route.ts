@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { guardAdmin } from "@/lib/apiAuth";
 import { r2, bucketName, publicUrl } from "@/lib/r2Client";
 import { ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
   try {
     const listRes = await r2.send(
       new ListObjectsV2Command({
