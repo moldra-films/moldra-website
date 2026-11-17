@@ -147,6 +147,7 @@ export interface EventMedia {
   pricePerPhoto: number;
   packagePrice: number;
   coverUrl?: string;
+  coverPosition?: number;
   photos: EventPhoto[];
 }
 
@@ -882,9 +883,17 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateEventMedia = (id: number, updatedFields: Partial<EventMedia>) => {
-    setEventMedias((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...updatedFields } : e))
-    );
+    setEventMedias((prev) => {
+      const next = prev.map((e) => (e.id === id ? { ...e, ...updatedFields } : e));
+      if (typeof window !== "undefined") {
+        fetch("/api/event-media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        }).catch((err) => console.error("Error direct saving event-medias:", err));
+      }
+      return next;
+    });
   };
 
   return (

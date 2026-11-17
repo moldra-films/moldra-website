@@ -20,6 +20,7 @@ export default function EventMediaTab() {
     pricePerPhoto: 15,
     packagePrice: 199,
     coverUrl: "",
+    coverPosition: 50,
   });
   const [uploadingCover, setUploadingCover] = useState(false);
 
@@ -32,6 +33,7 @@ export default function EventMediaTab() {
     pricePerPhoto: 15,
     packagePrice: 199,
     coverUrl: "",
+    coverPosition: 50,
   });
 
   const handleOpenEdit = (event: EventMedia, e?: React.MouseEvent) => {
@@ -43,6 +45,7 @@ export default function EventMediaTab() {
       pricePerPhoto: event.pricePerPhoto,
       packagePrice: event.packagePrice,
       coverUrl: event.coverUrl || "",
+      coverPosition: typeof event.coverPosition === "number" ? event.coverPosition : 50,
     });
     setShowEditModal(true);
   };
@@ -55,7 +58,8 @@ export default function EventMediaTab() {
       date: editForm.date,
       pricePerPhoto: Number(editForm.pricePerPhoto),
       packagePrice: Number(editForm.packagePrice),
-      coverUrl: editForm.coverUrl || undefined,
+      coverUrl: editForm.coverUrl || "",
+      coverPosition: Number(editForm.coverPosition ?? 50),
     });
     setShowEditModal(false);
     setEditingEvent(null);
@@ -177,8 +181,9 @@ export default function EventMediaTab() {
       pricePerPhoto: Number(newEvent.pricePerPhoto),
       packagePrice: Number(newEvent.packagePrice),
       coverUrl: newEvent.coverUrl || undefined,
+      coverPosition: Number(newEvent.coverPosition ?? 50),
     });
-    setNewEvent({ name: "", date: "", pricePerPhoto: 15, packagePrice: 199, coverUrl: "" });
+    setNewEvent({ name: "", date: "", pricePerPhoto: 15, packagePrice: 199, coverUrl: "", coverPosition: 50 });
     setShowCreateModal(false);
   };
 
@@ -373,6 +378,7 @@ export default function EventMediaTab() {
                           <img
                             src={event.coverUrl || event.photos[0].url}
                             alt=""
+                            style={{ objectPosition: `center ${event.coverPosition ?? 50}%` }}
                             className="w-full h-full object-cover"
                           />
                           {event.coverUrl && (
@@ -495,14 +501,19 @@ export default function EventMediaTab() {
                       <>
                         <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-primary/40 bg-black/40 shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={selectedEvent.coverUrl} alt="Capa" className="w-full h-full object-cover" />
+                          <img
+                            src={selectedEvent.coverUrl}
+                            alt="Capa"
+                            style={{ objectPosition: `center ${selectedEvent.coverPosition ?? 50}%` }}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         <div>
                           <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">
                             <Star className="w-3 h-3 fill-primary" /> Capa Ativa do Evento
                           </span>
                           <span className="text-[10px] text-gray-400 block mt-0.5">
-                            Esta foto é exibida como capa do álbum no site.
+                            Enquadramento: {selectedEvent.coverPosition ?? 50}% vertical • exibida no site
                           </span>
                         </div>
                       </>
@@ -519,7 +530,7 @@ export default function EventMediaTab() {
                       onClick={() => handleOpenEdit(selectedEvent)}
                       className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
                     >
-                      {selectedEvent.coverUrl ? "Trocar Capa" : "Adicionar Capa"}
+                      {selectedEvent.coverUrl ? "Ajustar / Trocar Capa" : "Adicionar Capa"}
                     </button>
                     {selectedEvent.coverUrl && (
                       <button
@@ -874,13 +885,13 @@ export default function EventMediaTab() {
                 </div>
 
                 {/* Optional Cover Upload in Create Event */}
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5 flex items-center justify-between">
+                <div className="space-y-2">
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 flex items-center justify-between">
                     <span>Foto de Capa do Evento (Opcional)</span>
                     {newEvent.coverUrl && (
                       <button
                         type="button"
-                        onClick={() => setNewEvent({ ...newEvent, coverUrl: "" })}
+                        onClick={() => setNewEvent({ ...newEvent, coverUrl: "", coverPosition: 50 })}
                         className="text-[9px] text-red-400 hover:underline cursor-pointer"
                       >
                         Remover
@@ -888,12 +899,59 @@ export default function EventMediaTab() {
                     )}
                   </label>
                   {newEvent.coverUrl ? (
-                    <div className="relative h-28 rounded-xl overflow-hidden border border-primary/40 bg-black/40">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={newEvent.coverUrl} alt="Capa" className="w-full h-full object-cover" />
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 text-[9px] text-primary font-bold">
-                        Capa Selecionada
-                      </span>
+                    <div className="space-y-3 p-3 rounded-xl bg-black/40 border border-white/10">
+                      <div className="relative h-28 rounded-xl overflow-hidden border border-primary/40 bg-black/60">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={newEvent.coverUrl}
+                          alt="Capa"
+                          style={{ objectPosition: `center ${newEvent.coverPosition}%` }}
+                          className="w-full h-full object-cover transition-all duration-150"
+                        />
+                        <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/80 text-[9px] text-primary font-bold">
+                          {newEvent.coverPosition}% vertical
+                        </span>
+                      </div>
+
+                      {/* Margin / Vertical Position Editor */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-gray-300 font-medium">Ajustar Enquadramento (Fotos Verticais):</span>
+                          <span className="text-primary font-mono font-bold text-[9px]">{newEvent.coverPosition}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={newEvent.coverPosition}
+                          onChange={(e) => setNewEvent({ ...newEvent, coverPosition: Number(e.target.value) })}
+                          className="w-full accent-primary h-1.5 bg-white/10 rounded-lg cursor-pointer"
+                        />
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setNewEvent({ ...newEvent, coverPosition: 15 })}
+                            className="flex-1 py-1 rounded text-[9px] font-bold bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5 cursor-pointer"
+                          >
+                            🔝 Topo (Rostos)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewEvent({ ...newEvent, coverPosition: 50 })}
+                            className="flex-1 py-1 rounded text-[9px] font-bold bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5 cursor-pointer"
+                          >
+                            🎯 Centro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNewEvent({ ...newEvent, coverPosition: 85 })}
+                            className="flex-1 py-1 rounded text-[9px] font-bold bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5 cursor-pointer"
+                          >
+                            ⬇️ Base
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center p-4 border border-dashed border-white/10 hover:border-primary/40 rounded-xl cursor-pointer bg-black/20 hover:bg-black/30 transition-all">
@@ -1021,14 +1079,14 @@ export default function EventMediaTab() {
                   </div>
                 </div>
 
-                {/* Cover Section in Edit Event */}
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5 flex items-center justify-between">
+                {/* Cover Section in Edit Event with Margin / Vertical Position Editor */}
+                <div className="space-y-2">
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 flex items-center justify-between">
                     <span>Foto de Capa do Evento</span>
                     {editForm.coverUrl && (
                       <button
                         type="button"
-                        onClick={() => setEditForm({ ...editForm, coverUrl: "" })}
+                        onClick={() => setEditForm({ ...editForm, coverUrl: "", coverPosition: 50 })}
                         className="text-[9px] text-red-400 hover:underline cursor-pointer"
                       >
                         Remover Capa
@@ -1037,12 +1095,95 @@ export default function EventMediaTab() {
                   </label>
 
                   {editForm.coverUrl ? (
-                    <div className="relative h-32 rounded-xl overflow-hidden border border-primary/40 bg-black/40 group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={editForm.coverUrl} alt="Capa" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <label className="px-3 py-1.5 bg-primary hover:bg-[#B39356] text-black font-bold text-[10px] uppercase tracking-wider rounded-lg cursor-pointer">
-                          Trocar Foto
+                    <div className="space-y-3 p-3.5 rounded-xl bg-black/40 border border-white/10">
+                      {/* Live Aspect-Ratio Banner Preview */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px] text-gray-400">
+                          <span>Pré-visualização do Enquadramento (Banner):</span>
+                          <span className="font-mono text-primary font-bold">{editForm.coverPosition}% vertical</span>
+                        </div>
+                        <div className="relative h-36 w-full rounded-xl overflow-hidden border border-primary/40 bg-black/60 shadow-inner group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={editForm.coverUrl}
+                            alt="Capa"
+                            style={{ objectPosition: `center ${editForm.coverPosition}%` }}
+                            className="w-full h-full object-cover transition-all duration-150"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-2.5 flex justify-between items-end">
+                            <span className="text-[9px] text-white/80 font-medium">
+                              Enquadramento no site
+                            </span>
+                            <span className="text-[9px] text-primary font-bold bg-black/80 px-2 py-0.5 rounded border border-primary/30">
+                              {editForm.coverPosition <= 30 ? "Foco no Topo / Rostos" : editForm.coverPosition >= 70 ? "Foco na Base" : "Foco no Centro"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Margin / Vertical Position Slider */}
+                      <div className="space-y-2 pt-1">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-gray-300 font-medium">Editor de Margem / Posição (Fotos Verticais):</span>
+                          <span className="text-gray-500 font-mono text-[9px]">0% (Topo) a 100% (Base)</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={editForm.coverPosition}
+                          onChange={(e) => setEditForm({ ...editForm, coverPosition: Number(e.target.value) })}
+                          className="w-full accent-primary h-1.5 bg-white/10 rounded-lg cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-gray-500 font-mono">
+                          <span>0% Topo</span>
+                          <span>50% Centro</span>
+                          <span>100% Base</span>
+                        </div>
+
+                        {/* Quick Presets for Vertical Photos */}
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, coverPosition: 15 })}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                              editForm.coverPosition === 15
+                                ? "bg-primary text-black border-primary shadow-sm"
+                                : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/5"
+                            }`}
+                          >
+                            🔝 Topo (Rostos)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, coverPosition: 50 })}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                              editForm.coverPosition === 50
+                                ? "bg-primary text-black border-primary shadow-sm"
+                                : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/5"
+                            }`}
+                          >
+                            🎯 Centro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, coverPosition: 85 })}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                              editForm.coverPosition === 85
+                                ? "bg-primary text-black border-primary shadow-sm"
+                                : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/5"
+                            }`}
+                          >
+                            ⬇️ Base
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Replace image action */}
+                      <div className="pt-2 border-t border-white/5 flex gap-2">
+                        <label className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-semibold text-[10px] uppercase tracking-wider rounded-lg cursor-pointer text-center border border-white/5 transition-all">
+                          Substituir Imagem de Capa
                           <input
                             type="file"
                             accept="image/*"
@@ -1054,17 +1195,7 @@ export default function EventMediaTab() {
                             }}
                           />
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => setEditForm({ ...editForm, coverUrl: "" })}
-                          className="px-3 py-1.5 bg-red-500/80 hover:bg-red-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg cursor-pointer"
-                        >
-                          Remover
-                        </button>
                       </div>
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 text-[9px] text-primary font-bold">
-                        Capa Ativa
-                      </span>
                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center p-4 border border-dashed border-white/10 hover:border-primary/40 rounded-xl cursor-pointer bg-black/20 hover:bg-black/30 transition-all">

@@ -19,13 +19,24 @@ export async function GET(request: Request) {
     if (error) throw error;
 
     const mapped = (data || []).map((event: any) => {
-      const photosArray = Array.isArray(event.photos) ? event.photos : [];
-      const coverPhoto = photosArray.find((p: any) => p.isCover);
-      let coverUrl = event.cover_url || event.coverUrl || coverPhoto?.url || null;
+      const rawPhotos = Array.isArray(event.photos) ? event.photos : [];
+      const coverObj = rawPhotos.find((p: any) => p && (p.isCover || p.id === "__cover__"));
+      
+      // Real album photos: filter out internal __cover__ entry
+      const albumPhotos = rawPhotos.filter((p: any) => p && p.id !== "__cover__");
 
-      // For public users, if cover points to an event photo, provide watermarked preview URL
+      let coverUrl = event.cover_url || event.coverUrl || coverObj?.url || null;
+      const coverPosition = typeof event.cover_position === "number"
+        ? event.cover_position
+        : typeof event.coverPosition === "number"
+        ? event.coverPosition
+        : typeof coverObj?.coverPosition === "number"
+        ? coverObj.coverPosition
+        : 50;
+
+      // For public users, if cover points to an album photo, provide watermarked preview URL
       if (!isAdmin && coverUrl) {
-        const matchingPhoto = photosArray.find((p: any) => p.url === coverUrl || p.id === coverUrl);
+        const matchingPhoto = albumPhotos.find((p: any) => p && (p.url === coverUrl || p.id === coverUrl));
         if (matchingPhoto) {
           coverUrl = `/api/photos/preview?e=${event.id}&p=${encodeURIComponent(matchingPhoto.id)}&w=1280`;
         }
@@ -38,11 +49,19 @@ export async function GET(request: Request) {
         pricePerPhoto: event.price_per_photo,
         packagePrice: event.package_price,
         coverUrl,
+        coverPosition,
         photos: isAdmin
-          ? photosArray
-          : photosArray.map((p: any) => {
+          ? albumPhotos
+          : albumPhotos.map((p: any) => {
               const base = `/api/photos/preview?e=${event.id}&p=${encodeURIComponent(p.id)}`;
-              return { id: p.id, name: p.name, url: `${base}&w=1280`, thumbUrl: `${base}&w=480`, isCover: !!p.isCover };
+              return {
+                id: p.id,
+                name: p.name,
+                url: `${base}&w=1280`,
+                thumbUrl: `${base}&w=480`,
+                isCover: !!p.isCover,
+                coverPosition: p.coverPosition,
+              };
             }),
       };
     });
@@ -94,19 +113,44 @@ export async function POST(request: Request) {
     // 2. Insert new events
     if (body.length > 0) {
       const insertRows = body.map((event: any) => {
-        const photosWithCover = (event.photos || []).map((p: any) => {
-          if (event.coverUrl && (p.url === event.coverUrl || p.thumbUrl === event.coverUrl || p.id === event.coverUrl)) {
-            return { ...p, isCover: true };
+        const coverUrl = event.coverUrl && typeof event.coverUrl === "string" && event.coverUrl.trim().length > 0
+          ? event.coverUrl.trim()
+          : null;
+        const coverPosition = typeof event.coverPosition === "number" ? event.coverPosition : 50;
+
+        // Base photos: filter out any previous __cover__ entry
+        const basePhotos = (event.photos || []).filter((p: any) => p && p.id !== "__cover__");
+
+        let matchedExisting = false;
+        const photosWithCover = basePhotos.map((p: any) => {
+          if (coverUrl && (p.url === coverUrl || p.thumbUrl === coverUrl || p.id === coverUrl)) {
+            matchedExisting = true;
+            return { ...p, isCover: true, coverPosition };
           }
-          return p;
+          const { isCover, coverPosition: _, ...rest } = p;
+          return rest;
         });
+
+        // If coverUrl is provided and does not match any album photo, add a dedicated __cover__ item
+        if (coverUrl && !matchedExisting) {
+          photosWithCover.push({
+            id: "__cover__",
+            name: "Capa do Evento",
+            url: coverUrl,
+            thumbUrl: coverUrl,
+            isCover: true,
+            coverPosition,
+          });
+        }
+
         return {
           id: event.id,
           name: event.name,
           date: event.date,
           price_per_photo: event.pricePerPhoto,
           package_price: event.packagePrice,
-          cover_url: event.coverUrl || null,
+          cover_url: coverUrl,
+          cover_position: coverPosition,
           photos: photosWithCover,
         };
       });
@@ -116,9 +160,9 @@ export async function POST(request: Request) {
         .insert(insertRows);
 
       if (insertError) {
-        // Fallback without cover_url column if table does not have that column
-        console.warn("Retrying insert without cover_url column:", insertError.message);
-        const fallbackRows = insertRows.map(({ cover_url, ...rest }: any) => rest);
+        // Fallback without cover_url and cover_position columns if table does not have them
+        console.warn("Retrying insert without cover columns:", insertError.message);
+        const fallbackRows = insertRows.map(({ cover_url, cover_position, ...rest }: any) => rest);
         const { error: fallbackError } = await supabase
           .from("event_medias")
           .insert(fallbackRows);

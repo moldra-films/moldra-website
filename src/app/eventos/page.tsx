@@ -66,6 +66,7 @@ export default function PublicEventsPage() {
                         src={coverPhoto}
                         alt={event.name}
                         loading="lazy"
+                        style={{ objectPosition: `center ${event.coverPosition ?? 50}%` }}
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       {/* Watermark simulator overlay */}
