@@ -477,13 +477,13 @@ function EventGalleryContent() {
       {/* Lightbox Image Preview Modal */}
       <AnimatePresence>
         {activePhoto && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setActivePhoto(null)}
-              className="absolute inset-0 bg-black/95 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/95 backdrop-blur-md"
             />
 
             <motion.div
@@ -491,7 +491,7 @@ function EventGalleryContent() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", duration: 0.3 }}
-              className="relative w-full max-w-3xl aspect-[4/3] sm:aspect-video rounded-2xl overflow-hidden shadow-2xl z-10 border border-white/5 bg-black"
+              className="relative w-full max-w-6xl h-[85vh] sm:h-[90vh] rounded-2xl overflow-hidden shadow-2xl z-10 border border-white/10 bg-black/95 flex items-center justify-center"
             >
               {/* Image box */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -559,7 +559,7 @@ function EventGalleryContent() {
                     setActivePhoto(event.photos[prevIndex]);
                   }
                 }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer z-20 group"
+                className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 p-3 bg-black/70 hover:bg-black/95 rounded-full border border-white/15 hover:border-primary text-gray-300 hover:text-white transition-all cursor-pointer z-20 group"
                 title="Foto anterior"
               >
                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
@@ -575,7 +575,7 @@ function EventGalleryContent() {
                     setActivePhoto(event.photos[nextIndex]);
                   }
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer z-20 group"
+                className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 p-3 bg-black/70 hover:bg-black/95 rounded-full border border-white/15 hover:border-primary text-gray-300 hover:text-white transition-all cursor-pointer z-20 group"
                 title="Próxima foto"
               >
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
@@ -584,16 +584,47 @@ function EventGalleryContent() {
               {/* Close Button */}
               <button
                 onClick={() => setActivePhoto(null)}
-                className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/95 rounded-full border border-white/10 hover:border-primary text-gray-400 hover:text-white transition-colors cursor-pointer z-20"
+                className="absolute top-4 right-4 p-2.5 bg-black/70 hover:bg-black/95 rounded-full border border-white/15 hover:border-primary text-gray-300 hover:text-white transition-all cursor-pointer z-20"
+                title="Fechar visualização"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Footer Indicator info */}
-              <div className="absolute bottom-4 left-4 right-4 text-center">
-                <span className="px-3 py-1.5 rounded-lg bg-black/75 backdrop-blur-sm text-[10px] text-gray-400 border border-white/5 font-mono">
-                  {activePhoto.name} (Protegido por Direitos Autorais)
+              {/* Footer Indicator & Selection Action */}
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 z-20">
+                <span className="px-3.5 py-2 rounded-xl bg-black/80 backdrop-blur-md text-xs text-gray-300 border border-white/10 font-mono truncate max-w-[200px] sm:max-w-xs">
+                  {activePhoto.name}
                 </span>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelectPhoto(activePhoto.id);
+                  }}
+                  disabled={buyAllPackage}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer border shadow-lg ${
+                    buyAllPackage
+                      ? "bg-primary/20 text-primary border-primary/30 cursor-not-allowed opacity-80"
+                      : selectedPhotos.includes(activePhoto.id)
+                      ? "bg-primary text-black border-primary shadow-primary/20"
+                      : "bg-black/80 hover:bg-black text-white border-white/20 hover:border-primary"
+                  }`}
+                >
+                  {buyAllPackage ? (
+                    <>
+                      <Check className="w-4 h-4" /> Pacote Ativo
+                    </>
+                  ) : selectedPhotos.includes(activePhoto.id) ? (
+                    <>
+                      <Check className="w-4 h-4" /> Selecionada
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-4 h-4" /> Selecionar Foto
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </div>
