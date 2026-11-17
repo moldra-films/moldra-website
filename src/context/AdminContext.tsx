@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { AlertTriangle, Trash2, X, RefreshCw } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export interface ConfirmModalOptions {
   title?: string;
@@ -270,7 +271,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load state from Supabase database on client-side mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+
+    const loadData = () => {
       const noCacheOptions = { cache: "no-store" as const, headers: { "Cache-Control": "no-cache" } };
       Promise.all([
         fetch("/api/event-media", noCacheOptions).then((res) => res.ok ? res.json() : []).catch(() => []),
@@ -350,7 +353,27 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .finally(() => {
           setIsLoaded(true);
         });
-    }
+    };
+
+    loadData();
+
+    // The API now requires a login, so data fetched while logged out is empty.
+    // Reload it when a different user signs in (the provider lives in the root
+    // layout and is NOT remounted by client-side navigation after login).
+    let lastUserId: string | null | undefined;
+    supabase.auth.getSession().then(({ data }) => {
+      if (lastUserId === undefined) lastUserId = data.session?.user?.id ?? null;
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      const userId = session?.user?.id ?? null;
+      if (event === "SIGNED_OUT") {
+        lastUserId = null;
+      } else if (event === "SIGNED_IN" && userId && userId !== lastUserId) {
+        lastUserId = userId;
+        loadData();
+      }
+    });
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   // Save to Database when state changes and loaded is complete (never send empty arrays)
