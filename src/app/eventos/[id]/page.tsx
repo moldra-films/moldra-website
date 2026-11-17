@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAdmin, EventPhoto } from "@/context/AdminContext";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy, Tag, Gift, Percent, User, Phone } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowDown, Check, ShoppingCart, Info, Eye, Download, ShieldCheck, X, QrCode, Copy, Tag, Gift, Percent, User, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 function EventGalleryContent() {
@@ -34,6 +34,20 @@ function EventGalleryContent() {
   // Customer Identification (No login / password required)
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+
+  // Cart / Checkout scroll ref
+  const checkoutRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToCheckout = () => {
+    if (checkoutRef.current) {
+      checkoutRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      const el = document.getElementById("checkout-cart");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
 
   // Pre-load saved name & phone if available on this device
   useEffect(() => {
@@ -317,7 +331,7 @@ function EventGalleryContent() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg text-white font-sans selection:bg-primary/20 relative overflow-hidden py-12 px-6">
+    <div className="min-h-screen bg-dark-bg text-white font-sans selection:bg-primary/20 relative overflow-hidden pt-12 pb-28 lg:pb-12 px-4 sm:px-6">
       {/* Background radial effects */}
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[400px] h-[400px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
@@ -522,7 +536,7 @@ function EventGalleryContent() {
             </div>
 
             {/* Shopping Cart Summary Sidebar */}
-            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
+            <div id="checkout-cart" ref={checkoutRef} className="lg:col-span-4 space-y-6 lg:sticky lg:top-8 scroll-mt-6">
               <h3 className="text-xs uppercase font-bold text-gray-400 tracking-wider">Resumo do Pedido</h3>
 
               <div className="p-6 rounded-2xl bg-dark-card border border-white/5 space-y-6">
@@ -776,6 +790,47 @@ function EventGalleryContent() {
 
       </div>
 
+      {/* Mobile Floating Cart Button (Appears when photos are selected) */}
+      <AnimatePresence>
+        {!activePhoto && !purchaseSuccess && checkoutItemsCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            className="fixed bottom-4 left-3 right-3 z-40 lg:hidden"
+          >
+            <button
+              type="button"
+              onClick={scrollToCheckout}
+              className="w-full p-3.5 rounded-2xl bg-primary text-black font-sans font-bold shadow-[0_12px_36px_rgba(212,175,55,0.45)] flex items-center justify-between border border-black/15 active:scale-[0.98] transition-all cursor-pointer backdrop-blur-md"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-black text-primary flex items-center justify-center relative shrink-0 shadow-md">
+                  <ShoppingCart className="w-5 h-5" />
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-emerald-500 text-black text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-primary">
+                    {checkoutItemsCount}
+                  </span>
+                </div>
+                <div className="text-left">
+                  <span className="block text-[10px] uppercase tracking-wider text-black/75 font-mono font-bold">
+                    {buyAllPackage ? "Álbum Completo" : `${totalIndividualCount} ${totalIndividualCount === 1 ? "foto selecionada" : "fotos selecionadas"}`}
+                  </span>
+                  <span className="block text-base font-extrabold leading-tight">
+                    {isFree ? "Grátis (R$ 0,00)" : `R$ ${finalPrice},00`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-extrabold bg-black text-primary px-3.5 py-2.5 rounded-xl shadow-sm">
+                <span>Ver Carrinho</span>
+                <ArrowDown className="w-4 h-4 animate-bounce" />
+              </div>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Lightbox Image Preview Modal */}
       <AnimatePresence>
         {activePhoto && (
@@ -898,35 +953,53 @@ function EventGalleryContent() {
                   {activePhoto.name}
                 </span>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSelectPhoto(activePhoto.id);
-                  }}
-                  disabled={buyAllPackage}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer border shadow-lg ${
-                    buyAllPackage
-                      ? "bg-primary/20 text-primary border-primary/30 cursor-not-allowed opacity-80"
-                      : selectedPhotos.includes(activePhoto.id)
-                      ? "bg-primary text-black border-primary shadow-primary/20"
-                      : "bg-black/80 hover:bg-black text-white border-white/20 hover:border-primary"
-                  }`}
-                >
-                  {buyAllPackage ? (
-                    <>
-                      <Check className="w-4 h-4" /> Pacote Ativo
-                    </>
-                  ) : selectedPhotos.includes(activePhoto.id) ? (
-                    <>
-                      <Check className="w-4 h-4" /> Selecionada
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-4 h-4" /> Selecionar Foto
-                    </>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelectPhoto(activePhoto.id);
+                    }}
+                    disabled={buyAllPackage}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer border shadow-lg ${
+                      buyAllPackage
+                        ? "bg-primary/20 text-primary border-primary/30 cursor-not-allowed opacity-80"
+                        : selectedPhotos.includes(activePhoto.id)
+                        ? "bg-primary text-black border-primary shadow-primary/20"
+                        : "bg-black/80 hover:bg-black text-white border-white/20 hover:border-primary"
+                    }`}
+                  >
+                    {buyAllPackage ? (
+                      <>
+                        <Check className="w-4 h-4" /> Pacote Ativo
+                      </>
+                    ) : selectedPhotos.includes(activePhoto.id) ? (
+                      <>
+                        <Check className="w-4 h-4" /> Selecionada
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4" /> Selecionar Foto
+                      </>
+                    )}
+                  </button>
+
+                  {(selectedPhotos.length > 0 || buyAllPackage) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePhoto(null);
+                        setTimeout(scrollToCheckout, 150);
+                      }}
+                      className="px-3.5 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-primary/40 shadow-lg"
+                      title="Ir para o carrinho"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Ver Carrinho</span>
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
             </motion.div>
           </div>
