@@ -18,19 +18,34 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    const mapped = (data || []).map((event: any) => ({
-      id: event.id,
-      name: event.name,
-      date: event.date,
-      pricePerPhoto: event.price_per_photo,
-      packagePrice: event.package_price,
-      photos: isAdmin
-        ? event.photos || []
-        : (Array.isArray(event.photos) ? event.photos : []).map((p: any) => {
-            const base = `/api/photos/preview?e=${event.id}&p=${encodeURIComponent(p.id)}`;
-            return { id: p.id, name: p.name, url: `${base}&w=1280`, thumbUrl: `${base}&w=480` };
-          }),
-    }));
+    const mapped = (data || []).map((event: any) => {
+      const photosArray = Array.isArray(event.photos) ? event.photos : [];
+      const coverPhoto = photosArray.find((p: any) => p.isCover);
+      let coverUrl = event.cover_url || event.coverUrl || coverPhoto?.url || null;
+
+      // For public users, if cover points to an event photo, provide watermarked preview URL
+      if (!isAdmin && coverUrl) {
+        const matchingPhoto = photosArray.find((p: any) => p.url === coverUrl || p.id === coverUrl);
+        if (matchingPhoto) {
+          coverUrl = `/api/photos/preview?e=${event.id}&p=${encodeURIComponent(matchingPhoto.id)}&w=1280`;
+        }
+      }
+
+      return {
+        id: event.id,
+        name: event.name,
+        date: event.date,
+        pricePerPhoto: event.price_per_photo,
+        packagePrice: event.package_price,
+        coverUrl,
+        photos: isAdmin
+          ? photosArray
+          : photosArray.map((p: any) => {
+              const base = `/api/photos/preview?e=${event.id}&p=${encodeURIComponent(p.id)}`;
+              return { id: p.id, name: p.name, url: `${base}&w=1280`, thumbUrl: `${base}&w=480`, isCover: !!p.isCover };
+            }),
+      };
+    });
 
     return NextResponse.json(mapped, {
       headers: {
@@ -78,20 +93,38 @@ export async function POST(request: Request) {
 
     // 2. Insert new events
     if (body.length > 0) {
-      const insertRows = body.map((event: any) => ({
-        id: event.id,
-        name: event.name,
-        date: event.date,
-        price_per_photo: event.pricePerPhoto,
-        package_price: event.packagePrice,
-        photos: event.photos || [],
-      }));
+      const insertRows = body.map((event: any) => {
+        const photosWithCover = (event.photos || []).map((p: any) => {
+          if (event.coverUrl && (p.url === event.coverUrl || p.thumbUrl === event.coverUrl || p.id === event.coverUrl)) {
+            return { ...p, isCover: true };
+          }
+          return p;
+        });
+        return {
+          id: event.id,
+          name: event.name,
+          date: event.date,
+          price_per_photo: event.pricePerPhoto,
+          package_price: event.packagePrice,
+          cover_url: event.coverUrl || null,
+          photos: photosWithCover,
+        };
+      });
 
       const { error: insertError } = await supabase
         .from("event_medias")
         .insert(insertRows);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        // Fallback without cover_url column if table does not have that column
+        console.warn("Retrying insert without cover_url column:", insertError.message);
+        const fallbackRows = insertRows.map(({ cover_url, ...rest }: any) => rest);
+        const { error: fallbackError } = await supabase
+          .from("event_medias")
+          .insert(fallbackRows);
+
+        if (fallbackError) throw fallbackError;
+      }
     }
 
     return NextResponse.json({ success: true });

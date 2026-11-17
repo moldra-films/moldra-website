@@ -146,6 +146,7 @@ export interface EventMedia {
   date: string;
   pricePerPhoto: number;
   packagePrice: number;
+  coverUrl?: string;
   photos: EventPhoto[];
 }
 
@@ -191,6 +192,7 @@ interface AdminContextProps {
   // Finance actions
   addTransaction: (transaction: Omit<Transaction, "id"> & { paymentId?: string }) => void;
   markTransactionPaid: (id: number) => void;
+  deleteTransaction: (id: number) => Promise<void>;
   
   // Equipment actions
   updateEquipmentStatus: (id: number, status: Equipment["status"], responsible?: string) => void;
@@ -723,6 +725,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const deleteTransaction = async (id: number) => {
+    setTransactions((prev) => prev.filter((trans) => trans.id !== id));
+
+    try {
+      await fetch(`/api/transactions?id=${id}`, {
+        method: "DELETE",
+      });
+      addNotification("Pedido Removido", "O pedido de fotos / transação foi excluído com sucesso.", "payment");
+    } catch (err) {
+      console.error("Error deleting transaction:", err);
+    }
+  };
+
   // Equipment actions
   const updateEquipmentStatus = (id: number, status: Equipment["status"], responsible: string = "Nenhum") => {
     setEquipments((prev) =>
@@ -906,6 +921,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleTaskItem,
         addTransaction,
         markTransactionPaid,
+        deleteTransaction,
         updateEquipmentStatus,
         addEquipment,
         updateEquipment,

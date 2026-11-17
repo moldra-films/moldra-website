@@ -197,3 +197,67 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  const denied = await guardAdmin(request);
+  if (denied) return denied;
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const idParam = searchParams.get("id");
+    if (!idParam) {
+      return NextResponse.json({ error: "Missing id parameter" }, { status: 400 });
+    }
+
+    const numId = parseInt(idParam, 10);
+
+    // 1. Fetch transaction details first to check for any linked payment
+    const { data: txData } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("id", numId)
+      .maybeSingle();
+
+    // 2. Delete from Supabase transactions table
+    const { error: delErr } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", numId);
+
+    if (delErr) throw delErr;
+
+    // 3. If there is a paymentId in description (e.g. #123456789), cancel photo_orders
+    if (txData && txData.description) {
+      const match = txData.description.match(/#(\d+)/);
+      if (match) {
+        const paymentId = match[1];
+        try {
+          await supabase
+            .from("photo_orders")
+            .update({ status: "cancelled" })
+            .eq("payment_id", paymentId);
+        } catch (oErr) {
+          console.warn("Could not cancel matching photo_order:", oErr);
+        }
+      }
+    }
+
+    // 4. Also remove from FinanceDb if present
+    try {
+      const financeDb = await FinanceDb.load(true);
+      if (financeDb.transactions && financeDb.transactions.length > 0) {
+        financeDb.transactions = financeDb.transactions.filter(
+          (t: any) => String(t.id) !== String(idParam) && Number(t.id) !== numId
+        );
+        await FinanceDb.save(financeDb);
+      }
+    } catch (fErr) {
+      console.warn("Could not sync deletion to FinanceDb:", fErr);
+    }
+
+    return NextResponse.json({ success: true, deletedId: numId });
+  } catch (error: any) {
+    console.error("Error deleting transaction:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

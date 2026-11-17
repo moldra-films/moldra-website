@@ -50,7 +50,7 @@ export default function PublicEventsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-8">
           {eventMedias.map((event) => {
             const hasPhotos = event.photos && event.photos.length > 0;
-            const coverPhoto = hasPhotos ? event.photos[0].thumbUrl || event.photos[0].url : null;
+            const coverPhoto = event.coverUrl || (hasPhotos ? event.photos[0].thumbUrl || event.photos[0].url : null);
 
             return (
               <div

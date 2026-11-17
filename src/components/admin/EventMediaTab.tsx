@@ -2,12 +2,12 @@
 
 import React, { useState } from "react";
 import { useAdmin, EventMedia, EventPhoto } from "@/context/AdminContext";
-import { Camera, Plus, Calendar, DollarSign, Trash2, UploadCloud, X, CheckCircle2, Image as ImageIcon, Eye, Pencil, Tag, Gift } from "lucide-react";
+import { Camera, Plus, Calendar, DollarSign, Trash2, UploadCloud, X, CheckCircle2, Image as ImageIcon, Eye, Pencil, Tag, Gift, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 export default function EventMediaTab() {
-  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, updateEventMedia, transactions, confirmModal } = useAdmin();
+  const { eventMedias, addEventMedia, deleteEventMedia, addPhotosToEvent, deletePhotoFromEvent, updateEventMedia, transactions, deleteTransaction, confirmModal } = useAdmin();
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   // Filter transactions for photo sales
@@ -19,7 +19,9 @@ export default function EventMediaTab() {
     date: "",
     pricePerPhoto: 15,
     packagePrice: 199,
+    coverUrl: "",
   });
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Edit Event Form state
   const [editingEvent, setEditingEvent] = useState<EventMedia | null>(null);
@@ -29,6 +31,7 @@ export default function EventMediaTab() {
     date: "",
     pricePerPhoto: 15,
     packagePrice: 199,
+    coverUrl: "",
   });
 
   const handleOpenEdit = (event: EventMedia, e?: React.MouseEvent) => {
@@ -39,6 +42,7 @@ export default function EventMediaTab() {
       date: event.date,
       pricePerPhoto: event.pricePerPhoto,
       packagePrice: event.packagePrice,
+      coverUrl: event.coverUrl || "",
     });
     setShowEditModal(true);
   };
@@ -51,6 +55,7 @@ export default function EventMediaTab() {
       date: editForm.date,
       pricePerPhoto: Number(editForm.pricePerPhoto),
       packagePrice: Number(editForm.packagePrice),
+      coverUrl: editForm.coverUrl || undefined,
     });
     setShowEditModal(false);
     setEditingEvent(null);
@@ -125,6 +130,44 @@ export default function EventMediaTab() {
 
   const selectedEvent = eventMedias.find((e) => e.id === selectedEventId);
 
+  const handleUploadCover = async (file: File, isEdit: boolean) => {
+    try {
+      setUploadingCover(true);
+      let processedFile = file;
+      if (file.type.startsWith("image/")) {
+        processedFile = await compressImage(file, 1600, 1600, 0.85);
+      }
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: `capa-${Date.now()}-${file.name}`,
+          fileType: file.type,
+          folder: "capas",
+        }),
+      });
+      if (!res.ok) throw new Error("Falha ao obter URL de upload");
+      const { uploadUrl, fileUrl } = await res.json();
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: processedFile,
+      });
+      if (!uploadRes.ok) throw new Error("Falha no upload direto da capa");
+
+      if (isEdit) {
+        setEditForm((prev) => ({ ...prev, coverUrl: fileUrl }));
+      } else {
+        setNewEvent((prev) => ({ ...prev, coverUrl: fileUrl }));
+      }
+    } catch (err) {
+      console.error("Erro ao subir capa:", err);
+      alert("Erro ao fazer upload da imagem de capa. Tente novamente.");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEvent.name || !newEvent.date) return;
@@ -133,8 +176,9 @@ export default function EventMediaTab() {
       date: newEvent.date,
       pricePerPhoto: Number(newEvent.pricePerPhoto),
       packagePrice: Number(newEvent.packagePrice),
+      coverUrl: newEvent.coverUrl || undefined,
     });
-    setNewEvent({ name: "", date: "", pricePerPhoto: 15, packagePrice: 199 });
+    setNewEvent({ name: "", date: "", pricePerPhoto: 15, packagePrice: 199, coverUrl: "" });
     setShowCreateModal(false);
   };
 
@@ -321,17 +365,36 @@ export default function EventMediaTab() {
                       : "bg-dark-card border-white/5 hover:border-white/10"
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-white font-display truncate max-w-[200px]">
-                        {event.name}
-                      </h4>
-                      <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-primary" /> {event.date}
-                      </p>
+                  <div className="flex justify-between items-start mb-4 gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {event.coverUrl || (event.photos && event.photos[0]) ? (
+                        <div className="w-10 h-10 rounded-xl overflow-hidden relative shrink-0 border border-white/10 bg-black/40">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={event.coverUrl || event.photos[0].url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                          {event.coverUrl && (
+                            <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-black" title="Capa personalizada definida" />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 text-gray-600">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div className="space-y-1 min-w-0">
+                        <h4 className="text-sm font-bold text-white font-display truncate max-w-[170px]">
+                          {event.name}
+                        </h4>
+                        <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-primary" /> {event.date}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={(e) => handleOpenEdit(event, e)}
                         className="p-1.5 bg-white/5 hover:bg-primary/20 text-gray-400 hover:text-primary rounded-lg border border-white/5 transition-colors cursor-pointer"
@@ -422,6 +485,50 @@ export default function EventMediaTab() {
                   <div>
                     <span className="text-gray-500 block mb-1">Data Evento</span>
                     <span className="font-bold text-white text-sm">{selectedEvent.date}</span>
+                  </div>
+                </div>
+
+                {/* Event Cover Status row */}
+                <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    {selectedEvent.coverUrl ? (
+                      <>
+                        <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-primary/40 bg-black/40 shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={selectedEvent.coverUrl} alt="Capa" className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-primary" /> Capa Ativa do Evento
+                          </span>
+                          <span className="text-[10px] text-gray-400 block mt-0.5">
+                            Esta foto é exibida como capa do álbum no site.
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-500 text-[11px]">
+                        <ImageIcon className="w-4 h-4 text-gray-600" />
+                        <span>Nenhuma capa específica definida (o site exibe a 1ª foto da galeria).</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenEdit(selectedEvent)}
+                      className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                    >
+                      {selectedEvent.coverUrl ? "Trocar Capa" : "Adicionar Capa"}
+                    </button>
+                    {selectedEvent.coverUrl && (
+                      <button
+                        onClick={() => updateEventMedia(selectedEvent.id, { coverUrl: "" })}
+                        className="text-[10px] text-red-400 hover:text-red-300 font-semibold cursor-pointer hover:underline"
+                      >
+                        Remover
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -529,6 +636,25 @@ export default function EventMediaTab() {
                         </span>
                       </div>
 
+                      {/* Definir como Capa button */}
+                      <button
+                        onClick={() => {
+                          const isCurrentlyCover = selectedEvent.coverUrl === photo.url;
+                          updateEventMedia(selectedEvent.id, {
+                            coverUrl: isCurrentlyCover ? "" : photo.url,
+                          });
+                        }}
+                        className={`absolute top-2 left-2 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer z-10 ${
+                          selectedEvent.coverUrl === photo.url
+                            ? "bg-primary text-black shadow-lg opacity-100 ring-2 ring-primary/40"
+                            : "bg-black/75 hover:bg-primary/20 text-white/80 hover:text-white opacity-0 group-hover:opacity-100"
+                        }`}
+                        title={selectedEvent.coverUrl === photo.url ? "Clique para remover como capa" : "Definir esta foto como capa do evento"}
+                      >
+                        <Star className={`w-3 h-3 ${selectedEvent.coverUrl === photo.url ? "fill-black" : ""}`} />
+                        <span>{selectedEvent.coverUrl === photo.url ? "Capa" : "Capa"}</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           confirmModal({
@@ -610,6 +736,7 @@ export default function EventMediaTab() {
                   <th className="p-3">Data</th>
                   <th className="p-3 text-right">Valor</th>
                   <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -626,12 +753,31 @@ export default function EventMediaTab() {
                         {sale.status}
                       </span>
                     </td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => {
+                          confirmModal({
+                            title: "Excluir Pedido de Fotos",
+                            message: `Tem certeza que deseja excluir o pedido de "${sale.customer || "Cliente"}" no valor de R$ ${sale.value},00? Esta ação removerá o pedido do histórico financeiro.`,
+                            confirmText: "Excluir Pedido",
+                            variant: "danger",
+                            onConfirm: () => {
+                              deleteTransaction(sale.id);
+                            },
+                          });
+                        }}
+                        className="p-1.5 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg border border-white/5 hover:border-red-500/30 transition-colors cursor-pointer inline-flex items-center justify-center"
+                        title="Excluir este pedido de fotos"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
 
                 {photoSales.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center text-xs text-gray-500 font-sans">
+                    <td colSpan={5} className="p-8 text-center text-xs text-gray-500 font-sans">
                       Nenhum pedido de fotos processado ainda.
                     </td>
                   </tr>
@@ -725,6 +871,49 @@ export default function EventMediaTab() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Optional Cover Upload in Create Event */}
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5 flex items-center justify-between">
+                    <span>Foto de Capa do Evento (Opcional)</span>
+                    {newEvent.coverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setNewEvent({ ...newEvent, coverUrl: "" })}
+                        className="text-[9px] text-red-400 hover:underline cursor-pointer"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </label>
+                  {newEvent.coverUrl ? (
+                    <div className="relative h-28 rounded-xl overflow-hidden border border-primary/40 bg-black/40">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={newEvent.coverUrl} alt="Capa" className="w-full h-full object-cover" />
+                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 text-[9px] text-primary font-bold">
+                        Capa Selecionada
+                      </span>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-4 border border-dashed border-white/10 hover:border-primary/40 rounded-xl cursor-pointer bg-black/20 hover:bg-black/30 transition-all">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleUploadCover(e.target.files[0], false);
+                          }
+                        }}
+                      />
+                      <UploadCloud className="w-6 h-6 text-gray-500 mb-1" />
+                      <span className="text-[10px] text-gray-300 font-semibold">
+                        {uploadingCover ? "Enviando capa..." : "Escolher imagem de capa"}
+                      </span>
+                      <span className="text-[9px] text-gray-500">Ou defina depois direto na galeria</span>
+                    </label>
+                  )}
                 </div>
 
                 <button
@@ -830,6 +1019,72 @@ export default function EventMediaTab() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Cover Section in Edit Event */}
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5 flex items-center justify-between">
+                    <span>Foto de Capa do Evento</span>
+                    {editForm.coverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, coverUrl: "" })}
+                        className="text-[9px] text-red-400 hover:underline cursor-pointer"
+                      >
+                        Remover Capa
+                      </button>
+                    )}
+                  </label>
+
+                  {editForm.coverUrl ? (
+                    <div className="relative h-32 rounded-xl overflow-hidden border border-primary/40 bg-black/40 group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={editForm.coverUrl} alt="Capa" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <label className="px-3 py-1.5 bg-primary hover:bg-[#B39356] text-black font-bold text-[10px] uppercase tracking-wider rounded-lg cursor-pointer">
+                          Trocar Foto
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                handleUploadCover(e.target.files[0], true);
+                              }
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, coverUrl: "" })}
+                          className="px-3 py-1.5 bg-red-500/80 hover:bg-red-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 text-[9px] text-primary font-bold">
+                        Capa Ativa
+                      </span>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-4 border border-dashed border-white/10 hover:border-primary/40 rounded-xl cursor-pointer bg-black/20 hover:bg-black/30 transition-all">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleUploadCover(e.target.files[0], true);
+                          }
+                        }}
+                      />
+                      <UploadCloud className="w-6 h-6 text-gray-500 mb-1" />
+                      <span className="text-[10px] text-gray-300 font-semibold">
+                        {uploadingCover ? "Enviando capa..." : "Fazer upload de nova capa"}
+                      </span>
+                      <span className="text-[9px] text-gray-500">Ou clique no botão 'Capa' em qualquer foto da galeria</span>
+                    </label>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-2">

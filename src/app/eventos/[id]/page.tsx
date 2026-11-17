@@ -418,6 +418,35 @@ function EventGalleryContent() {
             
             {/* Gallery Section */}
             <div className="lg:col-span-8 space-y-6">
+              {/* Event Cover Banner */}
+              {event.coverUrl && (
+                <div className="relative w-full h-48 sm:h-64 rounded-2xl overflow-hidden border border-white/10 shadow-xl group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={event.coverUrl}
+                    alt={event.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+                    <div>
+                      <span className="inline-block px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold uppercase tracking-wider text-primary mb-1.5">
+                        {event.photos.length} Fotos no Álbum
+                      </span>
+                      <h2 className="text-lg sm:text-2xl font-bold font-display uppercase tracking-wider text-white drop-shadow-md">
+                        {event.name}
+                      </h2>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-gray-300 block">Pacote Completo</span>
+                      <span className="text-base sm:text-xl font-bold text-primary font-mono">
+                        R$ {event.packagePrice},00
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <span className="text-primary uppercase tracking-[0.2em] text-[10px] font-semibold">
                   Galeria de Evento
