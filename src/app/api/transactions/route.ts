@@ -166,6 +166,30 @@ export async function POST(request: Request) {
 
       if (insertError) throw insertError;
 
+      // Photo-gallery sales are recorded by anonymous buyers, who can no longer
+      // write notifications directly (that table is admin-only). Create the
+      // admin notification here, on the server. Best effort: never fail the sale.
+      if (insertRow.category === "Galeria de Fotos") {
+        try {
+          const { data: lastNotif } = await supabase
+            .from("notifications")
+            .select("id")
+            .order("id", { ascending: false })
+            .limit(1);
+          const nextNotifId = lastNotif && lastNotif.length > 0 ? Number(lastNotif[0].id) + 1 : 1;
+          await supabase.from("notifications").insert({
+            id: nextNotifId,
+            title: "Compra Aprovada via Mercado Pago",
+            description: `${insertRow.description} — R$ ${insertRow.value.toLocaleString("pt-BR")}`,
+            time: "Agora mesmo",
+            unread: true,
+            type: "payment",
+          });
+        } catch (notifErr) {
+          console.warn("Could not create sale notification:", notifErr);
+        }
+      }
+
       return NextResponse.json(insertRow);
     }
   } catch (error: any) {
