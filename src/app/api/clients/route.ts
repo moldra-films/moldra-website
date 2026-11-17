@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuth, unauthorized } from "@/lib/apiAuth";
 import { guardAdmin } from "@/lib/apiAuth";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

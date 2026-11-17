@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { supabase as serverDb } from "@/lib/supabaseServer";
 
 /**
  * Server-side authentication/authorization for API routes.
@@ -62,7 +63,7 @@ export async function getAuth(request: Request): Promise<AuthContext | null> {
       if (DEFAULT_ADMIN_EMAILS.includes(email)) {
         isAdmin = true;
       } else {
-        const { data: rows, error: profileError } = await authClient
+        const { data: rows, error: profileError } = await serverDb
           .from("profiles")
           .select("role")
           .ilike("email", escapeLike(email))

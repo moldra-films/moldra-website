@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseServer";
 import { getAuth, unauthorized, type AuthContext } from "@/lib/apiAuth";
 
 // A project belongs to a client user if its clientName matches the user's e-mail,

@@ -50,7 +50,7 @@ export default function PublicEventsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-8">
           {eventMedias.map((event) => {
             const hasPhotos = event.photos && event.photos.length > 0;
-            const coverPhoto = hasPhotos ? event.photos[0].url : null;
+            const coverPhoto = hasPhotos ? event.photos[0].thumbUrl || event.photos[0].url : null;
 
             return (
               <div
@@ -61,12 +61,12 @@ export default function PublicEventsPage() {
                 <div className="aspect-video relative bg-black/45 flex items-center justify-center overflow-hidden border-b border-white/5">
                   {coverPhoto ? (
                     <>
-                      <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={coverPhoto}
                         alt={event.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        sizes="(max-width: 768px) 100vw, 30vw"
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       {/* Watermark simulator overlay */}
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardAdmin } from "@/lib/apiAuth";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseServer";
 import { FinanceDb } from "@/lib/db/financeDb";
 import { r2, bucketName } from "@/lib/r2Client";
 import { PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";

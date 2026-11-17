@@ -14,7 +14,7 @@ function EventGalleryContent() {
   const searchParams = useSearchParams();
   const eventId = Number(params.id);
   
-  const { eventMedias, addNotification, addTransaction } = useAdmin();
+  const { eventMedias } = useAdmin();
   const event = eventMedias.find((e) => e.id === eventId);
 
   // States
@@ -26,6 +26,10 @@ function EventGalleryContent() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [isWindowFocused, setIsWindowFocused] = useState(true);
+  const [deliveredFiles, setDeliveredFiles] = useState<{ id: string; name: string; url: string; thumbUrl?: string }[]>([]);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState("");
 
   // Anti-Right-Click protection
   useEffect(() => {
@@ -80,6 +84,75 @@ function EventGalleryContent() {
     };
   }, [activePhoto, event]);
 
+  // Asks the SERVER whether an order is paid. Only then are the original files released.
+  const verifyOrder = React.useCallback(async (orderId: string, paymentId?: string) => {
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/photos/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, paymentId }),
+      });
+      if (!res.ok) return "error" as const;
+      const data = await res.json();
+      if (data.paid) {
+        setDeliveredFiles(data.files || []);
+        setPendingOrderId(null);
+        setPaymentNotice("");
+        setPurchaseSuccess(true);
+        return "paid" as const;
+      }
+      setPendingOrderId(orderId);
+      return "pending" as const;
+    } catch {
+      return "error" as const;
+    } finally {
+      setVerifying(false);
+    }
+  }, []);
+
+  // Restore access on this device: the order id saved at checkout is re-checked by the server.
+  useEffect(() => {
+    if (typeof window === "undefined" || !event) return;
+    if (searchParams?.get("payment")) return; // handled by the redirect effect below
+    const saved = localStorage.getItem(`moldra_order_${event.id}`);
+    if (saved) verifyOrder(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id, searchParams]);
+
+  // Handle Mercado Pago return (?payment=success|failure|pending&order=...&payment_id=...)
+  useEffect(() => {
+    if (typeof window === "undefined" || !searchParams || !event) return;
+
+    const status = searchParams.get("payment");
+    if (!status) return;
+
+    const orderId = searchParams.get("order") || localStorage.getItem(`moldra_order_${event.id}`) || "";
+    const paymentId = searchParams.get("payment_id") || searchParams.get("collection_id") || undefined;
+
+    // Clear URL parameters
+    router.replace(window.location.pathname);
+
+    if (status === "failure") {
+      setPaymentNotice("O pagamento foi cancelado ou não pôde ser processado. Você pode tentar novamente.");
+      return;
+    }
+    if (!orderId) {
+      setPaymentNotice("Não encontramos o pedido deste pagamento. Fale com a Moldra Films informando o comprovante.");
+      return;
+    }
+
+    localStorage.setItem(`moldra_order_${event.id}`, orderId);
+    verifyOrder(orderId, paymentId).then((result) => {
+      if (result === "pending") {
+        setPaymentNotice("Seu pagamento está em análise. Assim que for aprovado, as fotos serão liberadas aqui. Use o botão abaixo para verificar.");
+      } else if (result === "error") {
+        setPaymentNotice("Não conseguimos confirmar o pagamento agora. Tente verificar novamente em instantes.");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, event?.id]);
+
   if (!event) {
     return (
       <div className="min-h-screen bg-dark-bg text-white flex flex-col items-center justify-center p-6 space-y-4">
@@ -109,129 +182,20 @@ function EventGalleryContent() {
   const checkoutItemsCount = buyAllPackage || isPackageCheaper ? event.photos.length : totalIndividualCount;
   const activePurchaseMode = buyAllPackage || isPackageCheaper ? "Pacote Completo" : "Individual";
 
-  // Load purchase state from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined" && event) {
-      const savedPurchased = localStorage.getItem(`purchased_photos_${event.id}`);
-      if (savedPurchased) {
-        try {
-          const parsed = JSON.parse(savedPurchased);
-          if (parsed === "all") {
-            setBuyAllPackage(true);
-            setPurchaseSuccess(true);
-          } else if (Array.isArray(parsed) && parsed.length > 0) {
-            setSelectedPhotos(parsed);
-            setPurchaseSuccess(true);
-          }
-        } catch (e) {
-          console.error("Erro ao analisar compras salvas:", e);
-        }
-      }
-    }
-  }, [event]);
-
-  // Handle Mercado Pago query parameter redirects
-  useEffect(() => {
-    if (typeof window === "undefined" || !searchParams || !event) return;
-
-    const paymentStatus = searchParams.get("payment");
-    if (!paymentStatus) return;
-
-    const pendingKey = `pending_purchase_${event.id}`;
-    const pendingData = localStorage.getItem(pendingKey);
-
-    if (paymentStatus === "success") {
-      if (pendingData) {
-        try {
-          const { selectedPhotos: savedPhotos, buyAllPackage: savedBuyAll, finalPrice: savedPrice, checkoutItemsCount: savedCount } = JSON.parse(pendingData);
-          
-          setSelectedPhotos(savedPhotos);
-          setBuyAllPackage(savedBuyAll);
-          setPurchaseSuccess(true);
-
-          // Save purchase permanently on this device
-          localStorage.setItem(`purchased_photos_${event.id}`, JSON.stringify(savedBuyAll ? "all" : savedPhotos));
-
-          // Log transaction in context
-          addTransaction({
-            type: "Receita",
-            category: "Galeria de Fotos",
-            value: savedPrice,
-            date: new Date().toISOString().split("T")[0],
-            description: `Compra de fotos via Mercado Pago - Evento ${event.name} (${savedCount} fotos)`,
-            status: "Pago",
-            customer: `Cliente - Evento ${event.name}`,
-            paymentId: searchParams.get("payment_id") || undefined
-          });
-
-          // Add notifications
-          addNotification(
-            "Compra Aprovada via Mercado Pago",
-            `Faturamento de R$ ${savedPrice.toLocaleString()},00 confirmado para o evento '${event.name}'.`,
-            "payment"
-          );
-        } catch (e) {
-          console.error("Erro ao analisar dados da compra pendente:", e);
-          setPurchaseSuccess(true);
-        }
-      } else {
-        setPurchaseSuccess(true);
-      }
-    } else if (paymentStatus === "failure") {
-      addNotification(
-        "Pagamento Cancelado / Falhou",
-        `A tentativa de compra no evento '${event.name}' não foi concluída.`,
-        "payment"
-      );
-      alert("O pagamento via Mercado Pago foi cancelado ou não pôde ser processado. Por favor, tente novamente.");
-    } else if (paymentStatus === "pending") {
-      addNotification(
-        "Pagamento Pendente",
-        `O pagamento do evento '${event.name}' está em análise pelo Mercado Pago.`,
-        "payment"
-      );
-      alert("Seu pagamento está pendente de processamento pelo Mercado Pago. Assim que for aprovado, o acesso às fotos será liberado.");
-    }
-
-    // Clean up
-    localStorage.removeItem(pendingKey);
-    
-    // Clear URL parameters
-    const cleanUrl = window.location.pathname;
-    router.replace(cleanUrl);
-  }, [searchParams, event, router, addTransaction, addNotification]);
-
   const handleCheckout = async () => {
     if (checkoutItemsCount === 0) return;
     setCheckoutLoading(true);
 
     try {
-      const items = buyAllPackage || isPackageCheaper
-        ? [{ title: `Pacote Completo de Fotos - ${event.name}`, quantity: 1, unit_price: event.packagePrice }]
-        : selectedPhotos.map((id) => {
-            const p = event.photos.find((ph) => ph.id === id);
-            return {
-              title: `Foto ${p?.name || "Avulsa"} - ${event.name}`,
-              quantity: 1,
-              unit_price: event.pricePerPhoto
-            };
-          });
-
-      // Save purchase information in localStorage before redirecting
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`pending_purchase_${event.id}`, JSON.stringify({
-          selectedPhotos,
-          buyAllPackage,
-          finalPrice,
-          checkoutItemsCount,
-          activePurchaseMode
-        }));
-      }
-
+      // The server computes the price from the database; we only say WHAT is being bought.
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, eventId: event.id }),
+        body: JSON.stringify({
+          eventId: event.id,
+          mode: buyAllPackage || isPackageCheaper ? "package" : "individual",
+          photoIds: selectedPhotos,
+        }),
       });
 
       if (!res.ok) {
@@ -240,6 +204,11 @@ function EventGalleryContent() {
         throw new Error(`${errorData.error || "Checkout preferente falhou"}${detailMsg}`);
       }
       const data = await res.json();
+
+      // Remember the order so access can be restored on this device after paying.
+      if (data.orderId && typeof window !== "undefined") {
+        localStorage.setItem(`moldra_order_${event.id}`, data.orderId);
+      }
 
       if (data.initPoint) {
         // Redirect to Mercado Pago checkout
@@ -280,6 +249,21 @@ function EventGalleryContent() {
           </Link>
         </div>
 
+        {(paymentNotice || pendingOrderId) && !purchaseSuccess && (
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary space-y-3">
+            {paymentNotice && <p className="leading-relaxed">{paymentNotice}</p>}
+            {pendingOrderId && (
+              <button
+                onClick={() => verifyOrder(pendingOrderId)}
+                disabled={verifying}
+                className="px-4 py-2 bg-primary text-black font-semibold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer disabled:opacity-50"
+              >
+                {verifying ? "Verificando..." : "Já paguei — verificar pagamento"}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Purchase Success State */}
         {purchaseSuccess ? (
           <motion.div
@@ -299,11 +283,12 @@ function EventGalleryContent() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left pt-6 border-t border-white/5">
-              {(buyAllPackage || isPackageCheaper ? event.photos : event.photos.filter((p) => selectedPhotos.includes(p.id))).map((photo) => (
+              {deliveredFiles.map((photo) => (
                 <div key={photo.id} className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5 gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-lg relative overflow-hidden shrink-0 border border-white/5">
-                      <Image src={photo.url} alt={photo.name} fill className="object-cover" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photo.thumbUrl || photo.url} alt={photo.name} className="absolute inset-0 w-full h-full object-cover" />
                     </div>
                     <span className="text-[11px] text-gray-300 truncate font-mono">{photo.name}</span>
                   </div>
@@ -326,8 +311,9 @@ function EventGalleryContent() {
                 setPurchaseSuccess(false);
                 setSelectedPhotos([]);
                 setBuyAllPackage(false);
+                setDeliveredFiles([]);
                 if (typeof window !== "undefined") {
-                  localStorage.removeItem(`purchased_photos_${event.id}`);
+                  localStorage.removeItem(`moldra_order_${event.id}`);
                 }
               }}
               className="mt-6 px-6 py-2.5 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wider rounded-xl border border-white/5 transition-colors cursor-pointer"
@@ -369,7 +355,7 @@ function EventGalleryContent() {
                       {/* Photo Thumbnail */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={photo.url}
+                        src={photo.thumbUrl || photo.url}
                         alt={photo.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none"
                         loading="lazy"

@@ -136,6 +136,8 @@ export interface EventPhoto {
   id: string;
   url: string;
   name: string;
+  /** Small watermarked preview (public galleries only). */
+  thumbUrl?: string;
 }
 
 export interface EventMedia {

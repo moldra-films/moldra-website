@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
-import { guardAdmin } from "@/lib/apiAuth";
-import { supabase } from "@/lib/supabaseClient";
+import { getAuth, guardAdmin } from "@/lib/apiAuth";
+import { supabase } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Admins get the real records; the public gallery only ever gets watermarked previews.
+    const auth = await getAuth(request);
+    const isAdmin = !!auth?.isAdmin;
+
     const { data, error } = await supabase
       .from("event_medias")
       .select("*")
@@ -20,7 +24,12 @@ export async function GET() {
       date: event.date,
       pricePerPhoto: event.price_per_photo,
       packagePrice: event.package_price,
-      photos: event.photos || [],
+      photos: isAdmin
+        ? event.photos || []
+        : (Array.isArray(event.photos) ? event.photos : []).map((p: any) => {
+            const base = `/api/photos/preview?e=${event.id}&p=${encodeURIComponent(p.id)}`;
+            return { id: p.id, name: p.name, url: `${base}&w=1280`, thumbUrl: `${base}&w=480` };
+          }),
     }));
 
     return NextResponse.json(mapped, {
@@ -47,6 +56,16 @@ export async function POST(request: Request) {
     // Safety guard: never wipe table on empty array
     if (body.length === 0) {
       return NextResponse.json({ success: true, message: "Ignored empty payload for safety" });
+    }
+
+    // Safety guard: never persist watermarked preview URLs over the real originals.
+    const hasPreviewUrls = body.some(
+      (event: any) =>
+        Array.isArray(event?.photos) &&
+        event.photos.some((p: any) => typeof p?.url === "string" && p.url.includes("/api/photos/preview"))
+    );
+    if (hasPreviewUrls) {
+      return NextResponse.json({ error: "Refusing to save preview URLs as originals" }, { status: 400 });
     }
 
     // 1. Delete all current rows

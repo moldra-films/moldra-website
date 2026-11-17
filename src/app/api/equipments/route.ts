@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardAdmin } from "@/lib/apiAuth";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseServer";
 import { FinanceDb } from "@/lib/db/financeDb";
 
 export const dynamic = "force-dynamic";

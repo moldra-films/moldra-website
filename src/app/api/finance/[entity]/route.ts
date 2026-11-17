@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { guardAdmin } from "@/lib/apiAuth";
 import { FinanceDb, FinanceDatabase } from "@/lib/db/financeDb";
 import { AuditLog, Transaction } from "@/types/finance";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseServer";
 
 function mapEntityToKey(entity: string): keyof FinanceDatabase | null {
   switch (entity) {

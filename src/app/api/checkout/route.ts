@@ -1,82 +1,155 @@
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabaseServer";
+import { mercadoPagoToken } from "@/lib/photoOrders";
 
+export const dynamic = "force-dynamic";
+
+const MAX_INDIVIDUAL_PHOTOS = 300;
+
+// Only redirect buyers back to our own site (the Origin header is client-controlled).
+function safeOrigin(request: Request): string {
+  const origin = request.headers.get("origin") || "";
+  if (/^https:\/\/(www\.)?moldrafilms\.com\.br$/i.test(origin)) return origin;
+  if (/^http:\/\/localhost:\d+$/i.test(origin)) return origin;
+  return "https://moldrafilms.com.br";
+}
+
+/**
+ * Creates a photo order and a Mercado Pago payment preference.
+ * The price is ALWAYS computed here from the database - the browser only says
+ * which event and which photos, never how much to charge.
+ *
+ * Body: { eventId: number, mode: "package" | "individual", photoIds?: string[] }
+ */
 export async function POST(request: Request) {
   try {
-    const { items, eventId } = await request.json();
+    const body = await request.json();
+    const eventId = Number(body?.eventId);
+    const wantsPackage = body?.mode === "package";
+    const requestedIds: string[] = Array.isArray(body?.photoIds)
+      ? Array.from(new Set(body.photoIds.filter((id: unknown) => typeof id === "string")))
+      : [];
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { error: "items parameter is required and cannot be empty." },
-        { status: 400 }
-      );
+    if (!Number.isFinite(eventId)) {
+      return NextResponse.json({ error: "eventId is required." }, { status: 400 });
+    }
+    if (!wantsPackage && requestedIds.length === 0) {
+      return NextResponse.json({ error: "Select at least one photo." }, { status: 400 });
+    }
+    if (requestedIds.length > MAX_INDIVIDUAL_PHOTOS) {
+      return NextResponse.json({ error: "Too many photos selected." }, { status: 400 });
     }
 
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-
-    console.log("Checkout API Request Info:", {
-      hasToken: !!accessToken,
-      tokenLength: accessToken?.length || 0,
-      tokenStart: accessToken ? accessToken.substring(0, 15) + "..." : "none",
-      tokenEnd: accessToken ? "..." + accessToken.substring(accessToken.length - 5) : "none",
-      eventId,
-      itemsCount: items?.length || 0
-    });
-
-    if (accessToken) {
-      // Create preference payload for Mercado Pago
-      const preferencePayload = {
-        items: items.map((item) => ({
-          title: item.title,
-          quantity: item.quantity || 1,
-          unit_price: Number(item.unit_price),
-          currency_id: "BRL",
-        })),
-        back_urls: {
-          success: `${request.headers.get("origin") || "http://localhost:3000"}/eventos/${eventId}?payment=success`,
-          failure: `${request.headers.get("origin") || "http://localhost:3000"}/eventos/${eventId}?payment=failure`,
-          pending: `${request.headers.get("origin") || "http://localhost:3000"}/eventos/${eventId}?payment=pending`,
-        },
-        auto_return: "approved",
-      };
-
-      // Call Mercado Pago Preferences API directly
-      const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(preferencePayload),
-      });
-
-      console.log("Mercado Pago Response Status:", mpResponse.status);
-
-      if (!mpResponse.ok) {
-        let errMsg = "Mercado Pago API error";
-        try {
-          const errorData = await mpResponse.json();
-          errMsg = errorData.message || JSON.stringify(errorData);
-        } catch (e) {
-          try {
-            const textData = await mpResponse.text();
-            errMsg = textData || errMsg;
-          } catch (_) {}
-        }
-        throw new Error(errMsg);
-      }
-
-      const data = await mpResponse.json();
-      return NextResponse.json({ initPoint: data.init_point });
-    } else {
+    const accessToken = mercadoPagoToken();
+    if (!accessToken) {
       return NextResponse.json(
         { error: "Mercado Pago Access Token is not configured on the server." },
         { status: 501 }
       );
     }
+
+    const { data: event, error: eventError } = await supabase
+      .from("event_medias")
+      .select("id, name, price_per_photo, package_price, photos")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (eventError) throw eventError;
+    if (!event) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
+    }
+
+    const photos: { id: string; name?: string }[] = Array.isArray(event.photos) ? event.photos : [];
+    const pricePerPhoto = Number(event.price_per_photo) || 0;
+    const packagePrice = Number(event.package_price) || 0;
+    const validIds = new Set(photos.map((p) => p.id));
+
+    let mode: "package" | "individual" = wantsPackage ? "package" : "individual";
+    let photoIds: string[] = [];
+    let amount = packagePrice;
+    let count = photos.length;
+
+    if (mode === "individual") {
+      photoIds = requestedIds.filter((id) => validIds.has(id));
+      if (photoIds.length === 0) {
+        return NextResponse.json({ error: "Selected photos were not found." }, { status: 400 });
+      }
+      amount = photoIds.length * pricePerPhoto;
+      count = photoIds.length;
+      // Same rule shown in the cart: never charge more than the full package.
+      if (packagePrice > 0 && amount >= packagePrice) {
+        mode = "package";
+        photoIds = [];
+        amount = packagePrice;
+        count = photos.length;
+      }
+    }
+
+    amount = Math.round(amount * 100) / 100;
+    if (!(amount > 0)) {
+      return NextResponse.json({ error: "This event has no valid price configured." }, { status: 400 });
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from("photo_orders")
+      .insert({ event_id: eventId, mode, photo_ids: photoIds, amount, status: "pending" })
+      .select("id")
+      .single();
+    if (orderError || !order) throw orderError || new Error("Could not create order");
+
+    const origin = safeOrigin(request);
+    const returnUrl = (status: string) =>
+      `${origin}/eventos/${eventId}?payment=${status}&order=${order.id}`;
+
+    const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({
+        items: [
+          {
+            id: order.id,
+            title:
+              mode === "package"
+                ? `Pacote Completo de Fotos - ${event.name}`
+                : `${count} foto(s) - ${event.name}`,
+            quantity: 1,
+            unit_price: amount,
+            currency_id: "BRL",
+          },
+        ],
+        external_reference: order.id,
+        back_urls: {
+          success: returnUrl("success"),
+          failure: returnUrl("failure"),
+          pending: returnUrl("pending"),
+        },
+        auto_return: "approved",
+        notification_url: `${origin}/api/checkout/webhook`,
+        statement_descriptor: "MOLDRA FILMS",
+      }),
+    });
+
+    if (!mpResponse.ok) {
+      let details = "Mercado Pago API error";
+      try {
+        const err = await mpResponse.json();
+        details = err.message || JSON.stringify(err);
+      } catch {}
+      console.error("Mercado Pago preference error:", mpResponse.status, details);
+      await supabase.from("photo_orders").update({ status: "failed" }).eq("id", order.id);
+      return NextResponse.json(
+        { error: "Failed to process checkout transaction.", details },
+        { status: 502 }
+      );
+    }
+
+    const preference = await mpResponse.json();
+    await supabase.from("photo_orders").update({ preference_id: preference.id }).eq("id", order.id);
+
+    return NextResponse.json({ initPoint: preference.init_point, orderId: order.id });
   } catch (error: any) {
-    console.error("Checkout API error:", error);
+    console.error("Checkout API error:", error?.message || error);
     return NextResponse.json(
-      { error: "Failed to process checkout transaction.", details: error.message },
+      { error: "Failed to process checkout transaction.", details: error?.message },
       { status: 500 }
     );
   }

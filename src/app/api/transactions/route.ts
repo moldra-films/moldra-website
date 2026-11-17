@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseServer";
 import { FinanceDb } from "@/lib/db/financeDb";
 import { guardAdmin } from "@/lib/apiAuth";
 
