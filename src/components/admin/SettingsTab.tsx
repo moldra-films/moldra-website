@@ -529,18 +529,26 @@ export default function SettingsTab() {
       confirmText: "Remover Usuário",
       variant: "danger",
       onConfirm: async () => {
-        const updatedAccounts = accounts.filter((acc) => acc.id !== id);
-        setAccounts(updatedAccounts);
+        const previousAccounts = accounts;
+        setAccounts(accounts.filter((acc) => acc.id !== id));
 
         try {
-          await fetch("/api/admin-accounts", {
-            method: "POST",
+          // The server removes BOTH the panel profile and the Supabase login,
+          // so the same e-mail can be registered again later.
+          const res = await fetch("/api/admin-accounts", {
+            method: "DELETE",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedAccounts),
+            body: JSON.stringify({ email: accountEmail }),
           });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Erro ${res.status}`);
+          }
           window.dispatchEvent(new CustomEvent("moldra-user-updated"));
-        } catch (err) {
+        } catch (err: any) {
           console.error("Error removing account:", err);
+          setAccounts(previousAccounts); // nothing was removed: put the user back in the list
+          alert(`Não foi possível remover o usuário: ${err.message}`);
         }
       },
     });

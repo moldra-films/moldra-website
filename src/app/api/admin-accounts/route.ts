@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseServer";
+import { supabase, usingServiceRole } from "@/lib/supabaseServer";
 import { getAuth, unauthorized, forbidden } from "@/lib/apiAuth";
 
 export const dynamic = "force-dynamic";
@@ -164,5 +164,78 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Error writing admin-accounts to Supabase:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+const PROTECTED_EMAILS = ["admin@moldrafilms.com.br"];
+
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/** Finds a Supabase Auth (login) user by e-mail. */
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const users = data?.users || [];
+    const found = users.find((u) => (u.email || "").toLowerCase() === email);
+    if (found) return found.id;
+    if (users.length < 200) break;
+  }
+  return null;
+}
+
+/**
+ * Removes an account COMPLETELY: the panel profile AND the Supabase login.
+ * (Deleting only the profile left the login behind, so the same e-mail could
+ * never be registered again: "user already exists".)
+ * Body: { email: string }
+ */
+export async function DELETE(request: Request) {
+  const auth = await getAuth(request);
+  if (!auth) return unauthorized();
+  if (!auth.isAdmin) return forbidden();
+
+  if (!usingServiceRole) {
+    return NextResponse.json(
+      { error: "O servidor não está configurado para excluir logins (falta SUPABASE_SERVICE_ROLE_KEY)." },
+      { status: 501 }
+    );
+  }
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    const email = String(body?.email || "").trim().toLowerCase();
+
+    if (!email) return NextResponse.json({ error: "E-mail é obrigatório." }, { status: 400 });
+    if (PROTECTED_EMAILS.includes(email)) {
+      return NextResponse.json({ error: "Este é o acesso administrativo principal e não pode ser removido." }, { status: 400 });
+    }
+    if (email === auth.email) {
+      return NextResponse.json({ error: "Você não pode remover a sua própria conta." }, { status: 400 });
+    }
+
+    // Never remove the last administrator.
+    const { data: admins } = await supabase.from("profiles").select("email").eq("role", "admin");
+    const otherAdmins = (admins || []).filter((a: any) => String(a.email || "").toLowerCase() !== email);
+    const targetIsAdmin = (admins || []).some((a: any) => String(a.email || "").toLowerCase() === email);
+    if (targetIsAdmin && otherAdmins.length === 0) {
+      return NextResponse.json({ error: "Não é possível remover o último administrador." }, { status: 400 });
+    }
+
+    const authUserId = await findAuthUserIdByEmail(email);
+    if (authUserId) {
+      const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(authUserId);
+      if (deleteAuthError) throw deleteAuthError;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").delete().ilike("email", escapeLike(email));
+    if (profileError) throw profileError;
+
+    return NextResponse.json({ success: true, loginDeleted: !!authUserId });
+  } catch (error: any) {
+    console.error("Error deleting account:", error);
+    return NextResponse.json({ error: error.message || "Erro ao remover usuário." }, { status: 500 });
   }
 }
